@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import RankBadge from '@/components/RankBadge.vue'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { plural } from '@/lib/utils'
 
 const auth = useAuthStore()
 const hugs = useHugsStore()
@@ -52,7 +53,7 @@ async function claimDaily() {
     if (dailyResult.value.already_claimed) {
       toast.info('Вы уже получили награду сегодня')
     } else {
-      toast.success(`Получено +${dailyResult.value.amount} монет!`)
+      toast.success(`Получено +${plural(dailyResult.value.amount, 'монета', 'монеты', 'монет')}!`)
     }
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Ошибка')
@@ -121,7 +122,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             <RankBadge :rank="profile?.rank ?? 'Новичок'" />
             <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Coins class="size-3.5" />
-              {{ hugs.balance?.amount ?? 0 }} монет
+              {{ plural(hugs.balance?.amount ?? 0, 'монета', 'монеты', 'монет') }}
             </div>
           </div>
           <div v-if="rankInfo().nextRank" class="space-y-2">
@@ -131,7 +132,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             </div>
             <Progress :model-value="rankInfo().progress" class="h-2" />
             <p class="text-xs text-muted-foreground">
-              Ещё {{ rankInfo().needed }} обнимашек до следующего ранга
+              Ещё {{ plural(rankInfo().needed, 'обнимашка', 'обнимашки', 'обнимашек') }} до следующего ранга
             </p>
           </div>
           <p v-else class="text-xs text-muted-foreground">Максимальный ранг достигнут</p>
@@ -150,7 +151,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
               Уже получено сегодня. Серия: {{ dailyResult.streak_days }} дн.
             </p>
             <p v-else class="text-green-400">
-              +{{ dailyResult.amount }} монет! Серия: {{ dailyResult.streak_days }} дн.
+              +{{ plural(dailyResult.amount, 'монета', 'монеты', 'монет') }}! Серия: {{ dailyResult.streak_days }} дн.
             </p>
           </div>
           <Button @click="claimDaily" :disabled="claimingDaily" variant="outline" class="w-full">
