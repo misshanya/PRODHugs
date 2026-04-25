@@ -10,13 +10,16 @@ const hugsStore = useHugsStore()
 const feed = ref<HugFeedItem[]>([])
 const connected = ref(false)
 const initialLoading = ref(true)
+const now = ref(Date.now())
 let ws: WebSocket | null = null
+let tick: ReturnType<typeof setInterval> | null = null
 
 function timeAgo(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return `${diff} сек.`
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин.`
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч.`
+  const diff = Math.floor((now.value - new Date(dateStr).getTime()) / 1000)
+  if (diff < 5) return 'только что'
+  if (diff < 60) return `${diff} сек. назад`
+  if (diff < 3600) return `${Math.floor(diff / 60)} мин. назад`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ч. назад`
   return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
@@ -53,12 +56,19 @@ onMounted(async () => {
   feed.value = [...hugsStore.feed]
   initialLoading.value = false
   connectWS()
+  tick = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
 })
 
 onUnmounted(() => {
   if (ws) {
     ws.close()
     ws = null
+  }
+  if (tick) {
+    clearInterval(tick)
+    tick = null
   }
 })
 </script>
