@@ -8,7 +8,6 @@ import { useAuthStore } from '@/stores/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import HugButton from '@/components/HugButton.vue'
 import RankBadge from '@/components/RankBadge.vue'
@@ -25,6 +24,24 @@ const error = ref('')
 
 const userId = computed(() => route.params.id as string)
 const isMe = computed(() => auth.user?.id === userId.value)
+
+const prevStats = ref({ total: 0, given: 0, received: 0 })
+const animatingStats = ref({ total: false, given: false, received: false })
+
+function triggerStatsAnimation() {
+  if (!profile.value) return
+  const p = profile.value
+  const changed = {
+    total: p.total_hugs !== prevStats.value.total,
+    given: p.hugs_given !== prevStats.value.given,
+    received: p.hugs_received !== prevStats.value.received,
+  }
+  animatingStats.value = changed
+  prevStats.value = { total: p.total_hugs, given: p.hugs_given, received: p.hugs_received }
+  setTimeout(() => {
+    animatingStats.value = { total: false, given: false, received: false }
+  }, 600)
+}
 
 async function load() {
   loading.value = true
@@ -53,8 +70,16 @@ async function upgrade() {
 }
 
 async function onHugged() {
+  if (profile.value) {
+    prevStats.value = {
+      total: profile.value.total_hugs,
+      given: profile.value.hugs_given,
+      received: profile.value.hugs_received,
+    }
+  }
   profile.value = await hugsStore.getUserProfile(userId.value)
   cooldown.value = await hugsStore.getCooldown(userId.value)
+  triggerStatsAnimation()
 }
 
 onMounted(load)
@@ -103,7 +128,9 @@ onMounted(load)
             <Heart class="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div class="text-2xl font-bold">{{ profile.total_hugs }}</div>
+            <div class="text-2xl font-bold tabular-nums" :class="animatingStats.total && 'stat-pop'">
+              {{ profile.total_hugs }}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -112,7 +139,9 @@ onMounted(load)
             <ArrowUp class="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div class="text-2xl font-bold">{{ profile.hugs_given }}</div>
+            <div class="text-2xl font-bold tabular-nums" :class="animatingStats.given && 'stat-pop'">
+              {{ profile.hugs_given }}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -121,7 +150,9 @@ onMounted(load)
             <ArrowDown class="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div class="text-2xl font-bold">{{ profile.hugs_received }}</div>
+            <div class="text-2xl font-bold tabular-nums" :class="animatingStats.received && 'stat-pop'">
+              {{ profile.hugs_received }}
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -131,17 +131,85 @@
   }
 }
 
-/* Hug animation */
-@keyframes hug-pulse {
-  0%,
-  100% {
+/* ── Hug animations ── */
+
+/* Button glow — warm pulse that radiates outward then fades */
+@keyframes hug-glow {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.65 0.25 0 / 60%);
     transform: scale(1);
   }
-  50% {
+  30% {
+    box-shadow: 0 0 16px 6px oklch(0.65 0.25 0 / 40%);
     transform: scale(1.08);
+  }
+  60% {
+    box-shadow: 0 0 24px 12px oklch(0.65 0.25 0 / 15%);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.65 0.25 0 / 0%);
+    transform: scale(1);
   }
 }
 
 .hug-animate {
-  animation: hug-pulse 0.5s ease-in-out;
+  animation: hug-glow 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Heart burst particle — flies outward along its angle */
+@keyframes heart-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(
+        calc(cos(var(--angle)) * var(--distance)),
+        calc(sin(var(--angle)) * var(--distance))
+      )
+      scale(var(--end-scale))
+      rotate(var(--rotation));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(cos(var(--angle)) * var(--distance) * 1.15)
+        , calc(sin(var(--angle)) * var(--distance) * 1.15)
+      )
+      scale(calc(var(--end-scale) * 0.6))
+      rotate(var(--rotation));
+  }
+}
+
+.heart-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -0.5em;
+  margin-left: -0.5em;
+  pointer-events: none;
+  animation: heart-burst var(--duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  color: var(--particle-color);
+}
+
+/* Stat number color flash — only color changes on hug */
+@keyframes stat-pop {
+  0% {
+    color: var(--foreground);
+  }
+  30% {
+    color: oklch(0.65 0.25 0);
+  }
+  60% {
+    color: oklch(0.70 0.18 15);
+  }
+  100% {
+    color: var(--foreground);
+  }
+}
+
+.stat-pop {
+  animation: stat-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }

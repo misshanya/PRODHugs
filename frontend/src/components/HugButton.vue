@@ -4,6 +4,7 @@ import { Heart, Clock, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useHugsStore, type CooldownInfo } from '@/stores/hugs'
 import { Button } from '@/components/ui/button'
+import HugExplosion from '@/components/HugExplosion.vue'
 
 const props = defineProps<{
   userId: string
@@ -19,6 +20,7 @@ const loading = ref(false)
 const cooldown = ref<CooldownInfo | null>(null)
 const remaining = ref(0)
 const animating = ref(false)
+const showExplosion = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
 
 async function loadCooldown() {
@@ -50,9 +52,10 @@ async function sendHug() {
   try {
     await hugsStore.sendHug(props.userId)
     animating.value = true
+    showExplosion.value = true
     setTimeout(() => {
       animating.value = false
-    }, 500)
+    }, 800)
     toast.success('Объятие отправлено!')
     emit('hugged')
     await loadCooldown()
@@ -61,6 +64,10 @@ async function sendHug() {
   } finally {
     loading.value = false
   }
+}
+
+function onExplosionDone() {
+  showExplosion.value = false
 }
 
 function formatTime(seconds: number): string {
@@ -76,17 +83,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Button
-    @click="sendHug"
-    :disabled="loading || remaining > 0"
-    :size="size ?? 'default'"
-    :variant="remaining > 0 ? 'secondary' : 'default'"
-    :class="[animating ? 'hug-animate' : '']"
-  >
-    <Loader2 v-if="loading" class="size-4 animate-spin" />
-    <Clock v-else-if="remaining > 0" class="size-4" />
-    <Heart v-else class="size-4" />
-    <span v-if="remaining > 0">{{ formatTime(remaining) }}</span>
-    <span v-else>Обнять</span>
-  </Button>
+  <div class="relative inline-flex">
+    <Button
+      @click="sendHug"
+      :disabled="loading || remaining > 0"
+      :size="size ?? 'default'"
+      :variant="remaining > 0 ? 'secondary' : 'default'"
+      :class="[animating ? 'hug-animate' : '']"
+    >
+      <Loader2 v-if="loading" class="size-4 animate-spin" />
+      <Clock v-else-if="remaining > 0" class="size-4" />
+      <Heart v-else class="size-4" />
+      <span v-if="remaining > 0">{{ formatTime(remaining) }}</span>
+      <span v-else>Обнять</span>
+    </Button>
+    <HugExplosion v-if="showExplosion" @done="onExplosionDone" />
+  </div>
 </template>
