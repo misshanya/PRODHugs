@@ -56,7 +56,7 @@ function formatDate(dateStr: string): string {
     <template v-else-if="profile">
       <!-- Profile card -->
       <Card>
-        <CardContent class="flex items-center gap-5 pt-6">
+        <CardContent class="flex items-center gap-5 p-4">
           <Avatar class="size-16">
             <AvatarFallback class="text-lg">
               {{ profile.username.slice(0, 2).toUpperCase() }}
