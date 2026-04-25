@@ -8,6 +8,7 @@ import HugExplosion from '@/components/HugExplosion.vue'
 
 const props = defineProps<{
   userId: string
+  username: string
   size?: 'default' | 'sm' | 'lg'
 }>()
 
@@ -56,11 +57,11 @@ async function sendHug() {
     setTimeout(() => {
       animating.value = false
     }, 800)
-    toast.success('Объятие отправлено!')
+    toast.success(`Ты обнял(а) ${props.username}!`)
     emit('hugged')
     await loadCooldown()
   } catch (e: any) {
-    toast.error(e.response?.data?.message || 'Не удалось отправить объятие')
+    toast.error(e.response?.data?.message || `Не удалось обнять ${props.username}`)
   } finally {
     loading.value = false
   }

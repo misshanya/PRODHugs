@@ -30,6 +30,6 @@ const isMe = auth.user?.id === props.user.id
         </p>
       </div>
     </RouterLink>
-    <HugButton v-if="!isMe" :userId="user.id" size="sm" />
+    <HugButton v-if="!isMe" :userId="user.id" :username="user.username" size="sm" />
   </div>
 </template>

@@ -24,7 +24,7 @@ onMounted(() => {
   <div class="mx-auto max-w-3xl space-y-6">
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Рейтинг</h1>
-      <p class="text-muted-foreground">Топ пользователей по количеству объятий</p>
+      <p class="text-muted-foreground">Топ пользователей по количеству обнимашек</p>
     </div>
 
     <div v-if="hugsStore.loading" class="space-y-3">

@@ -33,7 +33,7 @@ onMounted(search)
   <div class="mx-auto max-w-2xl space-y-6">
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Пользователи</h1>
-      <p class="text-muted-foreground">Найдите пользователя и отправьте объятие</p>
+      <p class="text-muted-foreground">Найдите пользователя и отправьте обнимашку</p>
     </div>
 
     <div class="relative">

@@ -22,9 +22,9 @@ const rankThresholds = [
   { name: 'Новичок', min: 0 },
   { name: 'Обнимашка', min: 10 },
   { name: 'Дружелюбный', min: 50 },
-  { name: 'Мастер объятий', min: 200 },
+  { name: 'Мастер обнимашек', min: 200 },
   { name: 'Легенда', min: 500 },
-  { name: 'Бог объятий', min: 1000 },
+  { name: 'Бог обнимашек', min: 1000 },
 ]
 
 function getRankProgress(totalHugs: number) {
@@ -70,14 +70,14 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
       <h1 class="text-2xl font-semibold tracking-tight">
         Привет, {{ auth.user?.username }}
       </h1>
-      <p class="text-muted-foreground">Ваша панель управления объятиями</p>
+      <p class="text-muted-foreground">Ваша панель управления обнимашками</p>
     </div>
 
     <!-- Stats -->
     <div class="grid gap-4 sm:grid-cols-3">
       <Card v-if="!loading">
         <CardHeader class="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Всего объятий</CardDescription>
+          <CardDescription>Всего обнимашек</CardDescription>
           <Heart class="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -131,7 +131,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             </div>
             <Progress :model-value="rankInfo().progress" class="h-2" />
             <p class="text-xs text-muted-foreground">
-              Ещё {{ rankInfo().needed }} объятий до следующего ранга
+              Ещё {{ rankInfo().needed }} обнимашек до следующего ранга
             </p>
           </div>
           <p v-else class="text-xs text-muted-foreground">Максимальный ранг достигнут</p>
@@ -180,7 +180,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             <Newspaper class="size-5 text-muted-foreground" />
             <div>
               <CardTitle class="text-sm">Лента</CardTitle>
-              <CardDescription>Объятия в реальном времени</CardDescription>
+              <CardDescription>Обнимашки в реальном времени</CardDescription>
             </div>
           </CardHeader>
         </Card>

@@ -68,7 +68,7 @@ onUnmounted(() => {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-semibold tracking-tight">Лента</h1>
-        <p class="text-muted-foreground">Объятия в реальном времени</p>
+        <p class="text-muted-foreground">Обнимашки в реальном времени</p>
       </div>
       <Badge :variant="connected ? 'secondary' : 'destructive'" class="gap-1.5">
         <Wifi v-if="connected" class="size-3" />
@@ -82,7 +82,7 @@ onUnmounted(() => {
     </div>
 
     <div v-else-if="feed.length === 0" class="py-16 text-center text-muted-foreground">
-      <p class="text-lg font-medium">Пока нет объятий</p>
+      <p class="text-lg font-medium">Пока нет обнимашек</p>
       <p class="mt-1 text-sm">Будьте первыми!</p>
     </div>
 

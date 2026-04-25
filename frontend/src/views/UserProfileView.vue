@@ -116,7 +116,7 @@ onMounted(load)
               </span>
             </div>
           </div>
-          <HugButton v-if="!isMe" :userId="userId" size="lg" @hugged="onHugged" />
+          <HugButton v-if="!isMe" :userId="userId" :username="profile.username" size="lg" @hugged="onHugged" />
         </CardContent>
       </Card>
 

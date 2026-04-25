@@ -41,7 +41,7 @@ function formatDate(dateStr: string): string {
   <div class="mx-auto max-w-2xl space-y-6">
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Мой профиль</h1>
-      <p class="text-muted-foreground">Ваша статистика и история объятий</p>
+      <p class="text-muted-foreground">Ваша статистика и история обнимашек</p>
     </div>
 
     <div v-if="loading" class="space-y-4">
@@ -103,12 +103,12 @@ function formatDate(dateStr: string): string {
       <!-- History -->
       <Card>
         <CardHeader>
-          <CardTitle class="text-base">История объятий</CardTitle>
-          <CardDescription>Последние объятия</CardDescription>
+          <CardTitle class="text-base">История обнимашек</CardTitle>
+          <CardDescription>Последние обнимашки</CardDescription>
         </CardHeader>
         <CardContent>
           <div v-if="history.length === 0" class="py-6 text-center text-sm text-muted-foreground">
-            Пока нет объятий
+            Пока нет обнимашек
           </div>
           <div v-else class="space-y-1 max-h-96 overflow-y-auto">
             <div
@@ -121,10 +121,10 @@ function formatDate(dateStr: string): string {
                   <ArrowUp v-if="hug.giver_id === auth.user?.id" class="size-3.5 text-muted-foreground" />
                   <ArrowDown v-else class="size-3.5 text-muted-foreground" />
                   <span v-if="hug.giver_id === auth.user?.id" class="text-muted-foreground">
-                    Вы отправили объятие
+                    Ты обнял(а) кого-то
                   </span>
                   <span v-else class="text-muted-foreground">
-                    Вам отправили объятие
+                    Тебя кто-то обнял(а)
                   </span>
                 </div>
                 <span class="text-xs text-muted-foreground tabular-nums">
