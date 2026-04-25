@@ -63,7 +63,7 @@ Required env vars (loaded from `.env` file, then OS env):
 - `POSTGRES_URL` — full connection string
 - `JWT_SECRET` — HS256 signing key
 
-Copy `.env.example` → `.env`. Note: `.env.example` is missing `JWT_SECRET`; app will fail without it.
+Copy `.env.example` → `.env`. Change the placeholder `JWT_SECRET` value before running.
 
 ## Gotchas
 
