@@ -78,7 +78,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// WebSocket Hub
 	a.hub = ws.NewHub()
 	hugService.SetHugCallback(func(item *models.HugFeedItem) {
-		a.hub.Broadcast(item)
+		a.hub.Broadcast(hughandler.ToFeedItemDTO(item))
 	})
 
 	// Handlers
