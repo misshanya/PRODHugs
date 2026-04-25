@@ -14,13 +14,24 @@ components:
       bearerFormat: JWT
 
   schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - WEAK_PASSWORD
+        - USER_ALREADY_EXISTS
+        - INVALID_CREDENTIALS
+        - USER_NOT_FOUND
+        - CANNOT_HUG_SELF
+        - COOLDOWN_ACTIVE
+        - INSUFFICIENT_BALANCE
+
     Error:
       type: object
       required:
         - code
         - message
       properties:
-        code: { type: string }
+        code: { $ref: '#/components/schemas/ErrorCode' }
         message: { type: string }
 
     User:

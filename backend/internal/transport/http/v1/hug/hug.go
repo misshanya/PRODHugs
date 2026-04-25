@@ -18,7 +18,7 @@ func (h *HugHandler) SendHug(ctx context.Context, req v1.SendHugRequestObject) (
 	if giverID == receiverID {
 		return v1.SendHug400JSONResponse{
 			BadRequestJSONResponse: v1.BadRequestJSONResponse{
-				Code:    "CANNOT_HUG_SELF",
+				Code:    v1.CANNOTHUGSELF,
 				Message: "You cannot hug yourself",
 			},
 		}, nil
@@ -29,7 +29,7 @@ func (h *HugHandler) SendHug(ctx context.Context, req v1.SendHugRequestObject) (
 		if errors.Is(err, errorz.ErrHugCooldownActive) {
 			return v1.SendHug429JSONResponse{
 				TooManyRequestsJSONResponse: v1.TooManyRequestsJSONResponse{
-					Code:    "COOLDOWN_ACTIVE",
+					Code:    v1.COOLDOWNACTIVE,
 					Message: "You need to wait before hugging this user again",
 				},
 			}, nil
@@ -37,7 +37,7 @@ func (h *HugHandler) SendHug(ctx context.Context, req v1.SendHugRequestObject) (
 		if errors.Is(err, errorz.ErrUserNotFound) {
 			return v1.SendHug404JSONResponse{
 				NotFoundJSONResponse: v1.NotFoundJSONResponse{
-					Code:    "USER_NOT_FOUND",
+					Code:    v1.USERNOTFOUND,
 					Message: "User not found",
 				},
 			}, nil
@@ -80,7 +80,7 @@ func (h *HugHandler) UpgradeCooldown(ctx context.Context, req v1.UpgradeCooldown
 		if errors.Is(err, errorz.ErrInsufficientBalance) {
 			return v1.UpgradeCooldown400JSONResponse{
 				BadRequestJSONResponse: v1.BadRequestJSONResponse{
-					Code:    "INSUFFICIENT_BALANCE",
+					Code:    v1.INSUFFICIENTBALANCE,
 					Message: "Not enough balance to upgrade cooldown",
 				},
 			}, nil

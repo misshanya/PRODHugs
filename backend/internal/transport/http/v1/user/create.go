@@ -19,7 +19,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 	if !hasLetter.MatchString(req.Body.Password) {
 		return v1.RegisterUser400JSONResponse{
 			BadRequestJSONResponse: v1.BadRequestJSONResponse{
-				Code:    "WEAK_PASSWORD",
+				Code:    v1.WEAKPASSWORD,
 				Message: "password must contain at least one letter",
 			},
 		}, nil
@@ -27,7 +27,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 	if !hasDigit.MatchString(req.Body.Password) {
 		return v1.RegisterUser400JSONResponse{
 			BadRequestJSONResponse: v1.BadRequestJSONResponse{
-				Code:    "WEAK_PASSWORD",
+				Code:    v1.WEAKPASSWORD,
 				Message: "password must contain at least one digit",
 			},
 		}, nil
@@ -35,7 +35,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 	if !hasSpecial.MatchString(req.Body.Password) {
 		return v1.RegisterUser400JSONResponse{
 			BadRequestJSONResponse: v1.BadRequestJSONResponse{
-				Code:    "WEAK_PASSWORD",
+				Code:    v1.WEAKPASSWORD,
 				Message: "password must contain at least one special character",
 			},
 		}, nil
@@ -53,7 +53,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 			return v1.RegisterUser409JSONResponse{
 				ConflictJSONResponse: v1.ConflictJSONResponse{
 					Message: "user with the given username already exists",
-					Code:    "USER_ALREADY_EXISTS",
+					Code:    v1.USERALREADYEXISTS,
 				},
 			}, nil
 		}

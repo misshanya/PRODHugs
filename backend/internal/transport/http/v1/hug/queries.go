@@ -123,7 +123,7 @@ func (h *HugHandler) GetUserProfile(ctx context.Context, req v1.GetUserProfileRe
 		if errors.Is(err, errorz.ErrUserNotFound) {
 			return v1.GetUserProfile404JSONResponse{
 				NotFoundJSONResponse: v1.NotFoundJSONResponse{
-					Code:    "USER_NOT_FOUND",
+					Code:    v1.USERNOTFOUND,
 					Message: "User not found",
 				},
 			}, nil

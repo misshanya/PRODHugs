@@ -17,7 +17,7 @@ func (h *UserHandler) Login(ctx context.Context, req v1.LoginRequestObject) (v1.
 			return v1.Login401JSONResponse{
 				UnauthorizedJSONResponse: v1.UnauthorizedJSONResponse{
 					Message: "invalid username or password",
-					Code:    "INVALID_CREDENTIALS",
+					Code:    v1.INVALIDCREDENTIALS,
 				},
 			}, nil
 		}
@@ -39,7 +39,7 @@ func (h *UserHandler) GetCurrentUser(ctx context.Context, req v1.GetCurrentUserR
 			return v1.GetCurrentUser404JSONResponse{
 				NotFoundJSONResponse: v1.NotFoundJSONResponse{
 					Message: "user not found",
-					Code:    "USER_NOT_FOUND",
+					Code:    v1.USERNOTFOUND,
 				},
 			}, nil
 		}
