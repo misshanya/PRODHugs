@@ -1,0 +1,556 @@
+openapi: 3.0.3
+info:
+  title: Hugs as a Service API
+  version: 1.0.0
+  description: Platform for hugging other users with rate limits, balance, and ranks
+servers:
+  - url: /api/v1
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code: { type: string }
+        message: { type: string }
+
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - role
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { type: string, enum: [user, admin] }
+
+    AuthResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token: { type: string }
+        user : { $ref: '#/components/schemas/User' }
+
+    Balance:
+      type: object
+      required:
+        - user_id
+        - amount
+      properties:
+        user_id: { type: string, format: uuid }
+        amount: { type: integer }
+
+    Hug:
+      type: object
+      required:
+        - id
+        - giver_id
+        - receiver_id
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        giver_id: { type: string, format: uuid }
+        receiver_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    HugFeedItem:
+      type: object
+      required:
+        - id
+        - giver_id
+        - receiver_id
+        - giver_username
+        - receiver_username
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        giver_id: { type: string, format: uuid }
+        receiver_id: { type: string, format: uuid }
+        giver_username: { type: string }
+        receiver_username: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CooldownInfo:
+      type: object
+      required:
+        - giver_id
+        - receiver_id
+        - cooldown_seconds
+        - remaining_seconds
+        - can_hug
+      properties:
+        giver_id: { type: string, format: uuid }
+        receiver_id: { type: string, format: uuid }
+        cooldown_seconds: { type: integer }
+        remaining_seconds: { type: integer }
+        can_hug: { type: boolean }
+
+    UserProfile:
+      type: object
+      required:
+        - id
+        - username
+        - role
+        - hugs_given
+        - hugs_received
+        - total_hugs
+        - rank
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { type: string }
+        hugs_given: { type: integer }
+        hugs_received: { type: integer }
+        total_hugs: { type: integer }
+        rank: { type: string }
+        balance: { type: integer }
+
+    LeaderboardEntry:
+      type: object
+      required:
+        - user_id
+        - username
+        - total_hugs
+        - hugs_given
+        - hugs_received
+        - rank
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        total_hugs: { type: integer }
+        hugs_given: { type: integer }
+        hugs_received: { type: integer }
+        rank: { type: string }
+
+    DailyRewardResponse:
+      type: object
+      required:
+        - amount
+        - streak_days
+        - new_balance
+      properties:
+        amount: { type: integer }
+        streak_days: { type: integer }
+        new_balance: { type: integer }
+        already_claimed: { type: boolean }
+
+    UserListItem:
+      type: object
+      required:
+        - id
+        - username
+        - role
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { type: string }
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limit / cooldown active
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+paths:
+  /ping:
+    get:
+      summary: Ping endpoint
+      operationId: getPing
+      description: Returns a simple response to check if the server is alive
+      responses:
+        '200':
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status: { type: string }
+
+  /admin/ping:
+    get:
+      summary: "admin ping (testing auth)"
+      operationId: getAdminPing
+      security:
+        - BearerAuth: ["admin"]
+      responses:
+        '200':
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - secret
+                properties:
+                  secret: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      summary: Login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me:
+    get:
+      summary: Get current user info
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/search:
+    get:
+      summary: Search users by username
+      operationId: searchUsers
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of matching users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserListItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/{userId}/profile:
+    get:
+      summary: Get user profile with stats
+      operationId: getUserProfile
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /hugs/{userId}:
+    post:
+      summary: Send a hug to a user
+      operationId: sendHug
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Hug sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hug'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /hugs/cooldown/{userId}:
+    get:
+      summary: Check cooldown status for a user pair
+      operationId: getCooldown
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cooldown info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CooldownInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /hugs/cooldown/{userId}/upgrade:
+    post:
+      summary: Upgrade (reduce) cooldown by spending balance
+      operationId: upgradeCooldown
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cooldown upgraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CooldownInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /hugs/history:
+    get:
+      summary: Get hug history for current user
+      operationId: getHugHistory
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Hug history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hug'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /hugs/feed:
+    get:
+      summary: Get recent hugs feed
+      operationId: getHugsFeed
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Recent hugs feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HugFeedItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /balance:
+    get:
+      summary: Get current user balance
+      operationId: getBalance
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: User balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /daily-reward:
+    post:
+      summary: Claim daily reward
+      operationId: claimDailyReward
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Daily reward claimed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRewardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /leaderboard:
+    get:
+      summary: Get leaderboard
+      operationId: getLeaderboard
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaderboardEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
