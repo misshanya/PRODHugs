@@ -165,37 +165,37 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Лента</h1>
-        <p class="text-muted-foreground">Обнимашки в реальном времени</p>
+  <div class="mx-auto max-w-2xl space-y-4 sm:space-y-6">
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Лента</h1>
+        <p class="text-xs text-muted-foreground sm:text-sm">Обнимашки в реальном времени</p>
       </div>
-      <Badge :variant="connected ? 'secondary' : 'destructive'" class="gap-1.5">
+      <Badge :variant="connected ? 'secondary' : 'destructive'" class="shrink-0 gap-1.5">
         <Wifi v-if="connected" class="size-3" />
         <WifiOff v-else class="size-3" />
-        {{ connected ? 'Подключено' : 'Отключено' }}
+        <span class="hidden xs:inline">{{ connected ? 'Подключено' : 'Отключено' }}</span>
       </Badge>
     </div>
 
     <!-- Activity chart — last 24 hours -->
-    <div class="rounded-md border p-4">
-      <div class="mb-3 flex items-center justify-between">
-        <div>
+    <div class="rounded-md border p-3 sm:p-4">
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <div class="min-w-0">
           <h2 class="text-sm font-medium">Активность за 24 часа</h2>
-          <p class="text-xs text-muted-foreground">Обнимашки по часам</p>
+          <p class="hidden text-xs text-muted-foreground sm:block">Обнимашки по часам</p>
         </div>
-        <div v-if="!chartLoading && activity.length > 0">
-          <p class="text-lg font-semibold tabular-nums text-right">{{ totalHugs24h }}</p>
-          <p class="text-xs text-muted-foreground text-right">всего</p>
+        <div v-if="!chartLoading && activity.length > 0" class="shrink-0 text-right">
+          <p class="text-lg font-semibold tabular-nums">{{ totalHugs24h }}</p>
+          <p class="text-xs text-muted-foreground">всего</p>
         </div>
       </div>
 
-      <Skeleton v-if="chartLoading" class="h-[180px] w-full" />
-      <div v-else-if="activity.length === 0" class="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+      <Skeleton v-if="chartLoading" class="h-[140px] w-full sm:h-[180px]" />
+      <div v-else-if="activity.length === 0" class="flex h-[140px] items-center justify-center text-sm text-muted-foreground sm:h-[180px]">
         Нет данных
       </div>
-      <ChartContainer v-else :config="chartConfig" class="h-[180px] w-full">
+      <ChartContainer v-else :config="chartConfig" class="h-[140px] w-full sm:h-[180px]">
         <VisXYContainer :data="activity" :padding="{ top: 8 }">
           <VisArea
             :x="(_d: HugActivityItem, i: number) => i"
@@ -210,7 +210,7 @@ onUnmounted(() => {
             :tick-line="false"
             :domain-line="false"
             :grid-line="false"
-            :num-ticks="8"
+            :num-ticks="5"
             :tick-format="(i: number) => {
               const item = activity[Math.round(i)]
               if (!item) return ''
@@ -222,7 +222,7 @@ onUnmounted(() => {
             :tick-line="false"
             :domain-line="false"
             :grid-line="true"
-            :num-ticks="4"
+            :num-ticks="3"
           />
           <ChartTooltip />
           <ChartCrosshair
@@ -237,8 +237,8 @@ onUnmounted(() => {
       <Skeleton v-for="i in 8" :key="i" class="h-12 w-full" />
     </div>
 
-    <div v-else-if="feed.length === 0 && pendingCount === 0" class="py-16 text-center text-muted-foreground">
-      <p class="text-lg font-medium">Пока нет обнимашек</p>
+    <div v-else-if="feed.length === 0 && pendingCount === 0" class="py-12 text-center text-muted-foreground sm:py-16">
+      <p class="text-base font-medium sm:text-lg">Пока нет обнимашек</p>
       <p class="mt-1 text-sm">Будьте первыми!</p>
     </div>
 
@@ -248,8 +248,9 @@ onUnmounted(() => {
         <button
           v-if="pendingCount > 0"
           class="sticky top-2 z-20 mx-auto flex items-center gap-1.5 rounded-full border border-border/60
-                 bg-card/90 px-4 py-1.5 text-sm font-medium text-primary shadow-lg backdrop-blur-sm
-                 transition-all hover:bg-card hover:shadow-xl cursor-pointer"
+                 bg-card/90 px-3 py-2 text-xs font-medium text-primary shadow-lg backdrop-blur-sm
+                 transition-all hover:bg-card hover:shadow-xl active:scale-95 cursor-pointer
+                 sm:px-4 sm:py-1.5 sm:text-sm"
           @click="flushPending"
         >
           <ChevronUp class="size-3.5" />
@@ -262,22 +263,22 @@ onUnmounted(() => {
           <div
             v-for="item in feed"
             :key="item.id"
-            class="flex items-center gap-3 px-4 py-3"
+            class="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"
             :class="{ 'feed-new': newItemIds.has(item.id) }"
             @animationend="newItemIds.delete(item.id)"
           >
-            <div class="flex-1 min-w-0 text-sm">
+            <div class="flex-1 min-w-0 text-xs leading-relaxed sm:text-sm sm:leading-normal">
               <RouterLink
                 :to="`/user/${item.giver_id}`"
                 class="font-medium hover:underline"
               >{{ item.giver_username }}</RouterLink>
-              <span class="text-muted-foreground mx-1.5">обнял(а)</span>
+              <span class="text-muted-foreground mx-1">обнял(а)</span>
               <RouterLink
                 :to="`/user/${item.receiver_id}`"
                 class="font-medium hover:underline"
               >{{ item.receiver_username }}</RouterLink>
             </div>
-            <span class="shrink-0 text-xs text-muted-foreground tabular-nums">
+            <span class="shrink-0 text-[10px] text-muted-foreground tabular-nums sm:text-xs">
               {{ timeAgo(item.created_at) }}
             </span>
           </div>

@@ -26,7 +26,7 @@ const showLayout = computed(() => {
           <Separator orientation="vertical" class="mr-2 !h-4" />
           <AppHeader />
         </header>
-        <main class="flex-1 p-6">
+        <main class="flex-1 p-3 sm:p-6">
           <RouterView />
         </main>
       </SidebarInset>
