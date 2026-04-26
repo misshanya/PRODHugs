@@ -33,7 +33,7 @@ onMounted(search)
   <div class="mx-auto max-w-2xl space-y-6">
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Пользователи</h1>
-      <p class="text-muted-foreground">Найдите пользователя и отправьте обнимашку</p>
+      <p class="text-muted-foreground">Обнимись с кем-нибудь</p>
     </div>
 
     <div class="relative">
@@ -52,7 +52,7 @@ onMounted(search)
     </div>
 
     <div v-else-if="users.length === 0" class="py-12 text-center text-muted-foreground">
-      Пользователи не найдены
+      Такого не нашли(
     </div>
 
     <div v-else class="space-y-2">
