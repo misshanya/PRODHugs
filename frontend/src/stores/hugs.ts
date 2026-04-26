@@ -8,6 +8,7 @@ export interface HugFeedItem {
   receiver_id: string
   giver_username: string
   receiver_username: string
+  giver_gender?: string | null
   created_at: string
 }
 
@@ -24,6 +25,7 @@ export interface UserProfile {
   id: string
   username: string
   role: string
+  gender?: string | null
   hugs_given: number
   hugs_received: number
   total_hugs: number

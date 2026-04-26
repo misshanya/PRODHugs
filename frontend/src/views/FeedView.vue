@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Wifi, WifiOff, ChevronUp } from 'lucide-vue-next'
 import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
+import { hugVerb } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
@@ -272,7 +273,7 @@ onUnmounted(() => {
                 :to="`/user/${item.giver_id}`"
                 class="font-medium hover:underline"
               >{{ item.giver_username }}</RouterLink>
-              <span class="text-muted-foreground mx-1">обнял(а)</span>
+              <span class="text-muted-foreground mx-1">{{ hugVerb(item.giver_gender) }}</span>
               <RouterLink
                 :to="`/user/${item.receiver_id}`"
                 class="font-medium hover:underline"

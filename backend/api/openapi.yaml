@@ -14,6 +14,12 @@ components:
       bearerFormat: JWT
 
   schemas:
+    Gender:
+      type: string
+      enum:
+        - male
+        - female
+
     ErrorCode:
       type: string
       enum:
@@ -24,6 +30,7 @@ components:
         - CANNOT_HUG_SELF
         - COOLDOWN_ACTIVE
         - INSUFFICIENT_BALANCE
+        - WRONG_PASSWORD
 
     Error:
       type: object
@@ -44,6 +51,8 @@ components:
         id: { type: string, format: uuid }
         username: { type: string }
         role: { type: string, enum: [user, admin] }
+        gender:
+          $ref: '#/components/schemas/Gender'
 
     AuthResponse:
       type: object
@@ -91,6 +100,8 @@ components:
         receiver_id: { type: string, format: uuid }
         giver_username: { type: string }
         receiver_username: { type: string }
+        giver_gender:
+          $ref: '#/components/schemas/Gender'
         created_at: { type: string, format: date-time }
 
     CooldownInfo:
@@ -122,6 +133,8 @@ components:
         id: { type: string, format: uuid }
         username: { type: string }
         role: { type: string }
+        gender:
+          $ref: '#/components/schemas/Gender'
         hugs_given: { type: integer }
         hugs_received: { type: integer }
         total_hugs: { type: integer }
@@ -167,6 +180,8 @@ components:
         id: { type: string, format: uuid }
         username: { type: string }
         role: { type: string }
+        gender:
+          $ref: '#/components/schemas/Gender'
 
     HugActivityItem:
       type: object
@@ -269,17 +284,20 @@ paths:
                 - username
                 - password
               properties:
-                username:
-                  type: string
-                  minLength: 3
-                  maxLength: 32
-                  pattern: '^[a-zA-Z][a-zA-Z0-9_]*$'
-                  description: 'Username must be 3-32 characters, start with a letter, and contain only letters, numbers, and underscores'
-                password:
-                  type: string
-                  minLength: 8
-                  maxLength: 128
-                  description: 'Password must be 8-128 characters, contain at least one letter, one digit, and one special character'
+                  username:
+                    type: string
+                    minLength: 3
+                    maxLength: 32
+                    pattern: '^[a-zA-Z][a-zA-Z0-9_]*$'
+                    description: 'Username must be 3-32 characters, start with a letter, and contain only letters, numbers, and underscores'
+                  password:
+                    type: string
+                    minLength: 8
+                    maxLength: 128
+                    description: 'Password must be 8-128 characters, contain at least one letter, one digit, and one special character'
+                  gender:
+                    $ref: '#/components/schemas/Gender'
+
               additionalProperties: false
       responses:
         '201':
@@ -409,6 +427,76 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /users/me/settings:
+    put:
+      summary: Update current user settings
+      operationId: updateUserSettings
+      security:
+        - BearerAuth: ["user", "admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gender:
+                  $ref: '#/components/schemas/Gender'
+              additionalProperties: false
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/password:
+    put:
+      summary: Change current user password
+      operationId: changePassword
+      security:
+        - BearerAuth: ["user", "admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+              properties:
+                old_password:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                new_password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                  description: 'Password must be 8-128 characters, contain at least one letter, one digit, and one special character'
+              additionalProperties: false
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /users/search:
     get:

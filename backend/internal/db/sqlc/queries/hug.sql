@@ -15,7 +15,8 @@ SELECT
     h.receiver_id,
     h.created_at,
     g.username AS giver_username,
-    r.username AS receiver_username
+    r.username AS receiver_username,
+    g.gender AS giver_gender
 FROM hugs h
 JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id

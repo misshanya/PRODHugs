@@ -41,11 +41,18 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 		}, nil
 	}
 
+	var gender *string
+	if req.Body.Gender != nil {
+		g := string(*req.Body.Gender)
+		gender = &g
+	}
+
 	input := &models.CreateUser{
 		Username:       req.Body.Username,
 		Password:       req.Body.Password,
 		HashedPassword: req.Body.Password,
 		Role:           "user",
+		Gender:         gender,
 	}
 	u, accessToken, refreshToken, err := h.svc.Create(ctx, input)
 	if err != nil {

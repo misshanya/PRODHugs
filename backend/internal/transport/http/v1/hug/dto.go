@@ -7,12 +7,13 @@ import (
 
 // HugFeedItemDTO is the WebSocket/transport representation of a hug feed event.
 type HugFeedItemDTO struct {
-	ID               string `json:"id"`
-	GiverID          string `json:"giver_id"`
-	ReceiverID       string `json:"receiver_id"`
-	GiverUsername    string `json:"giver_username"`
-	ReceiverUsername string `json:"receiver_username"`
-	CreatedAt        string `json:"created_at"`
+	ID               string  `json:"id"`
+	GiverID          string  `json:"giver_id"`
+	ReceiverID       string  `json:"receiver_id"`
+	GiverUsername    string  `json:"giver_username"`
+	ReceiverUsername string  `json:"receiver_username"`
+	GiverGender      *string `json:"giver_gender,omitempty"`
+	CreatedAt        string  `json:"created_at"`
 }
 
 // ToFeedItemDTO maps a domain HugFeedItem to its transport DTO.
@@ -23,6 +24,7 @@ func ToFeedItemDTO(item *models.HugFeedItem) HugFeedItemDTO {
 		ReceiverID:       item.ReceiverID.String(),
 		GiverUsername:    item.GiverUsername,
 		ReceiverUsername: item.ReceiverUsername,
+		GiverGender:      item.GiverGender,
 		CreatedAt:        item.CreatedAt.Format(time.RFC3339),
 	}
 }

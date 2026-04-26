@@ -7,6 +7,7 @@ type CreateUser struct {
 	Password       string
 	HashedPassword string
 	Role           string
+	Gender         *string
 }
 
 type User struct {
@@ -14,4 +15,5 @@ type User struct {
 	Username       string
 	Role           string
 	HashedPassword string
+	Gender         *string
 }

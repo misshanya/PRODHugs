@@ -1,7 +1,7 @@
 -- name: CreateUser :one
-INSERT INTO users (username, password, role)
+INSERT INTO users (username, password, role, gender)
 VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 RETURNING *;
 
@@ -16,14 +16,14 @@ FROM users
 WHERE id = $1;
 
 -- name: SearchUsers :many
-SELECT id, username, role
+SELECT id, username, role, gender
 FROM users
 WHERE username ILIKE '%' || @query::text || '%'
 ORDER BY username
 LIMIT @lim::int OFFSET @off::int;
 
 -- name: ListAllUsers :many
-SELECT id, username, role
+SELECT id, username, role, gender
 FROM users
 ORDER BY username
 LIMIT @lim::int OFFSET @off::int;
@@ -33,6 +33,7 @@ SELECT
     u.id,
     u.username,
     u.role,
+    u.gender,
     COALESCE(given.cnt, 0) + COALESCE(received.cnt, 0) AS total_hugs,
     COALESCE(given.cnt, 0) AS hugs_given,
     COALESCE(received.cnt, 0) AS hugs_received
@@ -60,9 +61,21 @@ SELECT
     h.receiver_id,
     h.created_at,
     g.username AS giver_username,
-    r.username AS receiver_username
+    r.username AS receiver_username,
+    g.gender AS giver_gender
 FROM hugs h
 JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
 ORDER BY h.created_at DESC
 LIMIT @lim::int;
+
+-- name: UpdateUserSettings :one
+UPDATE users
+SET gender = $2
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password = $2
+WHERE id = $1;

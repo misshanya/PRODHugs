@@ -13,27 +13,34 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password, role)
+INSERT INTO users (username, password, role, gender)
 VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
-RETURNING id, username, password, role
+RETURNING id, username, password, role, gender
 `
 
 type CreateUserParams struct {
 	Username string
 	Password string
 	Role     string
+	Gender   pgtype.Text
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.Password, arg.Role)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.Password,
+		arg.Role,
+		arg.Gender,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Password,
 		&i.Role,
+		&i.Gender,
 	)
 	return i, err
 }
@@ -43,6 +50,7 @@ SELECT
     u.id,
     u.username,
     u.role,
+    u.gender,
     COALESCE(given.cnt, 0) + COALESCE(received.cnt, 0) AS total_hugs,
     COALESCE(given.cnt, 0) AS hugs_given,
     COALESCE(received.cnt, 0) AS hugs_received
@@ -66,6 +74,7 @@ type GetLeaderboardRow struct {
 	ID           uuid.UUID
 	Username     string
 	Role         string
+	Gender       pgtype.Text
 	TotalHugs    int32
 	HugsGiven    int64
 	HugsReceived int64
@@ -84,6 +93,7 @@ func (q *Queries) GetLeaderboard(ctx context.Context, arg GetLeaderboardParams) 
 			&i.ID,
 			&i.Username,
 			&i.Role,
+			&i.Gender,
 			&i.TotalHugs,
 			&i.HugsGiven,
 			&i.HugsReceived,
@@ -105,7 +115,8 @@ SELECT
     h.receiver_id,
     h.created_at,
     g.username AS giver_username,
-    r.username AS receiver_username
+    r.username AS receiver_username,
+    g.gender AS giver_gender
 FROM hugs h
 JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
@@ -120,6 +131,7 @@ type GetRecentHugsFeedRow struct {
 	CreatedAt        pgtype.Timestamptz
 	GiverUsername    string
 	ReceiverUsername string
+	GiverGender      pgtype.Text
 }
 
 func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecentHugsFeedRow, error) {
@@ -138,6 +150,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecent
 			&i.CreatedAt,
 			&i.GiverUsername,
 			&i.ReceiverUsername,
+			&i.GiverGender,
 		); err != nil {
 			return nil, err
 		}
@@ -150,7 +163,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecent
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password, role
+SELECT id, username, password, role, gender
 FROM users
 WHERE id = $1
 `
@@ -163,12 +176,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Username,
 		&i.Password,
 		&i.Role,
+		&i.Gender,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password, role
+SELECT id, username, password, role, gender
 FROM users
 WHERE username = $1
 `
@@ -181,6 +195,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Username,
 		&i.Password,
 		&i.Role,
+		&i.Gender,
 	)
 	return i, err
 }
@@ -207,7 +222,7 @@ func (q *Queries) GetUserStats(ctx context.Context, userID uuid.UUID) (GetUserSt
 }
 
 const listAllUsers = `-- name: ListAllUsers :many
-SELECT id, username, role
+SELECT id, username, role, gender
 FROM users
 ORDER BY username
 LIMIT $2::int OFFSET $1::int
@@ -222,6 +237,7 @@ type ListAllUsersRow struct {
 	ID       uuid.UUID
 	Username string
 	Role     string
+	Gender   pgtype.Text
 }
 
 func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]ListAllUsersRow, error) {
@@ -233,7 +249,12 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 	var items []ListAllUsersRow
 	for rows.Next() {
 		var i ListAllUsersRow
-		if err := rows.Scan(&i.ID, &i.Username, &i.Role); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Role,
+			&i.Gender,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -245,7 +266,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT id, username, role
+SELECT id, username, role, gender
 FROM users
 WHERE username ILIKE '%' || $1::text || '%'
 ORDER BY username
@@ -262,6 +283,7 @@ type SearchUsersRow struct {
 	ID       uuid.UUID
 	Username string
 	Role     string
+	Gender   pgtype.Text
 }
 
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
@@ -273,7 +295,12 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 	var items []SearchUsersRow
 	for rows.Next() {
 		var i SearchUsersRow
-		if err := rows.Scan(&i.ID, &i.Username, &i.Role); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Role,
+			&i.Gender,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -282,4 +309,45 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password = $2
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID       uuid.UUID
+	Password string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.Password)
+	return err
+}
+
+const updateUserSettings = `-- name: UpdateUserSettings :one
+UPDATE users
+SET gender = $2
+WHERE id = $1
+RETURNING id, username, password, role, gender
+`
+
+type UpdateUserSettingsParams struct {
+	ID     uuid.UUID
+	Gender pgtype.Text
+}
+
+func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserSettings, arg.ID, arg.Gender)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.Role,
+		&i.Gender,
+	)
+	return i, err
 }

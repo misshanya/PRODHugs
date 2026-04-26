@@ -40,4 +40,5 @@ type User struct {
 	Username string
 	Password string
 	Role     string
+	Gender   pgtype.Text
 }

@@ -3,10 +3,13 @@ import { ref, computed } from 'vue'
 import { authApi } from '@/api/client'
 import router from '@/router'
 
+export type Gender = 'male' | 'female'
+
 export interface User {
   id: string
   username: string
   role: string
+  gender?: Gender | null
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -19,11 +22,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value)
 
-  async function register(username: string, password: string) {
+  async function register(username: string, password: string, gender?: string) {
     loading.value = true
     error.value = null
     try {
-      const res = await authApi.register(username, password)
+      const res = await authApi.register(username, password, gender)
       token.value = res.data.token
       user.value = res.data.user
       localStorage.setItem('token', res.data.token)

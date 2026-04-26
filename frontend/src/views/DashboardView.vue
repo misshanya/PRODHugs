@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import RankBadge from '@/components/RankBadge.vue'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { plural } from '@/lib/utils'
+import { plural, hugVerb } from '@/lib/utils'
 
 const auth = useAuthStore()
 const hugs = useHugsStore()
@@ -202,12 +202,12 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
                 <ArrowUp v-if="hug.giver_id === auth.user?.id" class="size-3.5 text-muted-foreground" />
                 <ArrowDown v-else class="size-3.5 text-muted-foreground" />
                 <span v-if="hug.giver_id === auth.user?.id" class="text-muted-foreground">
-                  Ты обнял(а)
+                  Ты {{ hugVerb(auth.user?.gender) }}
                   <RouterLink :to="`/user/${hug.receiver_id}`" class="text-foreground font-medium hover:underline">{{ hug.receiver_username }}</RouterLink>
                 </span>
                 <span v-else class="text-muted-foreground">
                   <RouterLink :to="`/user/${hug.giver_id}`" class="text-foreground font-medium hover:underline">{{ hug.giver_username }}</RouterLink>
-                  обнял(а) тебя
+                  {{ hugVerb(hug.giver_gender) }} тебя
                 </span>
               </div>
               <span class="text-xs text-muted-foreground tabular-nums">

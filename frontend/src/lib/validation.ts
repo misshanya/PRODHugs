@@ -65,6 +65,27 @@ export function validateRegisterForm(
   return errors
 }
 
+export function validateChangePasswordForm(
+  oldPassword: string,
+  newPassword: string,
+  newPasswordConfirm: string,
+): FieldError[] {
+  const errors: FieldError[] = []
+
+  if (oldPassword.length === 0) errors.push({ field: 'oldPassword', message: 'Введите текущий пароль' })
+
+  const passwordErr = validatePassword(newPassword)
+  if (passwordErr) errors.push({ field: 'newPassword', message: passwordErr })
+
+  if (newPassword.length > 0 && newPasswordConfirm.length === 0) {
+    errors.push({ field: 'newPasswordConfirm', message: 'Подтвердите новый пароль' })
+  } else if (newPassword !== newPasswordConfirm) {
+    errors.push({ field: 'newPasswordConfirm', message: 'Пароли не совпадают' })
+  }
+
+  return errors
+}
+
 // -------------------------------------------------------------------
 // Backend error parsing
 // -------------------------------------------------------------------
@@ -99,6 +120,7 @@ const HANDLER_ERROR_MAP: Record<string, { field: string | null; message: string 
   WEAK_PASSWORD: { field: 'password', message: 'Пароль не соответствует требованиям безопасности' },
   USER_ALREADY_EXISTS: { field: 'username', message: 'Пользователь с таким именем уже существует' },
   INVALID_CREDENTIALS: { field: null, message: 'Неверное имя пользователя или пароль' },
+  WRONG_PASSWORD: { field: 'oldPassword', message: 'Неверный текущий пароль' },
 }
 
 export interface ParsedBackendError {
@@ -176,7 +198,7 @@ function humanizeValidationDetail(field: string, detail: string): string {
     return 'Некорректное имя пользователя'
   }
 
-  if (field === 'password') {
+  if (field === 'password' || field === 'new_password') {
     if (d.includes('minimum string length')) return `Минимум ${PASSWORD_MIN} символов`
     if (d.includes('maximum string length')) return `Максимум ${PASSWORD_MAX} символов`
     return 'Некорректный пароль'

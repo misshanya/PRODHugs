@@ -18,10 +18,15 @@ func New(db *pgxpool.Pool) *repo {
 }
 
 func toModelUser(u storage.User) *models.User {
+	var gender *string
+	if u.Gender.Valid {
+		gender = &u.Gender.String
+	}
 	return &models.User{
 		ID:             u.ID,
 		Username:       u.Username,
 		Role:           u.Role,
 		HashedPassword: u.Password,
+		Gender:         gender,
 	}
 }

@@ -37,23 +37,33 @@ func toModelCooldown(c storage.HugCooldown) *models.HugCooldown {
 }
 
 func toModelFeedItem(row storage.GetRecentHugsFeedRow) *models.HugFeedItem {
+	var giverGender *string
+	if row.GiverGender.Valid {
+		giverGender = &row.GiverGender.String
+	}
 	return &models.HugFeedItem{
 		ID:               row.ID,
 		GiverID:          row.GiverID,
 		ReceiverID:       row.ReceiverID,
 		GiverUsername:    row.GiverUsername,
 		ReceiverUsername: row.ReceiverUsername,
+		GiverGender:      giverGender,
 		CreatedAt:        row.CreatedAt.Time,
 	}
 }
 
 func toModelHistoryItem(row storage.ListHugsByUserRow) *models.HugFeedItem {
+	var giverGender *string
+	if row.GiverGender.Valid {
+		giverGender = &row.GiverGender.String
+	}
 	return &models.HugFeedItem{
 		ID:               row.ID,
 		GiverID:          row.GiverID,
 		ReceiverID:       row.ReceiverID,
 		GiverUsername:    row.GiverUsername,
 		ReceiverUsername: row.ReceiverUsername,
+		GiverGender:      giverGender,
 		CreatedAt:        row.CreatedAt.Time,
 	}
 }
@@ -80,18 +90,28 @@ func toModelUserStats(row storage.GetUserStatsRow) *models.UserStats {
 }
 
 func toModelUserListItem(row storage.SearchUsersRow) *models.User {
+	var gender *string
+	if row.Gender.Valid {
+		gender = &row.Gender.String
+	}
 	return &models.User{
 		ID:       row.ID,
 		Username: row.Username,
 		Role:     row.Role,
+		Gender:   gender,
 	}
 }
 
 func toModelUserListItemFromAll(row storage.ListAllUsersRow) *models.User {
+	var gender *string
+	if row.Gender.Valid {
+		gender = &row.Gender.String
+	}
 	return &models.User{
 		ID:       row.ID,
 		Username: row.Username,
 		Role:     row.Role,
+		Gender:   gender,
 	}
 }
 

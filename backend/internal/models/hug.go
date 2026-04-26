@@ -19,6 +19,7 @@ type HugFeedItem struct {
 	ReceiverID       uuid.UUID
 	GiverUsername    string
 	ReceiverUsername string
+	GiverGender      *string
 	CreatedAt        time.Time
 }
 

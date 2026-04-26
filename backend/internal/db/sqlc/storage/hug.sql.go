@@ -127,7 +127,8 @@ SELECT
     h.receiver_id,
     h.created_at,
     g.username AS giver_username,
-    r.username AS receiver_username
+    r.username AS receiver_username,
+    g.gender AS giver_gender
 FROM hugs h
 JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
@@ -142,6 +143,7 @@ type ListHugsByUserRow struct {
 	CreatedAt        pgtype.Timestamptz
 	GiverUsername    string
 	ReceiverUsername string
+	GiverGender      pgtype.Text
 }
 
 func (q *Queries) ListHugsByUser(ctx context.Context, giverID uuid.UUID) ([]ListHugsByUserRow, error) {
@@ -160,6 +162,7 @@ func (q *Queries) ListHugsByUser(ctx context.Context, giverID uuid.UUID) ([]List
 			&i.CreatedAt,
 			&i.GiverUsername,
 			&i.ReceiverUsername,
+			&i.GiverGender,
 		); err != nil {
 			return nil, err
 		}

@@ -2,7 +2,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Heart, Clock, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type CooldownInfo } from '@/stores/hugs'
+import { hugVerb } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import HugExplosion from '@/components/HugExplosion.vue'
 
@@ -16,6 +18,7 @@ const emit = defineEmits<{
   hugged: []
 }>()
 
+const auth = useAuthStore()
 const hugsStore = useHugsStore()
 const loading = ref(false)
 const cooldown = ref<CooldownInfo | null>(null)
@@ -57,7 +60,7 @@ async function sendHug() {
     setTimeout(() => {
       animating.value = false
     }, 800)
-    toast.success(`Ты обнял(а) ${props.username}!`)
+    toast.success(`Ты ${hugVerb(auth.user?.gender)} ${props.username}!`)
     emit('hugged')
     await loadCooldown()
   } catch (e: any) {

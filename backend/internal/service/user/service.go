@@ -11,6 +11,8 @@ type repo interface {
 	Create(ctx context.Context, input *models.CreateUser) (*models.User, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
+	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string) (*models.User, error)
+	UpdatePassword(ctx context.Context, id uuid.UUID, hashedPassword string) error
 }
 
 type jwtManager interface {

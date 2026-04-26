@@ -6,6 +6,7 @@ import { validateRegisterForm, parseBackendError, type FieldError } from '@/lib/
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Card,
   CardContent,
@@ -19,6 +20,7 @@ const auth = useAuthStore()
 const username = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
+const gender = ref('')
 const serverError = ref('')
 const fieldErrors = ref<FieldError[]>([])
 const submitted = ref(false)
@@ -40,7 +42,7 @@ async function handleRegister() {
   if (hasErrors.value) return
 
   try {
-    await auth.register(username.value, password.value)
+    await auth.register(username.value, password.value, gender.value || undefined)
   } catch (e: any) {
     const parsed = parseBackendError(e)
     if (parsed.fieldErrors.length > 0) {
@@ -106,6 +108,19 @@ async function handleRegister() {
             <p v-if="submitted && errorFor('passwordConfirm')" class="text-xs text-destructive">
               {{ errorFor('passwordConfirm') }}
             </p>
+          </div>
+          <div class="grid gap-2">
+            <Label>Пол <span class="text-muted-foreground text-xs">(необязательно)</span></Label>
+            <RadioGroup v-model="gender" class="flex gap-4">
+              <div class="flex items-center gap-2">
+                <RadioGroupItem id="reg-gender-male" value="male" />
+                <Label for="reg-gender-male" class="font-normal cursor-pointer">Мужской</Label>
+              </div>
+              <div class="flex items-center gap-2">
+                <RadioGroupItem id="reg-gender-female" value="female" />
+                <Label for="reg-gender-female" class="font-normal cursor-pointer">Женский</Label>
+              </div>
+            </RadioGroup>
           </div>
           <p v-if="serverError" class="text-sm text-destructive text-center">
             {{ serverError }}

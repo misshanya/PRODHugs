@@ -36,6 +36,13 @@ const (
 	USERALREADYEXISTS   ErrorCode = "USER_ALREADY_EXISTS"
 	USERNOTFOUND        ErrorCode = "USER_NOT_FOUND"
 	WEAKPASSWORD        ErrorCode = "WEAK_PASSWORD"
+	WRONGPASSWORD       ErrorCode = "WRONG_PASSWORD"
+)
+
+// Defines values for Gender.
+const (
+	Female Gender = "female"
+	Male   Gender = "male"
 )
 
 // Defines values for UserRole.
@@ -82,6 +89,9 @@ type Error struct {
 // ErrorCode defines model for ErrorCode.
 type ErrorCode string
 
+// Gender defines model for Gender.
+type Gender string
+
 // Hug defines model for Hug.
 type Hug struct {
 	CreatedAt  time.Time          `json:"created_at"`
@@ -99,6 +109,7 @@ type HugActivityItem struct {
 // HugFeedItem defines model for HugFeedItem.
 type HugFeedItem struct {
 	CreatedAt        time.Time          `json:"created_at"`
+	GiverGender      *Gender            `json:"giver_gender,omitempty"`
 	GiverId          openapi_types.UUID `json:"giver_id"`
 	GiverUsername    string             `json:"giver_username"`
 	Id               openapi_types.UUID `json:"id"`
@@ -118,6 +129,7 @@ type LeaderboardEntry struct {
 
 // User defines model for User.
 type User struct {
+	Gender   *Gender            `json:"gender,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 	Role     UserRole           `json:"role"`
 	Username string             `json:"username"`
@@ -128,6 +140,7 @@ type UserRole string
 
 // UserListItem defines model for UserListItem.
 type UserListItem struct {
+	Gender   *Gender            `json:"gender,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 	Role     string             `json:"role"`
 	Username string             `json:"username"`
@@ -136,6 +149,7 @@ type UserListItem struct {
 // UserProfile defines model for UserProfile.
 type UserProfile struct {
 	Balance      *int               `json:"balance,omitempty"`
+	Gender       *Gender            `json:"gender,omitempty"`
 	HugsGiven    int                `json:"hugs_given"`
 	HugsReceived int                `json:"hugs_received"`
 	Id           openapi_types.UUID `json:"id"`
@@ -176,6 +190,8 @@ type RefreshTokenParams struct {
 
 // RegisterUserJSONBody defines parameters for RegisterUser.
 type RegisterUserJSONBody struct {
+	Gender *Gender `json:"gender,omitempty"`
+
 	// Password Password must be 8-128 characters, contain at least one letter, one digit, and one special character
 	Password string `json:"password"`
 
@@ -194,6 +210,18 @@ type GetLeaderboardParams struct {
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ChangePasswordJSONBody defines parameters for ChangePassword.
+type ChangePasswordJSONBody struct {
+	// NewPassword Password must be 8-128 characters, contain at least one letter, one digit, and one special character
+	NewPassword string `json:"new_password"`
+	OldPassword string `json:"old_password"`
+}
+
+// UpdateUserSettingsJSONBody defines parameters for UpdateUserSettings.
+type UpdateUserSettingsJSONBody struct {
+	Gender *Gender `json:"gender,omitempty"`
+}
+
 // SearchUsersParams defines parameters for SearchUsers.
 type SearchUsersParams struct {
 	Q      *string `form:"q,omitempty" json:"q,omitempty"`
@@ -206,6 +234,12 @@ type LoginJSONRequestBody LoginJSONBody
 
 // RegisterUserJSONRequestBody defines body for RegisterUser for application/json ContentType.
 type RegisterUserJSONRequestBody RegisterUserJSONBody
+
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody ChangePasswordJSONBody
+
+// UpdateUserSettingsJSONRequestBody defines body for UpdateUserSettings for application/json ContentType.
+type UpdateUserSettingsJSONRequestBody UpdateUserSettingsJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -257,6 +291,12 @@ type ServerInterface interface {
 	// Get current user info
 	// (GET /users/me)
 	GetCurrentUser(ctx echo.Context) error
+	// Change current user password
+	// (PUT /users/me/password)
+	ChangePassword(ctx echo.Context) error
+	// Update current user settings
+	// (PUT /users/me/settings)
+	UpdateUserSettings(ctx echo.Context) error
 	// Search users by username
 	// (GET /users/search)
 	SearchUsers(ctx echo.Context, params SearchUsersParams) error
@@ -498,6 +538,28 @@ func (w *ServerInterfaceWrapper) GetCurrentUser(ctx echo.Context) error {
 	return err
 }
 
+// ChangePassword converts echo context to params.
+func (w *ServerInterfaceWrapper) ChangePassword(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ChangePassword(ctx)
+	return err
+}
+
+// UpdateUserSettings converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateUserSettings(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateUserSettings(ctx)
+	return err
+}
+
 // SearchUsers converts echo context to params.
 func (w *ServerInterfaceWrapper) SearchUsers(ctx echo.Context) error {
 	var err error
@@ -594,6 +656,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/leaderboard", wrapper.GetLeaderboard)
 	router.GET(baseURL+"/ping", wrapper.GetPing)
 	router.GET(baseURL+"/users/me", wrapper.GetCurrentUser)
+	router.PUT(baseURL+"/users/me/password", wrapper.ChangePassword)
+	router.PUT(baseURL+"/users/me/settings", wrapper.UpdateUserSettings)
 	router.GET(baseURL+"/users/search", wrapper.SearchUsers)
 	router.GET(baseURL+"/users/:userId/profile", wrapper.GetUserProfile)
 
@@ -1122,6 +1186,78 @@ func (response GetCurrentUser404JSONResponse) VisitGetCurrentUserResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ChangePasswordRequestObject struct {
+	Body *ChangePasswordJSONRequestBody
+}
+
+type ChangePasswordResponseObject interface {
+	VisitChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangePassword200JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response ChangePassword200JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ChangePassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ChangePassword400JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ChangePassword401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ChangePassword401JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateUserSettingsRequestObject struct {
+	Body *UpdateUserSettingsJSONRequestBody
+}
+
+type UpdateUserSettingsResponseObject interface {
+	VisitUpdateUserSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateUserSettings200JSONResponse User
+
+func (response UpdateUserSettings200JSONResponse) VisitUpdateUserSettingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateUserSettings400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateUserSettings400JSONResponse) VisitUpdateUserSettingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateUserSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateUserSettings401JSONResponse) VisitUpdateUserSettingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchUsersRequestObject struct {
 	Params SearchUsersParams
 }
@@ -1233,6 +1369,12 @@ type StrictServerInterface interface {
 	// Get current user info
 	// (GET /users/me)
 	GetCurrentUser(ctx context.Context, request GetCurrentUserRequestObject) (GetCurrentUserResponseObject, error)
+	// Change current user password
+	// (PUT /users/me/password)
+	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
+	// Update current user settings
+	// (PUT /users/me/settings)
+	UpdateUserSettings(ctx context.Context, request UpdateUserSettingsRequestObject) (UpdateUserSettingsResponseObject, error)
 	// Search users by username
 	// (GET /users/search)
 	SearchUsers(ctx context.Context, request SearchUsersRequestObject) (SearchUsersResponseObject, error)
@@ -1645,6 +1787,64 @@ func (sh *strictHandler) GetCurrentUser(ctx echo.Context) error {
 	return nil
 }
 
+// ChangePassword operation middleware
+func (sh *strictHandler) ChangePassword(ctx echo.Context) error {
+	var request ChangePasswordRequestObject
+
+	var body ChangePasswordJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangePassword(ctx.Request().Context(), request.(ChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangePassword")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ChangePasswordResponseObject); ok {
+		return validResponse.VisitChangePasswordResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateUserSettings operation middleware
+func (sh *strictHandler) UpdateUserSettings(ctx echo.Context) error {
+	var request UpdateUserSettingsRequestObject
+
+	var body UpdateUserSettingsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateUserSettings(ctx.Request().Context(), request.(UpdateUserSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateUserSettings")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateUserSettingsResponseObject); ok {
+		return validResponse.VisitUpdateUserSettingsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // SearchUsers operation middleware
 func (sh *strictHandler) SearchUsers(ctx echo.Context, params SearchUsersParams) error {
 	var request SearchUsersRequestObject
@@ -1698,47 +1898,49 @@ func (sh *strictHandler) GetUserProfile(ctx echo.Context, userId openapi_types.U
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

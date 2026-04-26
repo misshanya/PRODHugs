@@ -14,6 +14,16 @@ export function cn(...inputs: ClassValue[]) {
  *   plural(5, 'монета', 'монеты', 'монет')  → '5 монет'
  *   plural(21, 'монета', 'монеты', 'монет') → '21 монета'
  */
+/**
+ * Gender-aware verb form for Russian.
+ * Returns 'обнял' for male, 'обняла' for female, 'обнял(а)' when unknown.
+ */
+export function hugVerb(gender?: string | null): string {
+  if (gender === 'male') return 'обнял'
+  if (gender === 'female') return 'обняла'
+  return 'обнял(а)'
+}
+
 export function plural(n: number, one: string, few: string, many: string): string {
   const abs = Math.abs(n)
   const mod10 = abs % 10

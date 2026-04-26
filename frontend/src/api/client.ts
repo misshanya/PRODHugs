@@ -101,8 +101,8 @@ export default api
 
 // Auth
 export const authApi = {
-  register: (username: string, password: string) =>
-    api.post('/auth/register', { username, password }),
+  register: (username: string, password: string, gender?: string) =>
+    api.post('/auth/register', { username, password, ...(gender ? { gender } : {}) }),
   login: (username: string, password: string) =>
     api.post('/auth/login', { username, password }),
   logout: () => api.post('/auth/logout'),
@@ -130,6 +130,9 @@ export const usersApi = {
   search: (q = '', limit = 20, offset = 0) =>
     api.get('/users/search', { params: { q, limit, offset } }),
   getProfile: (userId: string) => api.get(`/users/${userId}/profile`),
+  updateSettings: (data: { gender?: string }) => api.put('/users/me/settings', data),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    api.put('/users/me/password', { old_password: oldPassword, new_password: newPassword }),
 }
 
 // Leaderboard

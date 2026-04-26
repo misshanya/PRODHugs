@@ -7,15 +7,23 @@ import (
 	"go-service-template/internal/models"
 	"go-service-template/internal/repository"
 	"go-service-template/pkg/dberrors"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (r *repo) Create(ctx context.Context, input *models.CreateUser) (*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 
+	var gender pgtype.Text
+	if input.Gender != nil {
+		gender = pgtype.Text{String: *input.Gender, Valid: true}
+	}
+
 	u, err := q.CreateUser(ctx, storage.CreateUserParams{
 		Username: input.Username,
 		Password: input.HashedPassword,
 		Role:     input.Role,
+		Gender:   gender,
 	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
