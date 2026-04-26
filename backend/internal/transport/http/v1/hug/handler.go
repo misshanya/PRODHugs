@@ -14,6 +14,7 @@ type service interface {
 	GetBalance(ctx context.Context, userID uuid.UUID) (*models.Balance, error)
 	GetHugHistory(ctx context.Context, userID uuid.UUID) ([]*models.HugFeedItem, error)
 	GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error)
+	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID) (*models.UserStats, error)
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*models.User, *models.UserStats, *models.Balance, error)

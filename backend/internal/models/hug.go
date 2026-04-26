@@ -22,6 +22,11 @@ type HugFeedItem struct {
 	CreatedAt        time.Time
 }
 
+type HugActivityItem struct {
+	Timestamp time.Time
+	Count     int64
+}
+
 type HugCooldown struct {
 	GiverID         uuid.UUID
 	ReceiverID      uuid.UUID

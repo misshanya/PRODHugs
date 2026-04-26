@@ -24,6 +24,24 @@ func (r *repo) GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFee
 	return result, nil
 }
 
+func (r *repo) GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error) {
+	q := repository.Queries(ctx, r.q)
+
+	rows, err := q.GetHugActivity(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*models.HugActivityItem, len(rows))
+	for i, row := range rows {
+		result[i] = &models.HugActivityItem{
+			Timestamp: row.BucketTime.Time,
+			Count:     row.HugCount,
+		}
+	}
+	return result, nil
+}
+
 func (r *repo) GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error) {
 	q := repository.Queries(ctx, r.q)
 

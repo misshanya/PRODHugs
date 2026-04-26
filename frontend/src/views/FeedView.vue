@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Wifi, WifiOff, ChevronUp } from 'lucide-vue-next'
-import { useHugsStore, type HugFeedItem } from '@/stores/hugs'
+import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
+import type { ChartConfig } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartTooltip,
+  ChartTooltipContent,
+  componentToString,
+} from '@/components/ui/chart'
 
 const hugsStore = useHugsStore()
 const feed = ref<HugFeedItem[]>([])
@@ -22,9 +31,22 @@ const isScrolledAway = ref(false)
 /** Scroll container ref */
 const scrollContainer = ref<HTMLElement | null>(null)
 
-const SCROLL_THRESHOLD = 80
-
 const pendingCount = computed(() => pendingItems.value.length)
+
+/** Chart data */
+const activity = ref<HugActivityItem[]>([])
+const chartLoading = ref(true)
+
+const chartConfig = {
+  count: {
+    label: 'Обнимашки',
+    color: 'oklch(0.65 0.25 0)',
+  },
+} satisfies ChartConfig
+
+const totalHugs24h = computed(() => activity.value.reduce((sum, d) => sum + d.count, 0))
+
+const SCROLL_THRESHOLD = 80
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((now.value - new Date(dateStr).getTime()) / 1000)
@@ -36,8 +58,9 @@ function timeAgo(dateStr: string): string {
 }
 
 function onScroll() {
-  if (!scrollContainer.value) return
-  isScrolledAway.value = scrollContainer.value.scrollTop > SCROLL_THRESHOLD
+  const container = scrollContainer.value
+  if (!container) return
+  isScrolledAway.value = container.scrollTop > SCROLL_THRESHOLD
 }
 
 function prependItem(item: HugFeedItem) {
@@ -88,6 +111,15 @@ function connectWS() {
 }
 
 onMounted(async () => {
+  hugsStore
+    .getHugActivity()
+    .then((data) => {
+      activity.value = data
+    })
+    .finally(() => {
+      chartLoading.value = false
+    })
+
   await hugsStore.fetchFeed(50)
   feed.value = [...hugsStore.feed]
   initialLoading.value = false
@@ -133,6 +165,61 @@ onUnmounted(() => {
         <WifiOff v-else class="size-3" />
         {{ connected ? 'Подключено' : 'Отключено' }}
       </Badge>
+    </div>
+
+    <!-- Activity chart — last 24 hours -->
+    <div class="rounded-md border p-4">
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-medium">Активность за 24 часа</h2>
+          <p class="text-xs text-muted-foreground">Обнимашки по часам</p>
+        </div>
+        <div v-if="!chartLoading && activity.length > 0">
+          <p class="text-lg font-semibold tabular-nums text-right">{{ totalHugs24h }}</p>
+          <p class="text-xs text-muted-foreground text-right">всего</p>
+        </div>
+      </div>
+
+      <Skeleton v-if="chartLoading" class="h-[180px] w-full" />
+      <div v-else-if="activity.length === 0" class="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+        Нет данных
+      </div>
+      <ChartContainer v-else :config="chartConfig" class="h-[180px] w-full">
+        <VisXYContainer :data="activity" :padding="{ top: 8 }">
+          <VisArea
+            :x="(_d: HugActivityItem, i: number) => i"
+            :y="(d: HugActivityItem) => d.count"
+            :color="chartConfig.count.color"
+            :opacity="0.15"
+            curve-type="monotoneX"
+          />
+          <VisAxis
+            type="x"
+            :x="(_d: HugActivityItem, i: number) => i"
+            :tick-line="false"
+            :domain-line="false"
+            :grid-line="false"
+            :num-ticks="8"
+            :tick-format="(i: number) => {
+              const item = activity[Math.round(i)]
+              if (!item) return ''
+              return new Date(item.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+            }"
+          />
+          <VisAxis
+            type="y"
+            :tick-line="false"
+            :domain-line="false"
+            :grid-line="true"
+            :num-ticks="4"
+          />
+          <ChartTooltip />
+          <ChartCrosshair
+            :template="componentToString(chartConfig, ChartTooltipContent)"
+            :color="chartConfig.count.color"
+          />
+        </VisXYContainer>
+      </ChartContainer>
     </div>
 
     <div v-if="initialLoading" class="space-y-3">

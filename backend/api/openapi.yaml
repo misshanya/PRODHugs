@@ -168,6 +168,15 @@ components:
         username: { type: string }
         role: { type: string }
 
+    HugActivityItem:
+      type: object
+      required:
+        - timestamp
+        - count
+      properties:
+        timestamp: { type: string, format: date-time }
+        count: { type: integer }
+
   responses:
     BadRequest:
       description: Bad Request
@@ -585,6 +594,24 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/HugFeedItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /hugs/activity:
+    get:
+      summary: Get hug activity for the last 24 hours grouped by hour
+      operationId: getHugActivity
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Hourly hug counts for the last 24 hours
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HugActivityItem'
         '401':
           $ref: '#/components/responses/Unauthorized'
 

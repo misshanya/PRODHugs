@@ -38,6 +38,47 @@ func (q *Queries) CountHugsReceived(ctx context.Context, receiverID uuid.UUID) (
 	return count, err
 }
 
+const getHugActivity = `-- name: GetHugActivity :many
+SELECT
+    bucket::timestamptz AS bucket_time,
+    COALESCE(COUNT(h.id), 0)::bigint AS hug_count
+FROM generate_series(
+    DATE_TRUNC('hour', NOW() - INTERVAL '23 hours'),
+    DATE_TRUNC('hour', NOW()),
+    '1 hour'::interval
+) AS bucket
+LEFT JOIN hugs h
+    ON h.created_at >= bucket
+   AND h.created_at < bucket + '1 hour'::interval
+GROUP BY bucket
+ORDER BY bucket
+`
+
+type GetHugActivityRow struct {
+	BucketTime pgtype.Timestamptz
+	HugCount   int64
+}
+
+func (q *Queries) GetHugActivity(ctx context.Context) ([]GetHugActivityRow, error) {
+	rows, err := q.db.Query(ctx, getHugActivity)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetHugActivityRow
+	for rows.Next() {
+		var i GetHugActivityRow
+		if err := rows.Scan(&i.BucketTime, &i.HugCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getHugByID = `-- name: GetHugByID :one
 SELECT id, giver_id, receiver_id, created_at
 FROM hugs

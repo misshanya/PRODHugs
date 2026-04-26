@@ -19,6 +19,10 @@ func (s *service) GetRecentFeed(ctx context.Context, limit int32) ([]*models.Hug
 	return s.hugRepo.GetRecentFeed(ctx, limit)
 }
 
+func (s *service) GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error) {
+	return s.hugRepo.GetHugActivity(ctx)
+}
+
 func (s *service) GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error) {
 	return s.hugRepo.GetLeaderboard(ctx, limit, offset)
 }

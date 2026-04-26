@@ -116,6 +116,7 @@ export const hugsApi = {
   upgradeCooldown: (userId: string) => api.post(`/hugs/cooldown/${userId}/upgrade`),
   getHistory: () => api.get('/hugs/history'),
   getFeed: (limit = 50) => api.get('/hugs/feed', { params: { limit } }),
+  getActivity: () => api.get('/hugs/activity'),
 }
 
 // Balance

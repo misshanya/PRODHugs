@@ -44,6 +44,11 @@ export interface Balance {
   amount: number
 }
 
+export interface HugActivityItem {
+  timestamp: string
+  count: number
+}
+
 export interface DailyRewardResponse {
   amount: number
   streak_days: number
@@ -114,6 +119,11 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data || []
   }
 
+  async function getHugActivity(): Promise<HugActivityItem[]> {
+    const res = await hugsApi.getActivity()
+    return res.data || []
+  }
+
   async function searchUsers(q = '', limit = 20, offset = 0) {
     const res = await usersApi.search(q, limit, offset)
     return res.data || []
@@ -137,6 +147,7 @@ export const useHugsStore = defineStore('hugs', () => {
     fetchFeed,
     fetchLeaderboard,
     getHugHistory,
+    getHugActivity,
     searchUsers,
     getUserProfile,
   }

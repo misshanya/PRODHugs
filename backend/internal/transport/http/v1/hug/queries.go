@@ -89,6 +89,23 @@ func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestO
 	return result, nil
 }
 
+func (h *HugHandler) GetHugActivity(ctx context.Context, _ v1.GetHugActivityRequestObject) (v1.GetHugActivityResponseObject, error) {
+	items, err := h.svc.GetHugActivity(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(v1.GetHugActivity200JSONResponse, len(items))
+	for i, item := range items {
+		result[i] = v1.HugActivityItem{
+			Timestamp: item.Timestamp,
+			Count:     int(item.Count),
+		}
+	}
+
+	return result, nil
+}
+
 func (h *HugHandler) GetLeaderboard(ctx context.Context, req v1.GetLeaderboardRequestObject) (v1.GetLeaderboardResponseObject, error) {
 	limit := int32(20)
 	offset := int32(0)

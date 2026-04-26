@@ -31,3 +31,18 @@ WHERE receiver_id = $1;
 SELECT COUNT(*)
 FROM hugs
 WHERE giver_id = $1;
+
+-- name: GetHugActivity :many
+SELECT
+    bucket::timestamptz AS bucket_time,
+    COALESCE(COUNT(h.id), 0)::bigint AS hug_count
+FROM generate_series(
+    DATE_TRUNC('hour', NOW() - INTERVAL '23 hours'),
+    DATE_TRUNC('hour', NOW()),
+    '1 hour'::interval
+) AS bucket
+LEFT JOIN hugs h
+    ON h.created_at >= bucket
+   AND h.created_at < bucket + '1 hour'::interval
+GROUP BY bucket
+ORDER BY bucket;
