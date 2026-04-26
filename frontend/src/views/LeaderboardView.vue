@@ -39,12 +39,12 @@ onMounted(() => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead class="w-12">#</TableHead>
+            <TableHead class="w-8 sm:w-12">#</TableHead>
             <TableHead>Пользователь</TableHead>
-            <TableHead>Ранг</TableHead>
+            <TableHead class="hidden sm:table-cell">Ранг</TableHead>
             <TableHead class="text-right">Всего</TableHead>
-            <TableHead class="text-right">Отправлено</TableHead>
-            <TableHead class="text-right">Получено</TableHead>
+            <TableHead class="hidden md:table-cell text-right">Отправлено</TableHead>
+            <TableHead class="hidden md:table-cell text-right">Получено</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -54,29 +54,32 @@ onMounted(() => {
             class="cursor-pointer hover:bg-[#002D20]"
             @click="$router.push(`/user/${entry.user_id}`)"
           >
-            <TableCell class="font-medium tabular-nums" :class="index === 0 ? 'text-prod-yellow' : ''">
+            <TableCell class="font-medium tabular-nums text-xs sm:text-sm" :class="index === 0 ? 'text-prod-yellow' : ''">
               {{ index + 1 }}
             </TableCell>
             <TableCell>
               <div class="flex items-center gap-2">
-                <Avatar class="size-7">
-                  <AvatarFallback class="text-[10px]">
+                <Avatar class="size-6 sm:size-7">
+                  <AvatarFallback class="text-[9px] sm:text-[10px]">
                     {{ entry.username.slice(0, 2).toUpperCase() }}
                   </AvatarFallback>
                 </Avatar>
-                <span class="font-medium">{{ entry.username }}</span>
+                <div class="min-w-0">
+                  <span class="block truncate text-xs font-medium sm:text-sm">{{ entry.username }}</span>
+                  <RankBadge :rank="entry.rank" class="mt-0.5 sm:hidden" />
+                </div>
               </div>
             </TableCell>
-            <TableCell>
+            <TableCell class="hidden sm:table-cell">
               <RankBadge :rank="entry.rank" />
             </TableCell>
-            <TableCell class="text-right font-bold tabular-nums" :class="index === 0 ? 'text-prod-yellow' : ''">
+            <TableCell class="text-right font-bold tabular-nums text-xs sm:text-sm" :class="index === 0 ? 'text-prod-yellow' : ''">
               {{ entry.total_hugs }}
             </TableCell>
-            <TableCell class="text-right tabular-nums text-muted-foreground">
+            <TableCell class="hidden md:table-cell text-right tabular-nums text-muted-foreground">
               {{ entry.hugs_given }}
             </TableCell>
-            <TableCell class="text-right tabular-nums text-muted-foreground">
+            <TableCell class="hidden md:table-cell text-right tabular-nums text-muted-foreground">
               {{ entry.hugs_received }}
             </TableCell>
           </TableRow>
