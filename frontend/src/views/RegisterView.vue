@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import PasswordRequirements from '@/components/PasswordRequirements.vue'
 
 const auth = useAuthStore()
 const username = ref('')
@@ -91,6 +92,7 @@ async function handleRegister() {
             <p v-if="submitted && errorFor('password')" class="text-xs text-destructive">
               {{ errorFor('password') }}
             </p>
+            <PasswordRequirements :password="password" />
           </div>
           <div class="grid gap-2">
             <Label for="password-confirm">Подтверждение пароля</Label>

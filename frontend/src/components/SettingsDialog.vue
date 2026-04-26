@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import PasswordRequirements from '@/components/PasswordRequirements.vue'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -179,6 +180,7 @@ async function savePassword() {
               >
                 {{ passwordErrorFor('newPassword') }}
               </p>
+              <PasswordRequirements :password="newPassword" />
             </div>
             <div class="grid gap-1.5">
               <Label for="new-password-confirm" class="text-xs text-muted-foreground"
