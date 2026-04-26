@@ -88,11 +88,11 @@ onMounted(load)
 <template>
   <div class="mx-auto max-w-2xl space-y-6">
     <div v-if="loading" class="space-y-4">
-      <Skeleton class="h-32 w-full rounded-lg" />
-      <div class="grid grid-cols-3 gap-4">
-        <Skeleton class="h-20 rounded-lg" />
-        <Skeleton class="h-20 rounded-lg" />
-        <Skeleton class="h-20 rounded-lg" />
+      <Skeleton class="h-40 w-full rounded-lg sm:h-32" />
+      <div class="grid grid-cols-3 gap-2 sm:gap-4">
+        <Skeleton class="h-16 rounded-lg sm:h-20" />
+        <Skeleton class="h-16 rounded-lg sm:h-20" />
+        <Skeleton class="h-16 rounded-lg sm:h-20" />
       </div>
     </div>
 
@@ -101,56 +101,59 @@ onMounted(load)
     <template v-else-if="profile">
       <!-- Profile header -->
       <Card>
-        <CardContent class="flex items-center gap-5 p-4">
-          <Avatar class="size-16">
-            <AvatarFallback class="text-lg">
-              {{ profile.username.slice(0, 2).toUpperCase() }}
-            </AvatarFallback>
-          </Avatar>
-          <div class="flex-1 space-y-1.5">
-            <h1 class="text-xl font-semibold">{{ profile.username }}</h1>
-            <div class="flex items-center gap-2">
-              <RankBadge :rank="profile.rank" />
-              <span class="text-xs text-muted-foreground">
-                {{ profile.role === 'admin' ? 'Администратор' : 'Пользователь' }}
-              </span>
+        <CardContent class="p-4">
+          <!-- Mobile: stacked layout -->
+          <div class="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-5 sm:text-left">
+            <Avatar class="size-16 sm:size-16">
+              <AvatarFallback class="text-lg">
+                {{ profile.username.slice(0, 2).toUpperCase() }}
+              </AvatarFallback>
+            </Avatar>
+            <div class="flex-1 space-y-1.5">
+              <h1 class="text-lg font-semibold sm:text-xl">{{ profile.username }}</h1>
+              <div class="flex items-center justify-center gap-2 sm:justify-start">
+                <RankBadge :rank="profile.rank" />
+                <span class="text-xs text-muted-foreground">
+                  {{ profile.role === 'admin' ? 'Администратор' : 'Пользователь' }}
+                </span>
+              </div>
             </div>
+            <HugButton v-if="!isMe" :userId="userId" :username="profile.username" size="lg" @hugged="onHugged" />
           </div>
-          <HugButton v-if="!isMe" :userId="userId" :username="profile.username" size="lg" @hugged="onHugged" />
         </CardContent>
       </Card>
 
       <!-- Stats -->
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-3 gap-2 sm:gap-4">
         <Card>
-          <CardHeader class="flex flex-row items-center justify-between pb-2">
-            <CardDescription>Всего</CardDescription>
-            <Heart class="size-4 text-prod-yellow" />
+          <CardHeader class="flex flex-row items-center justify-between px-3 pb-1 pt-3 sm:px-6 sm:pb-2 sm:pt-6">
+            <CardDescription class="text-[11px] sm:text-sm">Всего</CardDescription>
+            <Heart class="hidden size-4 text-prod-yellow sm:block" />
           </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold tabular-nums" :class="animatingStats.total && 'stat-pop'">
+          <CardContent class="px-3 pb-3 sm:px-6 sm:pb-6">
+            <div class="text-xl font-bold tabular-nums sm:text-2xl" :class="animatingStats.total && 'stat-pop'">
               {{ profile.total_hugs }}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader class="flex flex-row items-center justify-between pb-2">
-            <CardDescription>Отправлено</CardDescription>
-            <ArrowUp class="size-4 text-muted-foreground" />
+          <CardHeader class="flex flex-row items-center justify-between px-3 pb-1 pt-3 sm:px-6 sm:pb-2 sm:pt-6">
+            <CardDescription class="text-[11px] sm:text-sm">Отправлено</CardDescription>
+            <ArrowUp class="hidden size-4 text-muted-foreground sm:block" />
           </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold tabular-nums" :class="animatingStats.given && 'stat-pop'">
+          <CardContent class="px-3 pb-3 sm:px-6 sm:pb-6">
+            <div class="text-xl font-bold tabular-nums sm:text-2xl" :class="animatingStats.given && 'stat-pop'">
               {{ profile.hugs_given }}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader class="flex flex-row items-center justify-between pb-2">
-            <CardDescription>Получено</CardDescription>
-            <ArrowDown class="size-4 text-muted-foreground" />
+          <CardHeader class="flex flex-row items-center justify-between px-3 pb-1 pt-3 sm:px-6 sm:pb-2 sm:pt-6">
+            <CardDescription class="text-[11px] sm:text-sm">Получено</CardDescription>
+            <ArrowDown class="hidden size-4 text-muted-foreground sm:block" />
           </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold tabular-nums" :class="animatingStats.received && 'stat-pop'">
+          <CardContent class="px-3 pb-3 sm:px-6 sm:pb-6">
+            <div class="text-xl font-bold tabular-nums sm:text-2xl" :class="animatingStats.received && 'stat-pop'">
               {{ profile.hugs_received }}
             </div>
           </CardContent>
@@ -169,17 +172,17 @@ onMounted(load)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div class="flex items-center justify-between">
-            <p class="text-sm text-muted-foreground">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-muted-foreground sm:text-sm">
               <Coins class="inline size-3.5 mr-1" />
-              5 монет = -10 мин. (минимум 5 мин.)
+              5 монет = -10 мин. (мин. 5 мин.)
             </p>
             <Button
               @click="upgrade"
               :disabled="upgrading || cooldown.cooldown_seconds <= 300"
               variant="yellow"
               size="sm"
-              class="rounded-[21px]"
+              class="w-full rounded-[21px] sm:w-auto"
             >
               <ArrowUpCircle class="size-4" />
               {{ cooldown.cooldown_seconds <= 300 ? 'Максимум' : 'Улучшить' }}
