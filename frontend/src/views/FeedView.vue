@@ -79,6 +79,15 @@ function flushPending() {
   })
 }
 
+function bumpActivityBucket(createdAt: string) {
+  const eventHour = new Date(createdAt)
+  eventHour.setMinutes(0, 0, 0)
+  const bucket = activity.value.find((b) => new Date(b.timestamp).getTime() === eventHour.getTime())
+  if (bucket) {
+    bucket.count++
+  }
+}
+
 function connectWS() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   ws = new WebSocket(`${protocol}//${window.location.host}/api/v1/ws`)
@@ -92,10 +101,12 @@ function connectWS() {
       const item = JSON.parse(event.data) as HugFeedItem
       if (isScrolledAway.value) {
         pendingItems.value.unshift(item)
-      } else {
-        prependItem(item)
-      }
-    } catch {
+    } else {
+      prependItem(item)
+    }
+    // Update the chart bucket for this hug in real‑time
+    bumpActivityBucket(item.created_at)
+  } catch {
       // Ignore
     }
   }
