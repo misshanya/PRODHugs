@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Coins, LogOut, Settings } from 'lucide-vue-next'
+import { Coins, LogOut, Settings, Heart } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore } from '@/stores/hugs'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +27,14 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-1 items-center justify-between">
-    <div />
+    <!-- Mobile-only branding (replaces sidebar trigger on small screens) -->
+    <div class="flex items-center gap-2 md:hidden">
+      <div class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-prod-yellow text-prod-yellow-foreground">
+        <Heart class="size-3.5" />
+      </div>
+      <span class="text-sm font-semibold text-foreground">PRODнимашки</span>
+    </div>
+    <div class="hidden md:block" />
     <div class="flex items-center gap-3">
       <Badge variant="secondary" class="gap-1.5 font-mono tabular-nums bg-prod-yellow/15 text-prod-yellow border-prod-yellow/20">
         <Coins class="size-3.5" />

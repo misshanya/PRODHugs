@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Heart, Clock, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
@@ -25,7 +25,19 @@ const cooldown = ref<CooldownInfo | null>(null)
 const remaining = ref(0)
 const animating = ref(false)
 const showExplosion = ref(false)
+const btnRef = ref<HTMLButtonElement | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
+
+// Position explosion at button's center, but rendered to body to avoid layout shifts
+const explosionStyle = computed(() => {
+  if (!btnRef.value || !showExplosion.value) return {}
+  const rect = btnRef.value.getBoundingClientRect()
+  return {
+    top: `${rect.top + rect.height / 2}px`,
+    left: `${rect.left + rect.width / 2}px`,
+    transform: 'translate(-50%, -50%)',
+  }
+})
 
 async function loadCooldown() {
   try {
@@ -87,7 +99,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative inline-flex">
+  <div ref="btnRef" class="relative inline-flex">
     <Button
       @click="sendHug"
       :disabled="loading || remaining > 0"
@@ -102,6 +114,14 @@ onUnmounted(() => {
       <span v-if="remaining > 0">{{ formatTime(remaining) }}</span>
       <span v-else>Обнять</span>
     </Button>
-    <HugExplosion v-if="showExplosion" @done="onExplosionDone" />
+    <Teleport to="body">
+      <div
+        v-if="showExplosion"
+        class="pointer-events-none fixed z-[100]"
+        :style="explosionStyle"
+      >
+        <HugExplosion @done="onExplosionDone" />
+      </div>
+    </Teleport>
   </div>
 </template>

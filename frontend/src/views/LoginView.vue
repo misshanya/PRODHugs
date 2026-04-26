@@ -63,7 +63,7 @@ async function handleLogin() {
           <Heart class="size-5" />
         </div>
         <CardTitle class="text-xl">Вход</CardTitle>
-        <CardDescription>Войдите в свой аккаунт PROD Hugs</CardDescription>
+        <CardDescription>Войди в свой аккаунт PRODнимашек</CardDescription>
       </CardHeader>
       <CardContent>
         <form @submit.prevent="handleLogin" class="grid gap-4">

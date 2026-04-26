@@ -63,7 +63,7 @@ async function handleRegister() {
           <Heart class="size-5" />
         </div>
         <CardTitle class="text-xl">Регистрация</CardTitle>
-        <CardDescription>Создайте аккаунт в PROD Hugs</CardDescription>
+        <CardDescription>Создай аккаунт в PRODнимашках</CardDescription>
       </CardHeader>
       <CardContent>
         <form @submit.prevent="handleRegister" class="grid gap-4">

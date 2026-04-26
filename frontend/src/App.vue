@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppHeader from '@/components/AppHeader.vue'
+import AppBottomNav from '@/components/AppBottomNav.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -21,13 +22,14 @@ const showLayout = computed(() => {
       <AppSidebar />
       <SidebarInset>
         <header class="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger class="-ml-1" />
+          <SidebarTrigger class="-ml-1 hidden md:inline-flex" />
           <AppHeader />
         </header>
-        <main class="flex-1 p-3 sm:p-6">
+        <main class="flex-1 p-3 pb-24 sm:p-6 sm:pb-24 md:pb-6">
           <RouterView />
         </main>
       </SidebarInset>
+      <AppBottomNav />
     </SidebarProvider>
   </template>
   <template v-else>
