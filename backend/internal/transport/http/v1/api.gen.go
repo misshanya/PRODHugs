@@ -35,22 +35,37 @@ const (
 
 // Defines values for ErrorCode.
 const (
-	CANNOTBANADMIN      ErrorCode = "CANNOT_BAN_ADMIN"
-	CANNOTHUGSELF       ErrorCode = "CANNOT_HUG_SELF"
-	COOLDOWNACTIVE      ErrorCode = "COOLDOWN_ACTIVE"
-	INSUFFICIENTBALANCE ErrorCode = "INSUFFICIENT_BALANCE"
-	INVALIDCREDENTIALS  ErrorCode = "INVALID_CREDENTIALS"
-	USERALREADYEXISTS   ErrorCode = "USER_ALREADY_EXISTS"
-	USERBANNED          ErrorCode = "USER_BANNED"
-	USERNOTFOUND        ErrorCode = "USER_NOT_FOUND"
-	WEAKPASSWORD        ErrorCode = "WEAK_PASSWORD"
-	WRONGPASSWORD       ErrorCode = "WRONG_PASSWORD"
+	ALREADYHASPENDINGHUG  ErrorCode = "ALREADY_HAS_PENDING_HUG"
+	CANNOTBANADMIN        ErrorCode = "CANNOT_BAN_ADMIN"
+	CANNOTHUGSELF         ErrorCode = "CANNOT_HUG_SELF"
+	COOLDOWNACTIVE        ErrorCode = "COOLDOWN_ACTIVE"
+	DECLINECOOLDOWNACTIVE ErrorCode = "DECLINE_COOLDOWN_ACTIVE"
+	HUGEXPIRED            ErrorCode = "HUG_EXPIRED"
+	HUGNOTFOUND           ErrorCode = "HUG_NOT_FOUND"
+	HUGNOTPENDING         ErrorCode = "HUG_NOT_PENDING"
+	INSUFFICIENTBALANCE   ErrorCode = "INSUFFICIENT_BALANCE"
+	INVALIDCREDENTIALS    ErrorCode = "INVALID_CREDENTIALS"
+	PENDINGHUGEXISTS      ErrorCode = "PENDING_HUG_EXISTS"
+	USERALREADYEXISTS     ErrorCode = "USER_ALREADY_EXISTS"
+	USERBANNED            ErrorCode = "USER_BANNED"
+	USERNOTFOUND          ErrorCode = "USER_NOT_FOUND"
+	WEAKPASSWORD          ErrorCode = "WEAK_PASSWORD"
+	WRONGPASSWORD         ErrorCode = "WRONG_PASSWORD"
 )
 
 // Defines values for Gender.
 const (
 	Female Gender = "female"
 	Male   Gender = "male"
+)
+
+// Defines values for HugStatus.
+const (
+	Cancelled HugStatus = "cancelled"
+	Completed HugStatus = "completed"
+	Declined  HugStatus = "declined"
+	Expired   HugStatus = "expired"
+	Pending   HugStatus = "pending"
 )
 
 // Defines values for UserRole.
@@ -91,11 +106,12 @@ type Balance struct {
 
 // CooldownInfo defines model for CooldownInfo.
 type CooldownInfo struct {
-	CanHug           bool               `json:"can_hug"`
-	CooldownSeconds  int                `json:"cooldown_seconds"`
-	GiverId          openapi_types.UUID `json:"giver_id"`
-	ReceiverId       openapi_types.UUID `json:"receiver_id"`
-	RemainingSeconds int                `json:"remaining_seconds"`
+	CanHug                   bool               `json:"can_hug"`
+	CooldownSeconds          int                `json:"cooldown_seconds"`
+	DeclineCooldownRemaining *int               `json:"decline_cooldown_remaining,omitempty"`
+	RemainingSeconds         int                `json:"remaining_seconds"`
+	UserAId                  openapi_types.UUID `json:"user_a_id"`
+	UserBId                  openapi_types.UUID `json:"user_b_id"`
 }
 
 // DailyRewardResponse defines model for DailyRewardResponse.
@@ -120,11 +136,16 @@ type Gender string
 
 // Hug defines model for Hug.
 type Hug struct {
+	AcceptedAt *time.Time         `json:"accepted_at,omitempty"`
 	CreatedAt  time.Time          `json:"created_at"`
 	GiverId    openapi_types.UUID `json:"giver_id"`
 	Id         openapi_types.UUID `json:"id"`
 	ReceiverId openapi_types.UUID `json:"receiver_id"`
+	Status     HugStatus          `json:"status"`
 }
+
+// HugStatus defines model for Hug.Status.
+type HugStatus string
 
 // HugActivityItem defines model for HugActivityItem.
 type HugActivityItem struct {
@@ -143,6 +164,11 @@ type HugFeedItem struct {
 	ReceiverUsername string             `json:"receiver_username"`
 }
 
+// InboxCount defines model for InboxCount.
+type InboxCount struct {
+	Count int `json:"count"`
+}
+
 // LeaderboardEntry defines model for LeaderboardEntry.
 type LeaderboardEntry struct {
 	HugsGiven    int                `json:"hugs_given"`
@@ -151,6 +177,26 @@ type LeaderboardEntry struct {
 	TotalHugs    int                `json:"total_hugs"`
 	UserId       openapi_types.UUID `json:"user_id"`
 	Username     string             `json:"username"`
+}
+
+// OutgoingPendingHug defines model for OutgoingPendingHug.
+type OutgoingPendingHug struct {
+	CreatedAt        time.Time          `json:"created_at"`
+	GiverId          openapi_types.UUID `json:"giver_id"`
+	Id               openapi_types.UUID `json:"id"`
+	ReceiverGender   *Gender            `json:"receiver_gender,omitempty"`
+	ReceiverId       openapi_types.UUID `json:"receiver_id"`
+	ReceiverUsername string             `json:"receiver_username"`
+}
+
+// PendingHugInboxItem defines model for PendingHugInboxItem.
+type PendingHugInboxItem struct {
+	CreatedAt     time.Time          `json:"created_at"`
+	GiverGender   *Gender            `json:"giver_gender,omitempty"`
+	GiverId       openapi_types.UUID `json:"giver_id"`
+	GiverUsername string             `json:"giver_username"`
+	Id            openapi_types.UUID `json:"id"`
+	ReceiverId    openapi_types.UUID `json:"receiver_id"`
 }
 
 // User defines model for User.
@@ -196,6 +242,9 @@ type Conflict = Error
 
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
+
+// Gone defines model for Gone.
+type Gone = Error
 
 // NotFound defines model for NotFound.
 type NotFound = Error
@@ -359,9 +408,27 @@ type ServerInterface interface {
 	// Get hug history for current user
 	// (GET /hugs/history)
 	GetHugHistory(ctx echo.Context) error
-	// Send a hug to a user
+	// Get pending incoming hug suggestions
+	// (GET /hugs/inbox)
+	GetHugInbox(ctx echo.Context) error
+	// Get count of pending incoming suggestions
+	// (GET /hugs/inbox/count)
+	GetHugInboxCount(ctx echo.Context) error
+	// Get current user's outgoing pending hug
+	// (GET /hugs/outgoing)
+	GetOutgoingHug(ctx echo.Context) error
+	// Accept a pending hug suggestion
+	// (POST /hugs/{hugId}/accept)
+	AcceptHug(ctx echo.Context, hugId openapi_types.UUID) error
+	// Cancel your own outgoing pending hug
+	// (POST /hugs/{hugId}/cancel)
+	CancelHug(ctx echo.Context, hugId openapi_types.UUID) error
+	// Decline a pending hug suggestion
+	// (POST /hugs/{hugId}/decline)
+	DeclineHug(ctx echo.Context, hugId openapi_types.UUID) error
+	// Suggest a hug to a user
 	// (POST /hugs/{userId})
-	SendHug(ctx echo.Context, userId openapi_types.UUID) error
+	SuggestHug(ctx echo.Context, userId openapi_types.UUID) error
 	// Get leaderboard
 	// (GET /leaderboard)
 	GetLeaderboard(ctx echo.Context, params GetLeaderboardParams) error
@@ -681,8 +748,95 @@ func (w *ServerInterfaceWrapper) GetHugHistory(ctx echo.Context) error {
 	return err
 }
 
-// SendHug converts echo context to params.
-func (w *ServerInterfaceWrapper) SendHug(ctx echo.Context) error {
+// GetHugInbox converts echo context to params.
+func (w *ServerInterfaceWrapper) GetHugInbox(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetHugInbox(ctx)
+	return err
+}
+
+// GetHugInboxCount converts echo context to params.
+func (w *ServerInterfaceWrapper) GetHugInboxCount(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetHugInboxCount(ctx)
+	return err
+}
+
+// GetOutgoingHug converts echo context to params.
+func (w *ServerInterfaceWrapper) GetOutgoingHug(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetOutgoingHug(ctx)
+	return err
+}
+
+// AcceptHug converts echo context to params.
+func (w *ServerInterfaceWrapper) AcceptHug(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "hugId" -------------
+	var hugId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hugId", ctx.Param("hugId"), &hugId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter hugId: %s", err))
+	}
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AcceptHug(ctx, hugId)
+	return err
+}
+
+// CancelHug converts echo context to params.
+func (w *ServerInterfaceWrapper) CancelHug(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "hugId" -------------
+	var hugId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hugId", ctx.Param("hugId"), &hugId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter hugId: %s", err))
+	}
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CancelHug(ctx, hugId)
+	return err
+}
+
+// DeclineHug converts echo context to params.
+func (w *ServerInterfaceWrapper) DeclineHug(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "hugId" -------------
+	var hugId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hugId", ctx.Param("hugId"), &hugId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter hugId: %s", err))
+	}
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeclineHug(ctx, hugId)
+	return err
+}
+
+// SuggestHug converts echo context to params.
+func (w *ServerInterfaceWrapper) SuggestHug(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "userId" -------------
 	var userId openapi_types.UUID
@@ -695,7 +849,7 @@ func (w *ServerInterfaceWrapper) SendHug(ctx echo.Context) error {
 	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.SendHug(ctx, userId)
+	err = w.Handler.SuggestHug(ctx, userId)
 	return err
 }
 
@@ -867,7 +1021,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/hugs/cooldown/:userId/upgrade", wrapper.UpgradeCooldown)
 	router.GET(baseURL+"/hugs/feed", wrapper.GetHugsFeed)
 	router.GET(baseURL+"/hugs/history", wrapper.GetHugHistory)
-	router.POST(baseURL+"/hugs/:userId", wrapper.SendHug)
+	router.GET(baseURL+"/hugs/inbox", wrapper.GetHugInbox)
+	router.GET(baseURL+"/hugs/inbox/count", wrapper.GetHugInboxCount)
+	router.GET(baseURL+"/hugs/outgoing", wrapper.GetOutgoingHug)
+	router.POST(baseURL+"/hugs/:hugId/accept", wrapper.AcceptHug)
+	router.POST(baseURL+"/hugs/:hugId/cancel", wrapper.CancelHug)
+	router.POST(baseURL+"/hugs/:hugId/decline", wrapper.DeclineHug)
+	router.POST(baseURL+"/hugs/:userId", wrapper.SuggestHug)
 	router.GET(baseURL+"/leaderboard", wrapper.GetLeaderboard)
 	router.GET(baseURL+"/ping", wrapper.GetPing)
 	router.GET(baseURL+"/users/me", wrapper.GetCurrentUser)
@@ -883,6 +1043,8 @@ type BadRequestJSONResponse Error
 type ConflictJSONResponse Error
 
 type ForbiddenJSONResponse Error
+
+type GoneJSONResponse Error
 
 type NotFoundJSONResponse Error
 
@@ -1600,53 +1762,300 @@ func (response GetHugHistory401JSONResponse) VisitGetHugHistoryResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
-type SendHugRequestObject struct {
-	UserId openapi_types.UUID `json:"userId"`
+type GetHugInboxRequestObject struct {
 }
 
-type SendHugResponseObject interface {
-	VisitSendHugResponse(w http.ResponseWriter) error
+type GetHugInboxResponseObject interface {
+	VisitGetHugInboxResponse(w http.ResponseWriter) error
 }
 
-type SendHug201JSONResponse Hug
+type GetHugInbox200JSONResponse []PendingHugInboxItem
 
-func (response SendHug201JSONResponse) VisitSendHugResponse(w http.ResponseWriter) error {
+func (response GetHugInbox200JSONResponse) VisitGetHugInboxResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type SendHug400JSONResponse struct{ BadRequestJSONResponse }
+type GetHugInbox401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response SendHug400JSONResponse) VisitSendHugResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type SendHug401JSONResponse struct{ UnauthorizedJSONResponse }
-
-func (response SendHug401JSONResponse) VisitSendHugResponse(w http.ResponseWriter) error {
+func (response GetHugInbox401JSONResponse) VisitGetHugInboxResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type SendHug404JSONResponse struct{ NotFoundJSONResponse }
+type GetHugInboxCountRequestObject struct {
+}
 
-func (response SendHug404JSONResponse) VisitSendHugResponse(w http.ResponseWriter) error {
+type GetHugInboxCountResponseObject interface {
+	VisitGetHugInboxCountResponse(w http.ResponseWriter) error
+}
+
+type GetHugInboxCount200JSONResponse InboxCount
+
+func (response GetHugInboxCount200JSONResponse) VisitGetHugInboxCountResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetHugInboxCount401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetHugInboxCount401JSONResponse) VisitGetHugInboxCountResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutgoingHugRequestObject struct {
+}
+
+type GetOutgoingHugResponseObject interface {
+	VisitGetOutgoingHugResponse(w http.ResponseWriter) error
+}
+
+type GetOutgoingHug200JSONResponse OutgoingPendingHug
+
+func (response GetOutgoingHug200JSONResponse) VisitGetOutgoingHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutgoingHug401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetOutgoingHug401JSONResponse) VisitGetOutgoingHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AcceptHugRequestObject struct {
+	HugId openapi_types.UUID `json:"hugId"`
+}
+
+type AcceptHugResponseObject interface {
+	VisitAcceptHugResponse(w http.ResponseWriter) error
+}
+
+type AcceptHug200JSONResponse Hug
+
+func (response AcceptHug200JSONResponse) VisitAcceptHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AcceptHug401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AcceptHug401JSONResponse) VisitAcceptHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AcceptHug404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AcceptHug404JSONResponse) VisitAcceptHugResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type SendHug429JSONResponse struct{ TooManyRequestsJSONResponse }
+type AcceptHug409JSONResponse struct{ ConflictJSONResponse }
 
-func (response SendHug429JSONResponse) VisitSendHugResponse(w http.ResponseWriter) error {
+func (response AcceptHug409JSONResponse) VisitAcceptHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AcceptHug410JSONResponse struct{ GoneJSONResponse }
+
+func (response AcceptHug410JSONResponse) VisitAcceptHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelHugRequestObject struct {
+	HugId openapi_types.UUID `json:"hugId"`
+}
+
+type CancelHugResponseObject interface {
+	VisitCancelHugResponse(w http.ResponseWriter) error
+}
+
+type CancelHug200JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response CancelHug200JSONResponse) VisitCancelHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelHug401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CancelHug401JSONResponse) VisitCancelHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelHug404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CancelHug404JSONResponse) VisitCancelHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelHug409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CancelHug409JSONResponse) VisitCancelHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelHug410JSONResponse struct{ GoneJSONResponse }
+
+func (response CancelHug410JSONResponse) VisitCancelHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineHugRequestObject struct {
+	HugId openapi_types.UUID `json:"hugId"`
+}
+
+type DeclineHugResponseObject interface {
+	VisitDeclineHugResponse(w http.ResponseWriter) error
+}
+
+type DeclineHug200JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response DeclineHug200JSONResponse) VisitDeclineHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineHug401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeclineHug401JSONResponse) VisitDeclineHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineHug404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeclineHug404JSONResponse) VisitDeclineHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineHug409JSONResponse struct{ ConflictJSONResponse }
+
+func (response DeclineHug409JSONResponse) VisitDeclineHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineHug410JSONResponse struct{ GoneJSONResponse }
+
+func (response DeclineHug410JSONResponse) VisitDeclineHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SuggestHugRequestObject struct {
+	UserId openapi_types.UUID `json:"userId"`
+}
+
+type SuggestHugResponseObject interface {
+	VisitSuggestHugResponse(w http.ResponseWriter) error
+}
+
+type SuggestHug201JSONResponse Hug
+
+func (response SuggestHug201JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SuggestHug400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SuggestHug400JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SuggestHug401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SuggestHug401JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SuggestHug404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SuggestHug404JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SuggestHug409JSONResponse struct{ ConflictJSONResponse }
+
+func (response SuggestHug409JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SuggestHug429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response SuggestHug429JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(429)
 
@@ -1923,9 +2332,27 @@ type StrictServerInterface interface {
 	// Get hug history for current user
 	// (GET /hugs/history)
 	GetHugHistory(ctx context.Context, request GetHugHistoryRequestObject) (GetHugHistoryResponseObject, error)
-	// Send a hug to a user
+	// Get pending incoming hug suggestions
+	// (GET /hugs/inbox)
+	GetHugInbox(ctx context.Context, request GetHugInboxRequestObject) (GetHugInboxResponseObject, error)
+	// Get count of pending incoming suggestions
+	// (GET /hugs/inbox/count)
+	GetHugInboxCount(ctx context.Context, request GetHugInboxCountRequestObject) (GetHugInboxCountResponseObject, error)
+	// Get current user's outgoing pending hug
+	// (GET /hugs/outgoing)
+	GetOutgoingHug(ctx context.Context, request GetOutgoingHugRequestObject) (GetOutgoingHugResponseObject, error)
+	// Accept a pending hug suggestion
+	// (POST /hugs/{hugId}/accept)
+	AcceptHug(ctx context.Context, request AcceptHugRequestObject) (AcceptHugResponseObject, error)
+	// Cancel your own outgoing pending hug
+	// (POST /hugs/{hugId}/cancel)
+	CancelHug(ctx context.Context, request CancelHugRequestObject) (CancelHugResponseObject, error)
+	// Decline a pending hug suggestion
+	// (POST /hugs/{hugId}/decline)
+	DeclineHug(ctx context.Context, request DeclineHugRequestObject) (DeclineHugResponseObject, error)
+	// Suggest a hug to a user
 	// (POST /hugs/{userId})
-	SendHug(ctx context.Context, request SendHugRequestObject) (SendHugResponseObject, error)
+	SuggestHug(ctx context.Context, request SuggestHugRequestObject) (SuggestHugResponseObject, error)
 	// Get leaderboard
 	// (GET /leaderboard)
 	GetLeaderboard(ctx context.Context, request GetLeaderboardRequestObject) (GetLeaderboardResponseObject, error)
@@ -2448,25 +2875,169 @@ func (sh *strictHandler) GetHugHistory(ctx echo.Context) error {
 	return nil
 }
 
-// SendHug operation middleware
-func (sh *strictHandler) SendHug(ctx echo.Context, userId openapi_types.UUID) error {
-	var request SendHugRequestObject
-
-	request.UserId = userId
+// GetHugInbox operation middleware
+func (sh *strictHandler) GetHugInbox(ctx echo.Context) error {
+	var request GetHugInboxRequestObject
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.SendHug(ctx.Request().Context(), request.(SendHugRequestObject))
+		return sh.ssi.GetHugInbox(ctx.Request().Context(), request.(GetHugInboxRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "SendHug")
+		handler = middleware(handler, "GetHugInbox")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(SendHugResponseObject); ok {
-		return validResponse.VisitSendHugResponse(ctx.Response())
+	} else if validResponse, ok := response.(GetHugInboxResponseObject); ok {
+		return validResponse.VisitGetHugInboxResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetHugInboxCount operation middleware
+func (sh *strictHandler) GetHugInboxCount(ctx echo.Context) error {
+	var request GetHugInboxCountRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHugInboxCount(ctx.Request().Context(), request.(GetHugInboxCountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetHugInboxCount")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetHugInboxCountResponseObject); ok {
+		return validResponse.VisitGetHugInboxCountResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetOutgoingHug operation middleware
+func (sh *strictHandler) GetOutgoingHug(ctx echo.Context) error {
+	var request GetOutgoingHugRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOutgoingHug(ctx.Request().Context(), request.(GetOutgoingHugRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOutgoingHug")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetOutgoingHugResponseObject); ok {
+		return validResponse.VisitGetOutgoingHugResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AcceptHug operation middleware
+func (sh *strictHandler) AcceptHug(ctx echo.Context, hugId openapi_types.UUID) error {
+	var request AcceptHugRequestObject
+
+	request.HugId = hugId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AcceptHug(ctx.Request().Context(), request.(AcceptHugRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AcceptHug")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AcceptHugResponseObject); ok {
+		return validResponse.VisitAcceptHugResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CancelHug operation middleware
+func (sh *strictHandler) CancelHug(ctx echo.Context, hugId openapi_types.UUID) error {
+	var request CancelHugRequestObject
+
+	request.HugId = hugId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelHug(ctx.Request().Context(), request.(CancelHugRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelHug")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CancelHugResponseObject); ok {
+		return validResponse.VisitCancelHugResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeclineHug operation middleware
+func (sh *strictHandler) DeclineHug(ctx echo.Context, hugId openapi_types.UUID) error {
+	var request DeclineHugRequestObject
+
+	request.HugId = hugId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeclineHug(ctx.Request().Context(), request.(DeclineHugRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeclineHug")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeclineHugResponseObject); ok {
+		return validResponse.VisitDeclineHugResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SuggestHug operation middleware
+func (sh *strictHandler) SuggestHug(ctx echo.Context, userId openapi_types.UUID) error {
+	var request SuggestHugRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SuggestHug(ctx.Request().Context(), request.(SuggestHugRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SuggestHug")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SuggestHugResponseObject); ok {
+		return validResponse.VisitSuggestHugResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -2655,55 +3226,62 @@ func (sh *strictHandler) GetUserProfile(ctx echo.Context, userId openapi_types.U
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

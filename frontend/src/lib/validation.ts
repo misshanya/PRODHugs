@@ -38,7 +38,8 @@ export function validatePassword(value: string): string | null {
 
 export function validateLoginForm(username: string, password: string): FieldError[] {
   const errors: FieldError[] = []
-  if (username.trim().length === 0) errors.push({ field: 'username', message: 'Введите имя пользователя' })
+  if (username.trim().length === 0)
+    errors.push({ field: 'username', message: 'Введите имя пользователя' })
   if (password.length === 0) errors.push({ field: 'password', message: 'Введите пароль' })
   return errors
 }
@@ -72,7 +73,8 @@ export function validateChangePasswordForm(
 ): FieldError[] {
   const errors: FieldError[] = []
 
-  if (oldPassword.length === 0) errors.push({ field: 'oldPassword', message: 'Введите текущий пароль' })
+  if (oldPassword.length === 0)
+    errors.push({ field: 'oldPassword', message: 'Введите текущий пароль' })
 
   const passwordErr = validatePassword(newPassword)
   if (passwordErr) errors.push({ field: 'newPassword', message: passwordErr })

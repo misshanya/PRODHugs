@@ -31,7 +31,10 @@ onMounted(() => {
       <Skeleton v-for="i in 10" :key="i" class="h-12 w-full" />
     </div>
 
-    <div v-else-if="hugsStore.leaderboard.length === 0" class="py-12 text-center text-muted-foreground">
+    <div
+      v-else-if="hugsStore.leaderboard.length === 0"
+      class="py-12 text-center text-muted-foreground"
+    >
       Пока нет данных
     </div>
 
@@ -54,7 +57,10 @@ onMounted(() => {
             class="cursor-pointer hover:bg-[#002D20]"
             @click="$router.push(`/user/${entry.user_id}`)"
           >
-            <TableCell class="font-medium tabular-nums text-xs sm:text-sm" :class="index === 0 ? 'text-prod-yellow' : ''">
+            <TableCell
+              class="font-medium tabular-nums text-xs sm:text-sm"
+              :class="index === 0 ? 'text-prod-yellow' : ''"
+            >
               {{ index + 1 }}
             </TableCell>
             <TableCell>
@@ -65,7 +71,9 @@ onMounted(() => {
                   </AvatarFallback>
                 </Avatar>
                 <div class="min-w-0">
-                  <span class="block truncate text-xs font-medium sm:text-sm">{{ entry.username }}</span>
+                  <span class="block truncate text-xs font-medium sm:text-sm">{{
+                    entry.username
+                  }}</span>
                   <RankBadge :rank="entry.rank" class="mt-0.5 sm:hidden" />
                 </div>
               </div>
@@ -73,7 +81,10 @@ onMounted(() => {
             <TableCell class="hidden sm:table-cell">
               <RankBadge :rank="entry.rank" />
             </TableCell>
-            <TableCell class="text-right font-bold tabular-nums text-xs sm:text-sm" :class="index === 0 ? 'text-prod-yellow' : ''">
+            <TableCell
+              class="text-right font-bold tabular-nums text-xs sm:text-sm"
+              :class="index === 0 ? 'text-prod-yellow' : ''"
+            >
               {{ entry.total_hugs }}
             </TableCell>
             <TableCell class="hidden md:table-cell text-right tabular-nums text-muted-foreground">

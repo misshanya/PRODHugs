@@ -26,13 +26,16 @@ type Hug struct {
 	GiverID    uuid.UUID
 	ReceiverID uuid.UUID
 	CreatedAt  pgtype.Timestamptz
+	Status     string
+	AcceptedAt pgtype.Timestamptz
 }
 
 type HugCooldown struct {
-	GiverID         uuid.UUID
-	ReceiverID      uuid.UUID
-	LastHugAt       pgtype.Timestamptz
-	CooldownSeconds int32
+	UserAID              uuid.UUID
+	UserBID              uuid.UUID
+	LastHugAt            pgtype.Timestamptz
+	CooldownSeconds      int32
+	DeclineCooldownUntil pgtype.Timestamptz
 }
 
 type User struct {

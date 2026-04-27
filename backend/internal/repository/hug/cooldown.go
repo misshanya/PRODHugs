@@ -2,20 +2,23 @@ package hug
 
 import (
 	"context"
+	"time"
+
 	"go-service-template/internal/db/sqlc/storage"
 	"go-service-template/internal/models"
 	"go-service-template/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (r *repo) GetCooldown(ctx context.Context, giverID, receiverID uuid.UUID) (*models.HugCooldown, error) {
+func (r *repo) GetCooldown(ctx context.Context, userA, userB uuid.UUID) (*models.HugCooldown, error) {
 	q := repository.Queries(ctx, r.q)
 
 	c, err := q.GetCooldown(ctx, storage.GetCooldownParams{
-		GiverID:    giverID,
-		ReceiverID: receiverID,
+		Column1: userA,
+		Column2: userB,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -27,12 +30,12 @@ func (r *repo) GetCooldown(ctx context.Context, giverID, receiverID uuid.UUID) (
 	return toModelCooldown(c), nil
 }
 
-func (r *repo) UpsertCooldown(ctx context.Context, giverID, receiverID uuid.UUID, cooldownSeconds int32) (*models.HugCooldown, error) {
+func (r *repo) UpsertCooldown(ctx context.Context, userA, userB uuid.UUID, cooldownSeconds int32) (*models.HugCooldown, error) {
 	q := repository.Queries(ctx, r.q)
 
 	c, err := q.UpsertCooldown(ctx, storage.UpsertCooldownParams{
-		GiverID:         giverID,
-		ReceiverID:      receiverID,
+		Column1:         userA,
+		Column2:         userB,
 		CooldownSeconds: cooldownSeconds,
 	})
 	if err != nil {
@@ -42,13 +45,13 @@ func (r *repo) UpsertCooldown(ctx context.Context, giverID, receiverID uuid.UUID
 	return toModelCooldown(c), nil
 }
 
-func (r *repo) ReduceCooldown(ctx context.Context, giverID, receiverID uuid.UUID, reduction int32) (*models.HugCooldown, error) {
+func (r *repo) ReduceCooldown(ctx context.Context, userA, userB uuid.UUID, reduction int32) (*models.HugCooldown, error) {
 	q := repository.Queries(ctx, r.q)
 
 	c, err := q.ReduceCooldown(ctx, storage.ReduceCooldownParams{
-		GiverID:    giverID,
-		ReceiverID: receiverID,
-		Reduction:  reduction,
+		Column1:   userA,
+		Column2:   userB,
+		Reduction: reduction,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -58,4 +61,17 @@ func (r *repo) ReduceCooldown(ctx context.Context, giverID, receiverID uuid.UUID
 	}
 
 	return toModelCooldown(c), nil
+}
+
+func (r *repo) SetDeclineCooldown(ctx context.Context, userA, userB uuid.UUID, until time.Time) error {
+	q := repository.Queries(ctx, r.q)
+
+	return q.SetDeclineCooldown(ctx, storage.SetDeclineCooldownParams{
+		Column1: userA,
+		Column2: userB,
+		DeclineCooldownUntil: pgtype.Timestamptz{
+			Time:  until,
+			Valid: true,
+		},
+	})
 }

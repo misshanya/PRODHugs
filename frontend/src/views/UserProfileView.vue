@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowUp, ArrowDown, Heart, Coins, Clock, ArrowUpCircle } from 'lucide-vue-next'
+import { Coins, Clock, ArrowUpCircle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useHugsStore, type UserProfile, type CooldownInfo } from '@/stores/hugs'
 import { useAuthStore } from '@/stores/auth'
@@ -24,24 +24,6 @@ const error = ref('')
 
 const userId = computed(() => route.params.id as string)
 const isMe = computed(() => auth.user?.id === userId.value)
-
-const prevStats = ref({ total: 0, given: 0, received: 0 })
-const animatingStats = ref({ total: false, given: false, received: false })
-
-function triggerStatsAnimation() {
-  if (!profile.value) return
-  const p = profile.value
-  const changed = {
-    total: p.total_hugs !== prevStats.value.total,
-    given: p.hugs_given !== prevStats.value.given,
-    received: p.hugs_received !== prevStats.value.received,
-  }
-  animatingStats.value = changed
-  prevStats.value = { total: p.total_hugs, given: p.hugs_given, received: p.hugs_received }
-  setTimeout(() => {
-    animatingStats.value = { total: false, given: false, received: false }
-  }, 600)
-}
 
 async function load() {
   loading.value = true
@@ -70,16 +52,14 @@ async function upgrade() {
 }
 
 async function onHugged() {
-  if (profile.value) {
-    prevStats.value = {
-      total: profile.value.total_hugs,
-      given: profile.value.hugs_given,
-      received: profile.value.hugs_received,
+  // Suggesting a hug doesn't change stats — just refresh cooldown state
+  if (!isMe.value) {
+    try {
+      cooldown.value = await hugsStore.getCooldown(userId.value)
+    } catch {
+      // Ignore
     }
   }
-  profile.value = await hugsStore.getUserProfile(userId.value)
-  cooldown.value = await hugsStore.getCooldown(userId.value)
-  triggerStatsAnimation()
 }
 
 onMounted(load)
@@ -103,7 +83,9 @@ onMounted(load)
       <Card>
         <CardContent class="p-4">
           <!-- Mobile: stacked layout -->
-          <div class="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-5 sm:text-left">
+          <div
+            class="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-5 sm:text-left"
+          >
             <Avatar class="size-16 sm:size-16">
               <AvatarFallback class="text-lg">
                 {{ profile.username.slice(0, 2).toUpperCase() }}
@@ -118,7 +100,13 @@ onMounted(load)
                 </span>
               </div>
             </div>
-            <HugButton v-if="!isMe" :userId="userId" :username="profile.username" size="lg" @hugged="onHugged" />
+            <HugButton
+              v-if="!isMe"
+              :userId="userId"
+              :username="profile.username"
+              size="lg"
+              @hugged="onHugged"
+            />
           </div>
         </CardContent>
       </Card>
@@ -127,28 +115,37 @@ onMounted(load)
       <div class="grid grid-cols-3 gap-2 sm:gap-4">
         <div class="rounded-[10px] border bg-card p-2.5 sm:p-4">
           <p class="text-[11px] text-muted-foreground sm:text-xs">Всего</p>
-          <div class="mt-1 text-xl font-bold tabular-nums sm:text-2xl" :class="animatingStats.total && 'stat-pop'">
+          <div class="mt-1 text-xl font-bold tabular-nums sm:text-2xl">
             {{ profile.total_hugs }}
           </div>
-          <p v-if="!isMe && profile.mutual_total != null" class="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+          <p
+            v-if="!isMe && profile.mutual_total != null"
+            class="mt-0.5 text-[10px] text-muted-foreground sm:text-xs"
+          >
             {{ profile.mutual_total }} из них с тобой
           </p>
         </div>
         <div class="rounded-[10px] border bg-card p-2.5 sm:p-4">
-          <p class="text-[11px] text-muted-foreground sm:text-xs">Отправлено</p>
-          <div class="mt-1 text-xl font-bold tabular-nums sm:text-2xl" :class="animatingStats.given && 'stat-pop'">
+          <p class="text-[11px] text-muted-foreground sm:text-xs">Инициировано</p>
+          <div class="mt-1 text-xl font-bold tabular-nums sm:text-2xl">
             {{ profile.hugs_given }}
           </div>
-          <p v-if="!isMe && profile.mutual_given != null" class="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+          <p
+            v-if="!isMe && profile.mutual_given != null"
+            class="mt-0.5 text-[10px] text-muted-foreground sm:text-xs"
+          >
             {{ profile.mutual_given }} из них тебе
           </p>
         </div>
         <div class="rounded-[10px] border bg-card p-2.5 sm:p-4">
-          <p class="text-[11px] text-muted-foreground sm:text-xs">Получено</p>
-          <div class="mt-1 text-xl font-bold tabular-nums sm:text-2xl" :class="animatingStats.received && 'stat-pop'">
+          <p class="text-[11px] text-muted-foreground sm:text-xs">Принято</p>
+          <div class="mt-1 text-xl font-bold tabular-nums sm:text-2xl">
             {{ profile.hugs_received }}
           </div>
-          <p v-if="!isMe && profile.mutual_received != null" class="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+          <p
+            v-if="!isMe && profile.mutual_received != null"
+            class="mt-0.5 text-[10px] text-muted-foreground sm:text-xs"
+          >
             {{ profile.mutual_received }} из них от тебя
           </p>
         </div>

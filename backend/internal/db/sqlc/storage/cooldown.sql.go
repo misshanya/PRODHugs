@@ -9,104 +9,102 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getCooldown = `-- name: GetCooldown :one
-SELECT giver_id, receiver_id, last_hug_at, cooldown_seconds
+SELECT user_a_id, user_b_id, last_hug_at, cooldown_seconds, decline_cooldown_until
 FROM hug_cooldowns
-WHERE giver_id = $1 AND receiver_id = $2
+WHERE user_a_id = LEAST($1::UUID, $2::UUID)
+  AND user_b_id = GREATEST($1::UUID, $2::UUID)
 `
 
 type GetCooldownParams struct {
-	GiverID    uuid.UUID
-	ReceiverID uuid.UUID
+	Column1 uuid.UUID
+	Column2 uuid.UUID
 }
 
 func (q *Queries) GetCooldown(ctx context.Context, arg GetCooldownParams) (HugCooldown, error) {
-	row := q.db.QueryRow(ctx, getCooldown, arg.GiverID, arg.ReceiverID)
+	row := q.db.QueryRow(ctx, getCooldown, arg.Column1, arg.Column2)
 	var i HugCooldown
 	err := row.Scan(
-		&i.GiverID,
-		&i.ReceiverID,
+		&i.UserAID,
+		&i.UserBID,
 		&i.LastHugAt,
 		&i.CooldownSeconds,
-	)
-	return i, err
-}
-
-const getOrCreateCooldown = `-- name: GetOrCreateCooldown :one
-SELECT giver_id, receiver_id,
-       COALESCE(last_hug_at, '1970-01-01 00:00:00+00'::timestamptz) as last_hug_at,
-       COALESCE(cooldown_seconds, 3600) as cooldown_seconds
-FROM hug_cooldowns
-WHERE giver_id = $1 AND receiver_id = $2
-LIMIT 1
-`
-
-type GetOrCreateCooldownParams struct {
-	GiverID    uuid.UUID
-	ReceiverID uuid.UUID
-}
-
-func (q *Queries) GetOrCreateCooldown(ctx context.Context, arg GetOrCreateCooldownParams) (HugCooldown, error) {
-	row := q.db.QueryRow(ctx, getOrCreateCooldown, arg.GiverID, arg.ReceiverID)
-	var i HugCooldown
-	err := row.Scan(
-		&i.GiverID,
-		&i.ReceiverID,
-		&i.LastHugAt,
-		&i.CooldownSeconds,
+		&i.DeclineCooldownUntil,
 	)
 	return i, err
 }
 
 const reduceCooldown = `-- name: ReduceCooldown :one
 UPDATE hug_cooldowns
-SET cooldown_seconds = GREATEST(cooldown_seconds - $3::int, 300)
-WHERE giver_id = $1 AND receiver_id = $2
-RETURNING giver_id, receiver_id, last_hug_at, cooldown_seconds
+SET cooldown_seconds = GREATEST(cooldown_seconds - $3::INTEGER, 300)
+WHERE user_a_id = LEAST($1::UUID, $2::UUID)
+  AND user_b_id = GREATEST($1::UUID, $2::UUID)
+RETURNING user_a_id, user_b_id, last_hug_at, cooldown_seconds, decline_cooldown_until
 `
 
 type ReduceCooldownParams struct {
-	GiverID    uuid.UUID
-	ReceiverID uuid.UUID
-	Reduction  int32
+	Column1   uuid.UUID
+	Column2   uuid.UUID
+	Reduction int32
 }
 
 func (q *Queries) ReduceCooldown(ctx context.Context, arg ReduceCooldownParams) (HugCooldown, error) {
-	row := q.db.QueryRow(ctx, reduceCooldown, arg.GiverID, arg.ReceiverID, arg.Reduction)
+	row := q.db.QueryRow(ctx, reduceCooldown, arg.Column1, arg.Column2, arg.Reduction)
 	var i HugCooldown
 	err := row.Scan(
-		&i.GiverID,
-		&i.ReceiverID,
+		&i.UserAID,
+		&i.UserBID,
 		&i.LastHugAt,
 		&i.CooldownSeconds,
+		&i.DeclineCooldownUntil,
 	)
 	return i, err
 }
 
+const setDeclineCooldown = `-- name: SetDeclineCooldown :exec
+INSERT INTO hug_cooldowns (user_a_id, user_b_id, decline_cooldown_until, cooldown_seconds)
+VALUES (LEAST($1::UUID, $2::UUID), GREATEST($1::UUID, $2::UUID), $3, 3600)
+ON CONFLICT (user_a_id, user_b_id)
+DO UPDATE SET decline_cooldown_until = $3
+`
+
+type SetDeclineCooldownParams struct {
+	Column1              uuid.UUID
+	Column2              uuid.UUID
+	DeclineCooldownUntil pgtype.Timestamptz
+}
+
+func (q *Queries) SetDeclineCooldown(ctx context.Context, arg SetDeclineCooldownParams) error {
+	_, err := q.db.Exec(ctx, setDeclineCooldown, arg.Column1, arg.Column2, arg.DeclineCooldownUntil)
+	return err
+}
+
 const upsertCooldown = `-- name: UpsertCooldown :one
-INSERT INTO hug_cooldowns (giver_id, receiver_id, last_hug_at, cooldown_seconds)
-VALUES ($1, $2, now(), $3)
-ON CONFLICT (giver_id, receiver_id)
+INSERT INTO hug_cooldowns (user_a_id, user_b_id, cooldown_seconds)
+VALUES (LEAST($1::UUID, $2::UUID), GREATEST($1::UUID, $2::UUID), $3)
+ON CONFLICT (user_a_id, user_b_id)
 DO UPDATE SET last_hug_at = now()
-RETURNING giver_id, receiver_id, last_hug_at, cooldown_seconds
+RETURNING user_a_id, user_b_id, last_hug_at, cooldown_seconds, decline_cooldown_until
 `
 
 type UpsertCooldownParams struct {
-	GiverID         uuid.UUID
-	ReceiverID      uuid.UUID
+	Column1         uuid.UUID
+	Column2         uuid.UUID
 	CooldownSeconds int32
 }
 
 func (q *Queries) UpsertCooldown(ctx context.Context, arg UpsertCooldownParams) (HugCooldown, error) {
-	row := q.db.QueryRow(ctx, upsertCooldown, arg.GiverID, arg.ReceiverID, arg.CooldownSeconds)
+	row := q.db.QueryRow(ctx, upsertCooldown, arg.Column1, arg.Column2, arg.CooldownSeconds)
 	var i HugCooldown
 	err := row.Scan(
-		&i.GiverID,
-		&i.ReceiverID,
+		&i.UserAID,
+		&i.UserBID,
 		&i.LastHugAt,
 		&i.CooldownSeconds,
+		&i.DeclineCooldownUntil,
 	)
 	return i, err
 }

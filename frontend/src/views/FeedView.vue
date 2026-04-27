@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Wifi, WifiOff, ChevronUp } from 'lucide-vue-next'
 import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { hugVerb } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -16,11 +17,10 @@ import {
 } from '@/components/ui/chart'
 
 const hugsStore = useHugsStore()
+const ws = useWebSocket()
 const feed = ref<HugFeedItem[]>([])
-const connected = ref(false)
 const initialLoading = ref(true)
 const now = ref(Date.now())
-let ws: WebSocket | null = null
 let tick: ReturnType<typeof setInterval> | null = null
 
 /** IDs of items that arrived via WebSocket (for highlight effect) */
@@ -89,38 +89,8 @@ function bumpActivityBucket(createdAt: string) {
   }
 }
 
-function connectWS() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  ws = new WebSocket(`${protocol}//${window.location.host}/api/v1/ws`)
-
-  ws.onopen = () => {
-    connected.value = true
-  }
-
-  ws.onmessage = (event) => {
-    try {
-      const item = JSON.parse(event.data) as HugFeedItem
-      if (isScrolledAway.value) {
-        pendingItems.value.unshift(item)
-    } else {
-      prependItem(item)
-    }
-    // Update the chart bucket for this hug in real‑time
-    bumpActivityBucket(item.created_at)
-  } catch {
-      // Ignore
-    }
-  }
-
-  ws.onclose = () => {
-    connected.value = false
-    setTimeout(connectWS, 3000)
-  }
-
-  ws.onerror = () => {
-    ws?.close()
-  }
-}
+// WebSocket subscription cleanup
+const cleanups: Array<() => void> = []
 
 onMounted(async () => {
   hugsStore
@@ -135,7 +105,20 @@ onMounted(async () => {
   await hugsStore.fetchFeed(50)
   feed.value = [...hugsStore.feed]
   initialLoading.value = false
-  connectWS()
+
+  // Subscribe to hug_completed events via the shared composable
+  cleanups.push(
+    ws.on<HugFeedItem>('hug_completed', (item) => {
+      if (isScrolledAway.value) {
+        pendingItems.value.unshift(item)
+      } else {
+        prependItem(item)
+      }
+      // Update the chart bucket for this hug in real-time
+      bumpActivityBucket(item.created_at)
+    }),
+  )
+
   tick = setInterval(() => {
     now.value = Date.now()
   }, 1000)
@@ -153,10 +136,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (ws) {
-    ws.close()
-    ws = null
-  }
+  cleanups.forEach((fn) => fn())
   if (tick) {
     clearInterval(tick)
     tick = null
@@ -172,10 +152,16 @@ onUnmounted(() => {
         <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Лента</h1>
         <p class="text-xs text-muted-foreground sm:text-sm">Обнимашки в реальном времени</p>
       </div>
-      <Badge :variant="connected ? 'secondary' : 'destructive'" class="shrink-0 gap-1.5" :class="connected ? 'bg-prod-yellow/15 text-prod-yellow border-prod-yellow/20' : ''">
-        <Wifi v-if="connected" class="size-3" />
+      <Badge
+        :variant="ws.connected.value ? 'secondary' : 'destructive'"
+        class="shrink-0 gap-1.5"
+        :class="
+          ws.connected.value ? 'bg-prod-yellow/15 text-prod-yellow border-prod-yellow/20' : ''
+        "
+      >
+        <Wifi v-if="ws.connected.value" class="size-3" />
         <WifiOff v-else class="size-3" />
-        <span class="hidden xs:inline">{{ connected ? 'Подключено' : 'Отключено' }}</span>
+        <span class="hidden xs:inline">{{ ws.connected.value ? 'Подключено' : 'Отключено' }}</span>
       </Badge>
     </div>
 
@@ -193,7 +179,10 @@ onUnmounted(() => {
       </div>
 
       <Skeleton v-if="chartLoading" class="h-[140px] w-full sm:h-[180px]" />
-      <div v-else-if="activity.length === 0" class="flex h-[140px] items-center justify-center text-sm text-muted-foreground sm:h-[180px]">
+      <div
+        v-else-if="activity.length === 0"
+        class="flex h-[140px] items-center justify-center text-sm text-muted-foreground sm:h-[180px]"
+      >
         Нет данных
       </div>
       <ChartContainer v-else :config="chartConfig" class="h-[140px] w-full sm:h-[180px]">
@@ -212,11 +201,16 @@ onUnmounted(() => {
             :domain-line="false"
             :grid-line="false"
             :num-ticks="5"
-            :tick-format="(i: number) => {
-              const item = activity[Math.round(i)]
-              if (!item) return ''
-              return new Date(item.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-            }"
+            :tick-format="
+              (i: number) => {
+                const item = activity[Math.round(i)]
+                if (!item) return ''
+                return new Date(item.timestamp).toLocaleTimeString('ru-RU', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }
+            "
           />
           <VisAxis
             type="y"
@@ -238,7 +232,10 @@ onUnmounted(() => {
       <Skeleton v-for="i in 8" :key="i" class="h-12 w-full" />
     </div>
 
-    <div v-else-if="feed.length === 0 && pendingCount === 0" class="py-12 text-center text-muted-foreground sm:py-16">
+    <div
+      v-else-if="feed.length === 0 && pendingCount === 0"
+      class="py-12 text-center text-muted-foreground sm:py-16"
+    >
       <p class="text-base font-medium sm:text-lg">Пока нет обнимашек</p>
       <p class="mt-1 text-sm">Будьте первыми!</p>
     </div>
@@ -248,10 +245,7 @@ onUnmounted(() => {
       <Transition name="indicator">
         <button
           v-if="pendingCount > 0"
-          class="sticky top-2 z-20 mx-auto flex items-center gap-1.5 rounded-full border border-prod-yellow/30
-                 bg-card/90 px-3 py-2 text-xs font-medium text-prod-yellow shadow-lg backdrop-blur-sm
-                 transition-all hover:bg-card hover:shadow-xl active:scale-95 cursor-pointer
-                 sm:px-4 sm:py-1.5 sm:text-sm"
+          class="sticky top-2 z-20 mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border border-prod-yellow/30 bg-card/90 px-3 py-2 text-xs font-medium text-prod-yellow shadow-lg backdrop-blur-sm transition-all hover:bg-card hover:shadow-xl active:scale-95 sm:px-4 sm:py-1.5 sm:text-sm"
           @click="flushPending"
         >
           <ChevronUp class="size-3.5" />
@@ -259,7 +253,7 @@ onUnmounted(() => {
         </button>
       </Transition>
 
-      <div class="rounded-md border divide-y">
+      <div class="divide-y rounded-md border">
         <TransitionGroup name="feed">
           <div
             v-for="item in feed"
@@ -268,16 +262,14 @@ onUnmounted(() => {
             :class="{ 'feed-new': newItemIds.has(item.id) }"
             @animationend="newItemIds.delete(item.id)"
           >
-            <div class="flex-1 min-w-0 text-xs leading-relaxed sm:text-sm sm:leading-normal">
-              <RouterLink
-                :to="`/user/${item.giver_id}`"
-                class="font-medium hover:underline"
-              >{{ item.giver_username }}</RouterLink>
-              <span class="text-muted-foreground mx-1">{{ hugVerb(item.giver_gender) }}</span>
-              <RouterLink
-                :to="`/user/${item.receiver_id}`"
-                class="font-medium hover:underline"
-              >{{ item.receiver_username }}</RouterLink>
+            <div class="min-w-0 flex-1 text-xs leading-relaxed sm:text-sm sm:leading-normal">
+              <RouterLink :to="`/user/${item.giver_id}`" class="font-medium hover:underline">{{
+                item.giver_username
+              }}</RouterLink>
+              <span class="mx-1 text-muted-foreground">{{ hugVerb(item.giver_gender) }}</span>
+              <RouterLink :to="`/user/${item.receiver_id}`" class="font-medium hover:underline">{{
+                item.receiver_username
+              }}</RouterLink>
             </div>
             <span class="shrink-0 text-[10px] text-muted-foreground tabular-nums sm:text-xs">
               {{ timeAgo(item.created_at) }}

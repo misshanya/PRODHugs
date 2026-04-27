@@ -13,6 +13,7 @@ import (
 	"go-service-template/internal/errorz"
 	"go-service-template/internal/jwt"
 	"go-service-template/internal/models"
+	"go-service-template/internal/repository"
 	"go-service-template/internal/transport/http/server"
 	v1 "go-service-template/internal/transport/http/v1"
 	"go-service-template/internal/ws"
@@ -21,6 +22,7 @@ import (
 	"go-service-template/internal/config"
 	"go-service-template/internal/db"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
@@ -76,14 +78,27 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	balanceRepo := balancerepo.New(a.dbPool)
 	dailyRewardRepo := dailyrewardrepo.New(a.dbPool)
 
+	// Transactor for database transactions
+	transactor := repository.NewTransactor(a.dbPool)
+
 	// Services
 	userService := userservice.New(userRepo, jwtManager)
-	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo)
+	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, transactor)
 
 	// WebSocket Hub
-	a.hub = ws.NewHub()
-	hugService.SetHugCallback(func(item *models.HugFeedItem) {
-		a.hub.Broadcast(hughandler.ToFeedItemDTO(item))
+	a.hub = ws.NewHub(jwtManager)
+
+	hugService.SetHugCompletedCallback(func(item *models.HugFeedItem) {
+		a.hub.Broadcast("hug_completed", hughandler.ToFeedItemDTO(item))
+	})
+	hugService.SetHugSuggestionCallback(func(targetUserID uuid.UUID, item *models.PendingHugInboxItem) {
+		a.hub.SendToUser(targetUserID, "hug_suggestion", item)
+	})
+	hugService.SetHugDeclinedCallback(func(targetUserID uuid.UUID, hugID uuid.UUID) {
+		a.hub.SendToUser(targetUserID, "hug_declined", map[string]string{"hug_id": hugID.String()})
+	})
+	hugService.SetHugCancelledCallback(func(targetUserID uuid.UUID, hugID uuid.UUID) {
+		a.hub.SendToUser(targetUserID, "hug_cancelled", map[string]string{"hug_id": hugID.String()})
 	})
 
 	// Handlers

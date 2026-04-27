@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Heart, Clock, Loader2 } from 'lucide-vue-next'
+import { Heart, Clock, Loader2, Hourglass } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type CooldownInfo } from '@/stores/hugs'
-import { hugVerb } from '@/lib/utils'
+import { suggestVerb } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import HugExplosion from '@/components/HugExplosion.vue'
 
 const props = defineProps<{
   userId: string
@@ -23,20 +22,18 @@ const hugsStore = useHugsStore()
 const loading = ref(false)
 const cooldown = ref<CooldownInfo | null>(null)
 const remaining = ref(0)
-const animating = ref(false)
-const showExplosion = ref(false)
 const btnRef = ref<HTMLButtonElement | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 
-// Position explosion at button's center, but rendered to body to avoid layout shifts
-const explosionStyle = computed(() => {
-  if (!btnRef.value || !showExplosion.value) return {}
-  const rect = btnRef.value.getBoundingClientRect()
-  return {
-    top: `${rect.top + rect.height / 2}px`,
-    left: `${rect.left + rect.width / 2}px`,
-    transform: 'translate(-50%, -50%)',
-  }
+// Pending state computeds
+const hasGlobalPending = computed(() => !!hugsStore.outgoingHug)
+const isPendingWithThisUser = computed(() => hugsStore.outgoingHug?.receiver_id === props.userId)
+
+const isDisabled = computed(() => loading.value || remaining.value > 0 || hasGlobalPending.value)
+
+const buttonVariant = computed(() => {
+  if (remaining.value > 0 || hasGlobalPending.value) return 'secondary'
+  return 'yellow'
 })
 
 async function loadCooldown() {
@@ -62,28 +59,19 @@ function startTimer() {
   }
 }
 
-async function sendHug() {
-  if (loading.value || remaining.value > 0) return
+async function suggest() {
+  if (loading.value || remaining.value > 0 || hasGlobalPending.value) return
   loading.value = true
   try {
-    await hugsStore.sendHug(props.userId)
-    animating.value = true
-    showExplosion.value = true
-    setTimeout(() => {
-      animating.value = false
-    }, 800)
-    toast.success(`Ты ${hugVerb(auth.user?.gender)} ${props.username}!`)
+    await hugsStore.suggestHug(props.userId)
+    toast.success(`Ты ${suggestVerb(auth.user?.gender)} обнимашку ${props.username}!`)
     emit('hugged')
-    await loadCooldown()
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || `Не удалось обнять ${props.username}`)
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    toast.error(err.response?.data?.message || `Не удалось предложить обнимашку ${props.username}`)
   } finally {
     loading.value = false
   }
-}
-
-function onExplosionDone() {
-  showExplosion.value = false
 }
 
 function formatTime(seconds: number): string {
@@ -101,27 +89,20 @@ onUnmounted(() => {
 <template>
   <div ref="btnRef" class="relative inline-flex">
     <Button
-      @click="sendHug"
-      :disabled="loading || remaining > 0"
+      @click="suggest"
+      :disabled="isDisabled"
       :size="size ?? 'default'"
-      :variant="remaining > 0 ? 'secondary' : 'yellow'"
+      :variant="buttonVariant"
       class="rounded-[21px]"
-      :class="[animating ? 'hug-animate' : '']"
     >
       <Loader2 v-if="loading" class="size-4 animate-spin" />
       <Clock v-else-if="remaining > 0" class="size-4" />
+      <Hourglass v-else-if="hasGlobalPending" class="size-4" />
       <Heart v-else class="size-4" />
       <span v-if="remaining > 0">{{ formatTime(remaining) }}</span>
-      <span v-else>Обнять</span>
+      <span v-else-if="isPendingWithThisUser">Ожидание...</span>
+      <span v-else-if="hasGlobalPending">Ты уже ждешь ответа от другого</span>
+      <span v-else>Предложить обняться</span>
     </Button>
-    <Teleport to="body">
-      <div
-        v-if="showExplosion"
-        class="pointer-events-none fixed z-[100]"
-        :style="explosionStyle"
-      >
-        <HugExplosion @done="onExplosionDone" />
-      </div>
-    </Teleport>
   </div>
 </template>

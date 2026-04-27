@@ -12,10 +12,61 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acceptHug = `-- name: AcceptHug :one
+UPDATE hugs SET status = 'completed', accepted_at = now()
+WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at
+`
+
+type AcceptHugParams struct {
+	ID         uuid.UUID
+	ReceiverID uuid.UUID
+}
+
+func (q *Queries) AcceptHug(ctx context.Context, arg AcceptHugParams) (Hug, error) {
+	row := q.db.QueryRow(ctx, acceptHug, arg.ID, arg.ReceiverID)
+	var i Hug
+	err := row.Scan(
+		&i.ID,
+		&i.GiverID,
+		&i.ReceiverID,
+		&i.CreatedAt,
+		&i.Status,
+		&i.AcceptedAt,
+	)
+	return i, err
+}
+
+const cancelHug = `-- name: CancelHug :one
+UPDATE hugs SET status = 'cancelled'
+WHERE id = $1 AND giver_id = $2 AND status = 'pending'
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at
+`
+
+type CancelHugParams struct {
+	ID      uuid.UUID
+	GiverID uuid.UUID
+}
+
+func (q *Queries) CancelHug(ctx context.Context, arg CancelHugParams) (Hug, error) {
+	row := q.db.QueryRow(ctx, cancelHug, arg.ID, arg.GiverID)
+	var i Hug
+	err := row.Scan(
+		&i.ID,
+		&i.GiverID,
+		&i.ReceiverID,
+		&i.CreatedAt,
+		&i.Status,
+		&i.AcceptedAt,
+	)
+	return i, err
+}
+
 const countHugsGiven = `-- name: CountHugsGiven :one
 SELECT COUNT(*)
 FROM hugs
 WHERE giver_id = $1
+  AND status = 'completed'
 `
 
 func (q *Queries) CountHugsGiven(ctx context.Context, giverID uuid.UUID) (int64, error) {
@@ -29,6 +80,7 @@ const countHugsReceived = `-- name: CountHugsReceived :one
 SELECT COUNT(*)
 FROM hugs
 WHERE receiver_id = $1
+  AND status = 'completed'
 `
 
 func (q *Queries) CountHugsReceived(ctx context.Context, receiverID uuid.UUID) (int64, error) {
@@ -44,8 +96,9 @@ SELECT
     COUNT(*) FILTER (WHERE giver_id = $1 AND receiver_id = $2)::bigint AS mutual_given,
     COUNT(*) FILTER (WHERE giver_id = $2 AND receiver_id = $1)::bigint AS mutual_received
 FROM hugs
-WHERE (giver_id = $1 AND receiver_id = $2)
-   OR (giver_id = $2 AND receiver_id = $1)
+WHERE ((giver_id = $1 AND receiver_id = $2)
+   OR (giver_id = $2 AND receiver_id = $1))
+  AND status = 'completed'
 `
 
 type CountMutualHugsParams struct {
@@ -66,6 +119,56 @@ func (q *Queries) CountMutualHugs(ctx context.Context, arg CountMutualHugsParams
 	return i, err
 }
 
+const countPendingHugsForUser = `-- name: CountPendingHugsForUser :one
+SELECT COUNT(*) FROM hugs
+WHERE receiver_id = $1
+  AND status = 'pending'
+  AND created_at > now() - INTERVAL '24 hours'
+`
+
+func (q *Queries) CountPendingHugsForUser(ctx context.Context, receiverID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countPendingHugsForUser, receiverID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const declineHug = `-- name: DeclineHug :one
+UPDATE hugs SET status = 'declined'
+WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at
+`
+
+type DeclineHugParams struct {
+	ID         uuid.UUID
+	ReceiverID uuid.UUID
+}
+
+func (q *Queries) DeclineHug(ctx context.Context, arg DeclineHugParams) (Hug, error) {
+	row := q.db.QueryRow(ctx, declineHug, arg.ID, arg.ReceiverID)
+	var i Hug
+	err := row.Scan(
+		&i.ID,
+		&i.GiverID,
+		&i.ReceiverID,
+		&i.CreatedAt,
+		&i.Status,
+		&i.AcceptedAt,
+	)
+	return i, err
+}
+
+const expirePendingHugs = `-- name: ExpirePendingHugs :exec
+UPDATE hugs SET status = 'expired'
+WHERE status = 'pending'
+  AND created_at <= now() - INTERVAL '24 hours'
+`
+
+func (q *Queries) ExpirePendingHugs(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, expirePendingHugs)
+	return err
+}
+
 const getHugActivity = `-- name: GetHugActivity :many
 SELECT
     bucket::timestamptz AS bucket_time,
@@ -78,6 +181,7 @@ FROM generate_series(
 LEFT JOIN hugs h
     ON h.created_at >= bucket
    AND h.created_at < bucket + '1 hour'::interval
+   AND h.status = 'completed'
 GROUP BY bucket
 ORDER BY bucket
 `
@@ -108,42 +212,183 @@ func (q *Queries) GetHugActivity(ctx context.Context) ([]GetHugActivityRow, erro
 }
 
 const getHugByID = `-- name: GetHugByID :one
-SELECT id, giver_id, receiver_id, created_at
+SELECT id, giver_id, receiver_id, status, created_at, accepted_at
 FROM hugs
 WHERE id = $1
 `
 
-func (q *Queries) GetHugByID(ctx context.Context, id uuid.UUID) (Hug, error) {
+type GetHugByIDRow struct {
+	ID         uuid.UUID
+	GiverID    uuid.UUID
+	ReceiverID uuid.UUID
+	Status     string
+	CreatedAt  pgtype.Timestamptz
+	AcceptedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetHugByID(ctx context.Context, id uuid.UUID) (GetHugByIDRow, error) {
 	row := q.db.QueryRow(ctx, getHugByID, id)
-	var i Hug
+	var i GetHugByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.GiverID,
 		&i.ReceiverID,
+		&i.Status,
 		&i.CreatedAt,
+		&i.AcceptedAt,
 	)
 	return i, err
 }
 
+const getOutgoingPendingHug = `-- name: GetOutgoingPendingHug :one
+SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
+       r.username AS receiver_username, r.gender AS receiver_gender
+FROM hugs h
+JOIN users r ON r.id = h.receiver_id
+WHERE h.giver_id = $1
+  AND h.status = 'pending'
+  AND h.created_at > now() - INTERVAL '24 hours'
+LIMIT 1
+`
+
+type GetOutgoingPendingHugRow struct {
+	ID               uuid.UUID
+	GiverID          uuid.UUID
+	ReceiverID       uuid.UUID
+	Status           string
+	CreatedAt        pgtype.Timestamptz
+	AcceptedAt       pgtype.Timestamptz
+	ReceiverUsername string
+	ReceiverGender   pgtype.Text
+}
+
+func (q *Queries) GetOutgoingPendingHug(ctx context.Context, giverID uuid.UUID) (GetOutgoingPendingHugRow, error) {
+	row := q.db.QueryRow(ctx, getOutgoingPendingHug, giverID)
+	var i GetOutgoingPendingHugRow
+	err := row.Scan(
+		&i.ID,
+		&i.GiverID,
+		&i.ReceiverID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.AcceptedAt,
+		&i.ReceiverUsername,
+		&i.ReceiverGender,
+	)
+	return i, err
+}
+
+const getPendingHugsForUser = `-- name: GetPendingHugsForUser :many
+SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
+       g.username AS giver_username, g.gender AS giver_gender
+FROM hugs h
+JOIN users g ON g.id = h.giver_id
+WHERE h.receiver_id = $1
+  AND h.status = 'pending'
+  AND h.created_at > now() - INTERVAL '24 hours'
+ORDER BY h.created_at DESC
+`
+
+type GetPendingHugsForUserRow struct {
+	ID            uuid.UUID
+	GiverID       uuid.UUID
+	ReceiverID    uuid.UUID
+	Status        string
+	CreatedAt     pgtype.Timestamptz
+	AcceptedAt    pgtype.Timestamptz
+	GiverUsername string
+	GiverGender   pgtype.Text
+}
+
+func (q *Queries) GetPendingHugsForUser(ctx context.Context, receiverID uuid.UUID) ([]GetPendingHugsForUserRow, error) {
+	rows, err := q.db.Query(ctx, getPendingHugsForUser, receiverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPendingHugsForUserRow
+	for rows.Next() {
+		var i GetPendingHugsForUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GiverID,
+			&i.ReceiverID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.AcceptedAt,
+			&i.GiverUsername,
+			&i.GiverGender,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const hasOutgoingPendingHug = `-- name: HasOutgoingPendingHug :one
+SELECT EXISTS(
+    SELECT 1 FROM hugs
+    WHERE giver_id = $1
+      AND status = 'pending'
+      AND created_at > now() - INTERVAL '24 hours'
+) AS has_pending
+`
+
+func (q *Queries) HasOutgoingPendingHug(ctx context.Context, giverID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, hasOutgoingPendingHug, giverID)
+	var has_pending bool
+	err := row.Scan(&has_pending)
+	return has_pending, err
+}
+
+const hasPendingHugForPair = `-- name: HasPendingHugForPair :one
+SELECT EXISTS(
+    SELECT 1 FROM hugs
+    WHERE giver_id = $1
+      AND receiver_id = $2
+      AND status = 'pending'
+      AND created_at > now() - INTERVAL '24 hours'
+) AS has_pending
+`
+
+type HasPendingHugForPairParams struct {
+	GiverID    uuid.UUID
+	ReceiverID uuid.UUID
+}
+
+func (q *Queries) HasPendingHugForPair(ctx context.Context, arg HasPendingHugForPairParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPendingHugForPair, arg.GiverID, arg.ReceiverID)
+	var has_pending bool
+	err := row.Scan(&has_pending)
+	return has_pending, err
+}
+
 const insertHug = `-- name: InsertHug :one
-INSERT INTO hugs (giver_id, receiver_id)
-VALUES ($1, $2)
-RETURNING id, giver_id, receiver_id, created_at
+INSERT INTO hugs (giver_id, receiver_id, status)
+VALUES ($1, $2, $3)
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at
 `
 
 type InsertHugParams struct {
 	GiverID    uuid.UUID
 	ReceiverID uuid.UUID
+	Status     string
 }
 
 func (q *Queries) InsertHug(ctx context.Context, arg InsertHugParams) (Hug, error) {
-	row := q.db.QueryRow(ctx, insertHug, arg.GiverID, arg.ReceiverID)
+	row := q.db.QueryRow(ctx, insertHug, arg.GiverID, arg.ReceiverID, arg.Status)
 	var i Hug
 	err := row.Scan(
 		&i.ID,
 		&i.GiverID,
 		&i.ReceiverID,
 		&i.CreatedAt,
+		&i.Status,
+		&i.AcceptedAt,
 	)
 	return i, err
 }
@@ -160,7 +405,8 @@ SELECT
 FROM hugs h
 JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
-WHERE h.giver_id = $1 OR h.receiver_id = $1
+WHERE (h.giver_id = $1 OR h.receiver_id = $1)
+  AND h.status = 'completed'
 ORDER BY h.created_at DESC
 `
 

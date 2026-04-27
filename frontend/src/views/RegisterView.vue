@@ -124,7 +124,12 @@ async function handleRegister() {
           <p v-if="serverError" class="text-sm text-destructive text-center">
             {{ serverError }}
           </p>
-          <Button type="submit" variant="yellow" class="w-full rounded-[21px]" :disabled="auth.loading">
+          <Button
+            type="submit"
+            variant="yellow"
+            class="w-full rounded-[21px]"
+            :disabled="auth.loading"
+          >
             {{ auth.loading ? 'Регистрация...' : 'Зарегистрироваться' }}
           </Button>
         </form>
@@ -132,7 +137,10 @@ async function handleRegister() {
       <CardFooter class="justify-center">
         <p class="text-sm text-muted-foreground">
           Уже есть аккаунт?
-          <RouterLink to="/login" class="text-foreground underline underline-offset-4 hover:text-primary">
+          <RouterLink
+            to="/login"
+            class="text-foreground underline underline-offset-4 hover:text-primary"
+          >
             Войти
           </RouterLink>
         </p>

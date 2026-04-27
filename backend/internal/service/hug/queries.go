@@ -62,6 +62,18 @@ func (s *service) SearchUsers(ctx context.Context, query string, limit, offset i
 	return s.hugRepo.SearchUsers(ctx, query, limit, offset)
 }
 
+func (s *service) GetPendingInbox(ctx context.Context, userID uuid.UUID) ([]*models.PendingHugInboxItem, error) {
+	return s.hugRepo.GetPendingHugsForUser(ctx, userID)
+}
+
+func (s *service) GetOutgoingPendingHug(ctx context.Context, userID uuid.UUID) (*models.OutgoingPendingHug, error) {
+	return s.hugRepo.GetOutgoingPendingHug(ctx, userID)
+}
+
+func (s *service) GetInboxCount(ctx context.Context, userID uuid.UUID) (int64, error) {
+	return s.hugRepo.CountPendingHugsForUser(ctx, userID)
+}
+
 func (s *service) ClaimDailyReward(ctx context.Context, userID uuid.UUID) (int32, int32, int32, bool, error) {
 	// Check if already claimed today
 	existing, err := s.dailyRepo.GetDailyReward(ctx, userID)

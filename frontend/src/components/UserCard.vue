@@ -16,7 +16,9 @@ const isMe = auth.user?.id === props.user.id
 </script>
 
 <template>
-  <div class="flex items-center justify-between rounded-[10px] border p-3 transition-colors hover:bg-[#002D20]">
+  <div
+    class="flex items-center justify-between rounded-[10px] border p-3 transition-colors hover:bg-[#002D20]"
+  >
     <RouterLink :to="`/user/${user.id}`" class="flex items-center gap-3 flex-1 min-w-0">
       <Avatar class="size-9">
         <AvatarFallback class="text-xs">

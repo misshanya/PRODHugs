@@ -1,25 +1,25 @@
 -- name: GetCooldown :one
-SELECT giver_id, receiver_id, last_hug_at, cooldown_seconds
+SELECT user_a_id, user_b_id, last_hug_at, cooldown_seconds, decline_cooldown_until
 FROM hug_cooldowns
-WHERE giver_id = $1 AND receiver_id = $2;
+WHERE user_a_id = LEAST($1::UUID, $2::UUID)
+  AND user_b_id = GREATEST($1::UUID, $2::UUID);
 
 -- name: UpsertCooldown :one
-INSERT INTO hug_cooldowns (giver_id, receiver_id, last_hug_at, cooldown_seconds)
-VALUES ($1, $2, now(), $3)
-ON CONFLICT (giver_id, receiver_id)
+INSERT INTO hug_cooldowns (user_a_id, user_b_id, cooldown_seconds)
+VALUES (LEAST($1::UUID, $2::UUID), GREATEST($1::UUID, $2::UUID), $3)
+ON CONFLICT (user_a_id, user_b_id)
 DO UPDATE SET last_hug_at = now()
-RETURNING giver_id, receiver_id, last_hug_at, cooldown_seconds;
+RETURNING *;
 
 -- name: ReduceCooldown :one
 UPDATE hug_cooldowns
-SET cooldown_seconds = GREATEST(cooldown_seconds - @reduction::int, 300)
-WHERE giver_id = $1 AND receiver_id = $2
-RETURNING giver_id, receiver_id, last_hug_at, cooldown_seconds;
+SET cooldown_seconds = GREATEST(cooldown_seconds - @reduction::INTEGER, 300)
+WHERE user_a_id = LEAST($1::UUID, $2::UUID)
+  AND user_b_id = GREATEST($1::UUID, $2::UUID)
+RETURNING *;
 
--- name: GetOrCreateCooldown :one
-SELECT giver_id, receiver_id,
-       COALESCE(last_hug_at, '1970-01-01 00:00:00+00'::timestamptz) as last_hug_at,
-       COALESCE(cooldown_seconds, 3600) as cooldown_seconds
-FROM hug_cooldowns
-WHERE giver_id = $1 AND receiver_id = $2
-LIMIT 1;
+-- name: SetDeclineCooldown :exec
+INSERT INTO hug_cooldowns (user_a_id, user_b_id, decline_cooldown_until, cooldown_seconds)
+VALUES (LEAST($1::UUID, $2::UUID), GREATEST($1::UUID, $2::UUID), $3, 3600)
+ON CONFLICT (user_a_id, user_b_id)
+DO UPDATE SET decline_cooldown_until = $3;

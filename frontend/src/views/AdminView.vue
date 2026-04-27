@@ -219,7 +219,9 @@ function formatBanDate(dateStr: string): string {
     <div v-else class="grid grid-cols-2 gap-4">
       <Card>
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-medium text-muted-foreground">Всего пользователей</CardTitle>
+          <CardTitle class="text-sm font-medium text-muted-foreground"
+            >Всего пользователей</CardTitle
+          >
         </CardHeader>
         <CardContent>
           <div class="flex items-center gap-2">
@@ -235,7 +237,9 @@ function formatBanDate(dateStr: string): string {
         <CardContent>
           <div class="flex items-center gap-2">
             <ShieldBan class="size-5 text-destructive" />
-            <span class="text-2xl font-bold tabular-nums">{{ admin.stats?.banned_users ?? 0 }}</span>
+            <span class="text-2xl font-bold tabular-nums">{{
+              admin.stats?.banned_users ?? 0
+            }}</span>
           </div>
         </CardContent>
       </Card>
@@ -271,11 +275,7 @@ function formatBanDate(dateStr: string): string {
                 >
                   Админ
                 </Badge>
-                <Badge
-                  v-if="user.banned_at"
-                  variant="destructive"
-                  class="text-[10px] px-1.5 py-0"
-                >
+                <Badge v-if="user.banned_at" variant="destructive" class="text-[10px] px-1.5 py-0">
                   Бан
                 </Badge>
               </div>
@@ -345,9 +345,7 @@ function formatBanDate(dateStr: string): string {
       <DialogContent class="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Изменить имя</DialogTitle>
-          <DialogDescription>
-            Пользователь: {{ editingUser?.username }}
-          </DialogDescription>
+          <DialogDescription> Пользователь: {{ editingUser?.username }} </DialogDescription>
         </DialogHeader>
         <div class="space-y-4">
           <div class="grid gap-1.5">
@@ -378,9 +376,7 @@ function formatBanDate(dateStr: string): string {
       <DialogContent class="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Изменить пол</DialogTitle>
-          <DialogDescription>
-            Пользователь: {{ editingUser?.username }}
-          </DialogDescription>
+          <DialogDescription> Пользователь: {{ editingUser?.username }} </DialogDescription>
         </DialogHeader>
         <div class="space-y-4">
           <RadioGroup v-model="newGender" class="flex gap-4">
@@ -410,9 +406,7 @@ function formatBanDate(dateStr: string): string {
       <DialogContent class="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Сменить пароль</DialogTitle>
-          <DialogDescription>
-            Пользователь: {{ editingUser?.username }}
-          </DialogDescription>
+          <DialogDescription> Пользователь: {{ editingUser?.username }} </DialogDescription>
         </DialogHeader>
         <div class="space-y-4">
           <div class="grid gap-1.5">

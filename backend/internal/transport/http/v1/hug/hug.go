@@ -3,20 +3,22 @@ package hug
 import (
 	"context"
 	"errors"
+	"net/http"
+	"time"
+
 	"go-service-template/internal/errorz"
 	"go-service-template/internal/transport/http/middleware"
 	v1 "go-service-template/internal/transport/http/v1"
-	"time"
 
 	"github.com/google/uuid"
 )
 
-func (h *HugHandler) SendHug(ctx context.Context, req v1.SendHugRequestObject) (v1.SendHugResponseObject, error) {
+func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObject) (v1.SuggestHugResponseObject, error) {
 	giverID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
 	receiverID := req.UserId
 
 	if giverID == receiverID {
-		return v1.SendHug400JSONResponse{
+		return v1.SuggestHug400JSONResponse{
 			BadRequestJSONResponse: v1.BadRequestJSONResponse{
 				Code:    v1.CANNOTHUGSELF,
 				Message: "You cannot hug yourself",
@@ -24,58 +26,206 @@ func (h *HugHandler) SendHug(ctx context.Context, req v1.SendHugRequestObject) (
 		}, nil
 	}
 
-	hug, err := h.svc.SendHug(ctx, giverID, receiverID)
+	hug, err := h.svc.SuggestHug(ctx, giverID, receiverID)
 	if err != nil {
-		if errors.Is(err, errorz.ErrHugCooldownActive) {
-			return v1.SendHug429JSONResponse{
-				TooManyRequestsJSONResponse: v1.TooManyRequestsJSONResponse{
-					Code:    v1.COOLDOWNACTIVE,
-					Message: "You need to wait before hugging this user again",
-				},
+		if errors.Is(err, errorz.ErrAlreadyHasPendingHug) {
+			return v1.SuggestHug409JSONResponse{
+				ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.ALREADYHASPENDINGHUG, Message: "You already have a pending outgoing hug"},
 			}, nil
 		}
-		if errors.Is(err, errorz.ErrUserNotFound) {
-			return v1.SendHug404JSONResponse{
-				NotFoundJSONResponse: v1.NotFoundJSONResponse{
-					Code:    v1.USERNOTFOUND,
-					Message: "User not found",
-				},
+		if errors.Is(err, errorz.ErrPendingHugExists) {
+			return v1.SuggestHug409JSONResponse{
+				ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.PENDINGHUGEXISTS, Message: "Pending hug already exists for this pair"},
 			}, nil
+		}
+		if errors.Is(err, errorz.ErrDeclineCooldownActive) {
+			return v1.SuggestHug429JSONResponse{TooManyRequestsJSONResponse: v1.TooManyRequestsJSONResponse{Code: v1.DECLINECOOLDOWNACTIVE, Message: "Decline cooldown active"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugCooldownActive) {
+			return v1.SuggestHug429JSONResponse{TooManyRequestsJSONResponse: v1.TooManyRequestsJSONResponse{Code: v1.COOLDOWNACTIVE, Message: "You need to wait before hugging this user again"}}, nil
+		}
+		if errors.Is(err, errorz.ErrUserNotFound) {
+			return v1.SuggestHug404JSONResponse{NotFoundJSONResponse: v1.NotFoundJSONResponse{Code: v1.USERNOTFOUND, Message: "User not found"}}, nil
 		}
 		return nil, err
 	}
 
-	return v1.SendHug201JSONResponse{
-		Id:        hug.ID,
-		GiverId:   hug.GiverID,
+	return v1.SuggestHug201JSONResponse{
+		Id:         hug.ID,
+		GiverId:    hug.GiverID,
 		ReceiverId: hug.ReceiverID,
-		CreatedAt: hug.CreatedAt,
+		CreatedAt:  hug.CreatedAt,
+		Status:     v1.HugStatus(hug.Status),
+		AcceptedAt: hug.AcceptedAt,
 	}, nil
+}
+
+func (h *HugHandler) AcceptHug(ctx context.Context, req v1.AcceptHugRequestObject) (v1.AcceptHugResponseObject, error) {
+	receiverID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+	hugID := req.HugId
+
+	hug, err := h.svc.AcceptHug(ctx, hugID, receiverID)
+	if err != nil {
+		if errors.Is(err, errorz.ErrHugNotFound) {
+			return v1.AcceptHug404JSONResponse{NotFoundJSONResponse: v1.NotFoundJSONResponse{Code: v1.HUGNOTFOUND, Message: "Hug not found"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugNotPending) {
+			return v1.AcceptHug409JSONResponse{ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.HUGNOTPENDING, Message: "Hug is not pending"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugExpired) {
+			return v1.AcceptHug410JSONResponse{GoneJSONResponse: v1.GoneJSONResponse{Code: v1.HUGEXPIRED, Message: "Hug suggestion expired"}}, nil
+		}
+		return nil, err
+	}
+
+	return v1.AcceptHug200JSONResponse{Id: hug.ID, GiverId: hug.GiverID, ReceiverId: hug.ReceiverID, CreatedAt: hug.CreatedAt, Status: v1.HugStatus(hug.Status), AcceptedAt: hug.AcceptedAt}, nil
+}
+
+func (h *HugHandler) DeclineHug(ctx context.Context, req v1.DeclineHugRequestObject) (v1.DeclineHugResponseObject, error) {
+	receiverID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+	hugID := req.HugId
+
+	err := h.svc.DeclineHug(ctx, hugID, receiverID)
+	if err != nil {
+		if errors.Is(err, errorz.ErrHugNotFound) {
+			return v1.DeclineHug404JSONResponse{NotFoundJSONResponse: v1.NotFoundJSONResponse{Code: v1.HUGNOTFOUND, Message: "Hug not found"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugNotPending) {
+			return v1.DeclineHug409JSONResponse{ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.HUGNOTPENDING, Message: "Hug is not pending"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugExpired) {
+			return v1.DeclineHug410JSONResponse{GoneJSONResponse: v1.GoneJSONResponse{Code: v1.HUGEXPIRED, Message: "Hug suggestion expired"}}, nil
+		}
+		return nil, err
+	}
+
+	return v1.DeclineHug200JSONResponse{Message: "Hug declined"}, nil
+}
+
+func (h *HugHandler) CancelHug(ctx context.Context, req v1.CancelHugRequestObject) (v1.CancelHugResponseObject, error) {
+	giverID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+	hugID := req.HugId
+
+	err := h.svc.CancelHug(ctx, hugID, giverID)
+	if err != nil {
+		if errors.Is(err, errorz.ErrHugNotFound) {
+			return v1.CancelHug404JSONResponse{NotFoundJSONResponse: v1.NotFoundJSONResponse{Code: v1.HUGNOTFOUND, Message: "Hug not found"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugNotPending) {
+			return v1.CancelHug409JSONResponse{ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.HUGNOTPENDING, Message: "Hug is not pending"}}, nil
+		}
+		if errors.Is(err, errorz.ErrHugExpired) {
+			return v1.CancelHug410JSONResponse{GoneJSONResponse: v1.GoneJSONResponse{Code: v1.HUGEXPIRED, Message: "Hug suggestion expired"}}, nil
+		}
+		return nil, err
+	}
+
+	return v1.CancelHug200JSONResponse{Message: "Hug cancelled"}, nil
+}
+
+func (h *HugHandler) GetHugInbox(ctx context.Context, req v1.GetHugInboxRequestObject) (v1.GetHugInboxResponseObject, error) {
+	userID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+
+	hugs, err := h.svc.GetPendingInbox(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(v1.GetHugInbox200JSONResponse, len(hugs))
+	for i, hg := range hugs {
+		item := v1.PendingHugInboxItem{
+			Id:            hg.ID,
+			GiverId:       hg.GiverID,
+			ReceiverId:    hg.ReceiverID,
+			GiverUsername: hg.GiverUsername,
+			CreatedAt:      hg.CreatedAt,
+		}
+		if hg.GiverGender != nil {
+			g := v1.Gender(*hg.GiverGender)
+			item.GiverGender = &g
+		}
+		result[i] = item
+	}
+
+	return result, nil
+}
+
+func (h *HugHandler) GetHugInboxCount(ctx context.Context, req v1.GetHugInboxCountRequestObject) (v1.GetHugInboxCountResponseObject, error) {
+	userID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+
+	count, err := h.svc.GetInboxCount(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return v1.GetHugInboxCount200JSONResponse{Count: int(count)}, nil
+}
+
+type getOutgoingHugNullResponse struct{}
+
+func (r getOutgoingHugNullResponse) VisitGetOutgoingHugResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := w.Write([]byte("null"))
+	return err
+}
+
+func (h *HugHandler) GetOutgoingHug(ctx context.Context, req v1.GetOutgoingHugRequestObject) (v1.GetOutgoingHugResponseObject, error) {
+	userID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+
+	hug, err := h.svc.GetOutgoingPendingHug(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if hug == nil {
+		return getOutgoingHugNullResponse{}, nil
+	}
+
+	item := v1.OutgoingPendingHug{
+		Id:               hug.ID,
+		GiverId:          hug.GiverID,
+		ReceiverId:       hug.ReceiverID,
+		ReceiverUsername: hug.ReceiverUsername,
+		CreatedAt:        hug.CreatedAt,
+	}
+	if hug.ReceiverGender != nil {
+		g := v1.Gender(*hug.ReceiverGender)
+		item.ReceiverGender = &g
+	}
+
+	return v1.GetOutgoingHug200JSONResponse(item), nil
 }
 
 func (h *HugHandler) GetCooldown(ctx context.Context, req v1.GetCooldownRequestObject) (v1.GetCooldownResponseObject, error) {
-	giverID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
-	receiverID := req.UserId
+	userA := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+	userB := req.UserId
 
-	cd, remaining, canHug, err := h.svc.GetCooldownInfo(ctx, giverID, receiverID)
+	cd, remaining, canHug, declineRemaining, err := h.svc.GetCooldownInfo(ctx, userA, userB)
 	if err != nil {
 		return nil, err
 	}
 
-	return v1.GetCooldown200JSONResponse{
-		GiverId:          cd.GiverID,
-		ReceiverId:       cd.ReceiverID,
+	resp := v1.GetCooldown200JSONResponse{
+		UserAId:          cd.UserAID,
+		UserBId:          cd.UserBID,
 		CooldownSeconds:  int(cd.CooldownSeconds),
 		RemainingSeconds: int(remaining),
 		CanHug:           canHug,
-	}, nil
+	}
+	if declineRemaining > 0 {
+		dr := int(declineRemaining)
+		resp.DeclineCooldownRemaining = &dr
+	}
+
+	return resp, nil
 }
 
 func (h *HugHandler) UpgradeCooldown(ctx context.Context, req v1.UpgradeCooldownRequestObject) (v1.UpgradeCooldownResponseObject, error) {
-	giverID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
-	receiverID := req.UserId
+	payerID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+	otherUserID := req.UserId
 
-	cd, err := h.svc.UpgradeCooldown(ctx, giverID, receiverID)
+	cd, err := h.svc.UpgradeCooldown(ctx, payerID, otherUserID)
 	if err != nil {
 		if errors.Is(err, errorz.ErrInsufficientBalance) {
 			return v1.UpgradeCooldown400JSONResponse{
@@ -96,8 +246,8 @@ func (h *HugHandler) UpgradeCooldown(ctx context.Context, req v1.UpgradeCooldown
 	}
 
 	return v1.UpgradeCooldown200JSONResponse{
-		GiverId:          cd.GiverID,
-		ReceiverId:       cd.ReceiverID,
+		UserAId:          cd.UserAID,
+		UserBId:          cd.UserBID,
 		CooldownSeconds:  int(cd.CooldownSeconds),
 		RemainingSeconds: int(remaining.Seconds()),
 		CanHug:           remaining <= 0,

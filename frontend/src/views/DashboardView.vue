@@ -3,7 +3,12 @@ import { ref, onMounted } from 'vue'
 import { Heart, ArrowUp, ArrowDown, Gift, Coins, Users, Trophy, Newspaper } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
-import { useHugsStore, type DailyRewardResponse, type UserProfile, type HugFeedItem } from '@/stores/hugs'
+import {
+  useHugsStore,
+  type DailyRewardResponse,
+  type UserProfile,
+  type HugFeedItem,
+} from '@/stores/hugs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -11,6 +16,8 @@ import RankBadge from '@/components/RankBadge.vue'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { plural, hugVerb } from '@/lib/utils'
+import OutgoingHugBanner from '@/components/OutgoingHugBanner.vue'
+import InboxSection from '@/components/InboxSection.vue'
 
 const auth = useAuthStore()
 const hugs = useHugsStore()
@@ -31,7 +38,9 @@ const rankThresholds = [
 ]
 
 function getRankProgress(totalHugs: number) {
-  const currentIdx = rankThresholds.findLastIndex((r: { name: string; min: number }) => totalHugs >= r.min)
+  const currentIdx = rankThresholds.findLastIndex(
+    (r: { name: string; min: number }) => totalHugs >= r.min,
+  )
   const nextIdx = currentIdx + 1
   if (nextIdx >= rankThresholds.length) return { progress: 100, nextRank: null, needed: 0 }
   const current = rankThresholds[currentIdx]!
@@ -41,15 +50,24 @@ function getRankProgress(totalHugs: number) {
 }
 
 onMounted(async () => {
-  await hugs.fetchBalance()
+  // Fetch balance, inbox, outgoing in parallel
+  const balancePromise = hugs.fetchBalance()
+  const inboxPromise = hugs.fetchInbox()
+  const outgoingPromise = hugs.fetchOutgoing()
+
+  let profilePromise: Promise<UserProfile> | undefined
+  let historyPromise: Promise<HugFeedItem[]> | undefined
+
   if (auth.user) {
-    const [p, h] = await Promise.all([
-      hugs.getUserProfile(auth.user.id),
-      hugs.getHugHistory(),
-    ])
-    profile.value = p
-    history.value = h
+    profilePromise = hugs.getUserProfile(auth.user.id)
+    historyPromise = hugs.getHugHistory()
   }
+
+  await balancePromise
+
+  const [p, h] = await Promise.all([profilePromise, historyPromise, inboxPromise, outgoingPromise])
+  if (p) profile.value = p
+  if (h) history.value = h
   loading.value = false
 })
 
@@ -82,8 +100,9 @@ async function claimDaily() {
     } else {
       toast.success(`Получено +${plural(dailyResult.value.amount, 'монета', 'монеты', 'монет')}!`)
     }
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || 'Ошибка')
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    toast.error(err.response?.data?.message || 'Ошибка')
   } finally {
     claimingDaily.value = false
   }
@@ -98,7 +117,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
       <h1 class="text-2xl font-semibold tracking-tight">
         Привет, <span class="text-prod-yellow">{{ auth.user?.username }}</span>
       </h1>
-      <p class="text-muted-foreground">Ваша панель управления обнимашками</p>
+      <p class="text-muted-foreground">Твоя панель управления обнимашками</p>
     </div>
 
     <!-- Stats -->
@@ -114,7 +133,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
       </Card>
       <Card v-if="!loading">
         <CardHeader class="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Отправлено</CardDescription>
+          <CardDescription>Инициировано</CardDescription>
           <ArrowUp class="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -123,7 +142,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
       </Card>
       <Card v-if="!loading">
         <CardHeader class="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Получено</CardDescription>
+          <CardDescription>Принято</CardDescription>
           <ArrowDown class="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -159,7 +178,9 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             </div>
             <Progress :model-value="rankInfo().progress" class="h-2" />
             <p class="text-xs text-muted-foreground">
-              Ещё {{ plural(rankInfo().needed, 'обнимашка', 'обнимашки', 'обнимашек') }} до следующего ранга
+              Ещё
+              {{ plural(rankInfo().needed, 'обнимашка', 'обнимашки', 'обнимашек') }} до следующего
+              ранга
             </p>
           </div>
           <p v-else class="text-xs text-muted-foreground">Максимальный ранг достигнут</p>
@@ -170,7 +191,9 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
       <Card>
         <CardHeader>
           <CardTitle class="text-base">Ежедневная награда</CardTitle>
-          <CardDescription>Заходите каждый день для бонуса. Серия увеличивает награду.</CardDescription>
+          <CardDescription
+            >Заходите каждый день для бонуса. Серия увеличивает награду.</CardDescription
+          >
         </CardHeader>
         <CardContent class="space-y-3">
           <div v-if="dailyResult" class="text-sm">
@@ -178,16 +201,28 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
               Уже получено сегодня. Серия: {{ dailyResult.streak_days }} дн.
             </p>
             <p v-else class="text-prod-yellow">
-              +{{ plural(dailyResult.amount, 'монета', 'монеты', 'монет') }}! Серия: {{ dailyResult.streak_days }} дн.
+              +{{ plural(dailyResult.amount, 'монета', 'монеты', 'монет') }}! Серия:
+              {{ dailyResult.streak_days }} дн.
             </p>
           </div>
-          <Button @click="claimDaily" :disabled="claimingDaily" variant="yellow" class="w-full rounded-[21px]">
+          <Button
+            @click="claimDaily"
+            :disabled="claimingDaily"
+            variant="yellow"
+            class="w-full rounded-[21px]"
+          >
             <Gift class="size-4" />
             {{ claimingDaily ? 'Загрузка...' : 'Забрать награду' }}
           </Button>
         </CardContent>
       </Card>
     </div>
+
+    <!-- Outgoing pending hug banner -->
+    <OutgoingHugBanner />
+
+    <!-- Inbox section -->
+    <InboxSection />
 
     <!-- Hug history -->
     <Card>
@@ -199,26 +234,37 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
         <div v-if="loading" class="space-y-3">
           <Skeleton v-for="i in 3" :key="i" class="h-8 w-full rounded" />
         </div>
-        <div v-else-if="history.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+        <div
+          v-else-if="history.length === 0"
+          class="py-6 text-center text-sm text-muted-foreground"
+        >
           Пока нет обнимашек
         </div>
-        <div v-else class="space-y-1 max-h-96 overflow-y-auto">
-          <div
-            v-for="(hug, i) in history"
-            :key="hug.id"
-          >
+        <div v-else class="max-h-96 space-y-1 overflow-y-auto">
+          <div v-for="(hug, i) in history" :key="hug.id">
             <Separator v-if="i > 0" class="my-1" />
             <div class="flex items-center justify-between py-2">
               <div class="flex items-center gap-2 text-sm">
-                <ArrowUp v-if="hug.giver_id === auth.user?.id" class="size-3.5 text-muted-foreground" />
+                <ArrowUp
+                  v-if="hug.giver_id === auth.user?.id"
+                  class="size-3.5 text-muted-foreground"
+                />
                 <ArrowDown v-else class="size-3.5 text-muted-foreground" />
                 <span v-if="hug.giver_id === auth.user?.id" class="text-muted-foreground">
                   Ты {{ hugVerb(auth.user?.gender) }}
-                  <RouterLink :to="`/user/${hug.receiver_id}`" class="text-foreground font-medium hover:underline">{{ hug.receiver_username }}</RouterLink>
+                  <RouterLink
+                    :to="`/user/${hug.receiver_id}`"
+                    class="font-medium text-foreground hover:underline"
+                    >{{ hug.receiver_username }}</RouterLink
+                  >
                 </span>
                 <span v-else class="text-muted-foreground">
-                  <RouterLink :to="`/user/${hug.giver_id}`" class="text-foreground font-medium hover:underline">{{ hug.giver_username }}</RouterLink>
-                  {{ hugVerb(hug.giver_gender) }} тебя
+                  <RouterLink
+                    :to="`/user/${hug.giver_id}`"
+                    class="font-medium text-foreground hover:underline"
+                    >{{ hug.giver_username }}</RouterLink
+                  >
+                  {{ hugVerb(auth.user?.gender) }} тебя
                 </span>
               </div>
               <span class="text-xs text-muted-foreground tabular-nums">
@@ -233,7 +279,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
     <!-- Quick links -->
     <div class="grid gap-4 sm:grid-cols-3">
       <RouterLink to="/users">
-        <Card class="transition-colors hover:bg-[#002D20] h-full">
+        <Card class="h-full transition-colors hover:bg-[#002D20]">
           <CardHeader class="flex flex-row items-center gap-3">
             <Users class="size-5 text-prod-yellow" />
             <div>
@@ -244,7 +290,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
         </Card>
       </RouterLink>
       <RouterLink to="/feed">
-        <Card class="transition-colors hover:bg-[#002D20] h-full">
+        <Card class="h-full transition-colors hover:bg-[#002D20]">
           <CardHeader class="flex flex-row items-center gap-3">
             <Newspaper class="size-5 text-prod-yellow" />
             <div>
@@ -255,7 +301,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
         </Card>
       </RouterLink>
       <RouterLink to="/leaderboard">
-        <Card class="transition-colors hover:bg-[#002D20] h-full">
+        <Card class="h-full transition-colors hover:bg-[#002D20]">
           <CardHeader class="flex flex-row items-center gap-3">
             <Trophy class="size-5 text-prod-yellow" />
             <div>

@@ -103,15 +103,20 @@ export default api
 export const authApi = {
   register: (username: string, password: string, gender?: string) =>
     api.post('/auth/register', { username, password, ...(gender ? { gender } : {}) }),
-  login: (username: string, password: string) =>
-    api.post('/auth/login', { username, password }),
+  login: (username: string, password: string) => api.post('/auth/login', { username, password }),
   logout: () => api.post('/auth/logout'),
   me: () => api.get('/users/me'),
 }
 
 // Hugs
 export const hugsApi = {
-  send: (userId: string) => api.post(`/hugs/${userId}`),
+  suggest: (userId: string) => api.post(`/hugs/${userId}`),
+  accept: (hugId: string) => api.post(`/hugs/${hugId}/accept`),
+  decline: (hugId: string) => api.post(`/hugs/${hugId}/decline`),
+  cancel: (hugId: string) => api.post(`/hugs/${hugId}/cancel`),
+  getInbox: () => api.get('/hugs/inbox'),
+  getOutgoing: () => api.get('/hugs/outgoing'),
+  getInboxCount: () => api.get('/hugs/inbox/count'),
   getCooldown: (userId: string) => api.get(`/hugs/cooldown/${userId}`),
   upgradeCooldown: (userId: string) => api.post(`/hugs/cooldown/${userId}/upgrade`),
   getHistory: () => api.get('/hugs/history'),
@@ -137,15 +142,13 @@ export const usersApi = {
 
 // Leaderboard
 export const leaderboardApi = {
-  get: (limit = 20, offset = 0) =>
-    api.get('/leaderboard', { params: { limit, offset } }),
+  get: (limit = 20, offset = 0) => api.get('/leaderboard', { params: { limit, offset } }),
 }
 
 // Admin
 export const adminApi = {
   getStats: () => api.get('/admin/stats'),
-  getUsers: (limit = 20, offset = 0) =>
-    api.get('/admin/users', { params: { limit, offset } }),
+  getUsers: (limit = 20, offset = 0) => api.get('/admin/users', { params: { limit, offset } }),
   banUser: (userId: string) => api.put(`/admin/users/${userId}/ban`),
   unbanUser: (userId: string) => api.delete(`/admin/users/${userId}/ban`),
   updateUsername: (userId: string, username: string) =>

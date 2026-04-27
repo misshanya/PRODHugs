@@ -1,6 +1,6 @@
-import type { ClassValue } from "clsx"
-import { clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import type { ClassValue } from 'clsx'
+import { clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -22,6 +22,12 @@ export function hugVerb(gender?: string | null): string {
   if (gender === 'male') return 'обнял'
   if (gender === 'female') return 'обняла'
   return 'обнял(а)'
+}
+
+export function suggestVerb(gender?: string | null): string {
+  if (gender === 'male') return 'предложил'
+  if (gender === 'female') return 'предложила'
+  return 'предложил(а)'
 }
 
 export function plural(n: number, one: string, few: string, many: string): string {

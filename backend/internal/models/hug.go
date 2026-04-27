@@ -6,11 +6,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// Hug status constants
+const (
+	HugStatusPending   = "pending"
+	HugStatusCompleted = "completed"
+	HugStatusDeclined  = "declined"
+	HugStatusExpired   = "expired"
+	HugStatusCancelled = "cancelled"
+)
+
 type Hug struct {
 	ID         uuid.UUID
 	GiverID    uuid.UUID
 	ReceiverID uuid.UUID
+	Status     string
 	CreatedAt  time.Time
+	AcceptedAt *time.Time
 }
 
 type HugFeedItem struct {
@@ -35,8 +46,28 @@ type MutualHugStats struct {
 }
 
 type HugCooldown struct {
-	GiverID         uuid.UUID
-	ReceiverID      uuid.UUID
-	LastHugAt       time.Time
-	CooldownSeconds int32
+	UserAID              uuid.UUID  // LEAST of the pair
+	UserBID              uuid.UUID  // GREATEST of the pair
+	LastHugAt            time.Time
+	CooldownSeconds      int32
+	DeclineCooldownUntil *time.Time
+}
+
+// New models for pending hug inbox
+type PendingHugInboxItem struct {
+	ID            uuid.UUID
+	GiverID       uuid.UUID
+	ReceiverID    uuid.UUID
+	GiverUsername string
+	GiverGender   *string
+	CreatedAt     time.Time
+}
+
+type OutgoingPendingHug struct {
+	ID               uuid.UUID
+	GiverID          uuid.UUID
+	ReceiverID       uuid.UUID
+	ReceiverUsername  string
+	ReceiverGender   *string
+	CreatedAt        time.Time
 }

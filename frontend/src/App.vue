@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
+import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
+import { useHugsStore, type HugFeedItem, type PendingHugInboxItem } from '@/stores/hugs'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import AppSidebar from '@/components/AppSidebar.vue'
@@ -9,10 +12,121 @@ import AppHeader from '@/components/AppHeader.vue'
 import AppBottomNav from '@/components/AppBottomNav.vue'
 
 const auth = useAuthStore()
+const hugsStore = useHugsStore()
 const route = useRoute()
+const ws = useWebSocket()
 
 const showLayout = computed(() => {
   return auth.isAuthenticated && !['login', 'register'].includes(route.name as string)
+})
+
+const wsCleanups: Array<() => void> = []
+
+// Connect WebSocket and fetch inbox count when authenticated
+function initAuthState() {
+  if (auth.isAuthenticated) {
+    ws.connect()
+    hugsStore.fetchInboxCount()
+    hugsStore.fetchOutgoing()
+    setupGlobalWsListeners()
+  }
+}
+
+function clearGlobalWsListeners() {
+  wsCleanups.forEach((fn) => fn())
+  wsCleanups.length = 0
+}
+
+function setupGlobalWsListeners() {
+  clearGlobalWsListeners()
+
+  wsCleanups.push(
+    ws.on<Record<string, unknown>>('hug_suggestion', (data) => {
+      // Normalize keys because backend sends domain model over WS without json tags
+      const item: PendingHugInboxItem = {
+        id: String(data.id || data.ID),
+        giver_id: String(data.giver_id || data.GiverID),
+        receiver_id: String(data.receiver_id || data.ReceiverID),
+        giver_username: String(data.giver_username || data.GiverUsername),
+        giver_gender: data.giver_gender || data.GiverGender ? String(data.giver_gender || data.GiverGender) : null,
+        created_at: String(data.created_at || data.CreatedAt),
+      }
+      
+      // Prevent duplicates in case of fast reconnections or simultaneous API fetch
+      const exists = hugsStore.inbox.find((h) => h.id === item.id)
+      if (!exists) {
+        hugsStore.inbox.unshift(item)
+        hugsStore.inboxCount++
+      }
+    }),
+  )
+
+  wsCleanups.push(
+    ws.on<{ hug_id: string }>('hug_declined', () => {
+      hugsStore.outgoingHug = null
+      toast('Твоя обнимашка была отклонена')
+    }),
+  )
+
+  wsCleanups.push(
+    ws.on<{ hug_id: string }>('hug_cancelled', (data) => {
+      hugsStore.inbox = hugsStore.inbox.filter((h) => h.id !== data.hug_id)
+      hugsStore.inboxCount = Math.max(0, hugsStore.inboxCount - 1)
+    }),
+  )
+
+  wsCleanups.push(
+    ws.on<{ hug_id: string }>('hug_expired', (data) => {
+      if (hugsStore.outgoingHug?.id === data.hug_id) {
+        hugsStore.outgoingHug = null
+      }
+      hugsStore.inbox = hugsStore.inbox.filter((h) => h.id !== data.hug_id)
+      hugsStore.inboxCount = Math.max(0, hugsStore.inboxCount - 1)
+    }),
+  )
+
+  wsCleanups.push(
+    ws.on<HugFeedItem>('hug_completed', (data) => {
+      if (data.giver_id === auth.user?.id) {
+        hugsStore.outgoingHug = null
+        toast.success(`Обнимашка с ${data.receiver_username} принята!`)
+        hugsStore.fetchBalance()
+      }
+    }),
+  )
+
+  wsCleanups.push(
+    ws.on<{ count: number }>('inbox_count', (data) => {
+      hugsStore.inboxCount = data.count
+    }),
+  )
+}
+
+// Watch for auth changes (login/logout)
+watch(
+  () => auth.isAuthenticated,
+  (isAuth) => {
+    if (isAuth) {
+      ws.connect()
+      hugsStore.fetchInboxCount()
+      hugsStore.fetchOutgoing()
+      setupGlobalWsListeners()
+    } else {
+      ws.disconnect()
+      clearGlobalWsListeners()
+      hugsStore.inboxCount = 0
+      hugsStore.inbox = []
+      hugsStore.outgoingHug = null
+    }
+  },
+)
+
+onMounted(() => {
+  initAuthState()
+})
+
+onUnmounted(() => {
+  clearGlobalWsListeners()
 })
 </script>
 

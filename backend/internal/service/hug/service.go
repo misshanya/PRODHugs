@@ -2,17 +2,29 @@ package hug
 
 import (
 	"context"
+	"time"
+
 	"go-service-template/internal/models"
 
 	"github.com/google/uuid"
 )
 
 type hugRepo interface {
-	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID) (*models.Hug, error)
+	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status string) (*models.Hug, error)
+	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
+	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
+	CancelHug(ctx context.Context, hugID, giverID uuid.UUID) (*models.Hug, error)
+	GetHugByID(ctx context.Context, hugID uuid.UUID) (*models.Hug, error)
 	ListHugsByUser(ctx context.Context, userID uuid.UUID) ([]*models.HugFeedItem, error)
-	GetCooldown(ctx context.Context, giverID, receiverID uuid.UUID) (*models.HugCooldown, error)
-	UpsertCooldown(ctx context.Context, giverID, receiverID uuid.UUID, cooldownSeconds int32) (*models.HugCooldown, error)
-	ReduceCooldown(ctx context.Context, giverID, receiverID uuid.UUID, reduction int32) (*models.HugCooldown, error)
+	GetPendingHugsForUser(ctx context.Context, userID uuid.UUID) ([]*models.PendingHugInboxItem, error)
+	GetOutgoingPendingHug(ctx context.Context, userID uuid.UUID) (*models.OutgoingPendingHug, error)
+	CountPendingHugsForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	HasOutgoingPendingHug(ctx context.Context, userID uuid.UUID) (bool, error)
+	HasPendingHugForPair(ctx context.Context, giverID, receiverID uuid.UUID) (bool, error)
+	GetCooldown(ctx context.Context, userA, userB uuid.UUID) (*models.HugCooldown, error)
+	UpsertCooldown(ctx context.Context, userA, userB uuid.UUID, cooldownSeconds int32) (*models.HugCooldown, error)
+	ReduceCooldown(ctx context.Context, userA, userB uuid.UUID, reduction int32) (*models.HugCooldown, error)
+	SetDeclineCooldown(ctx context.Context, userA, userB uuid.UUID, until time.Time) error
 	GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error)
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
@@ -37,26 +49,51 @@ type userRepo interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 }
 
-// HugEventCallback is called when a hug is sent, for WebSocket broadcasting
-type HugEventCallback func(item *models.HugFeedItem)
-
-type service struct {
-	hugRepo        hugRepo
-	balanceRepo    balanceRepo
-	dailyRepo      dailyRewardRepo
-	userRepo       userRepo
-	onHugCallback  HugEventCallback
+type transactor interface {
+	RunInTx(ctx context.Context, fn func(context.Context) error) error
 }
 
-func New(hugRepo hugRepo, balanceRepo balanceRepo, dailyRepo dailyRewardRepo, userRepo userRepo) *service {
+// Callback types for WebSocket integration
+type HugCompletedCallback func(item *models.HugFeedItem)
+type HugSuggestionCallback func(targetUserID uuid.UUID, item *models.PendingHugInboxItem)
+type HugDeclinedCallback func(targetUserID uuid.UUID, hugID uuid.UUID)
+type HugCancelledCallback func(targetUserID uuid.UUID, hugID uuid.UUID)
+
+type service struct {
+	hugRepo     hugRepo
+	balanceRepo balanceRepo
+	dailyRepo   dailyRewardRepo
+	userRepo    userRepo
+	tx          transactor
+
+	onHugCompleted  HugCompletedCallback
+	onHugSuggestion HugSuggestionCallback
+	onHugDeclined   HugDeclinedCallback
+	onHugCancelled  HugCancelledCallback
+}
+
+func New(hugRepo hugRepo, balanceRepo balanceRepo, dailyRepo dailyRewardRepo, userRepo userRepo, tx transactor) *service {
 	return &service{
 		hugRepo:     hugRepo,
 		balanceRepo: balanceRepo,
 		dailyRepo:   dailyRepo,
 		userRepo:    userRepo,
+		tx:          tx,
 	}
 }
 
-func (s *service) SetHugCallback(cb HugEventCallback) {
-	s.onHugCallback = cb
+func (s *service) SetHugCompletedCallback(cb HugCompletedCallback) {
+	s.onHugCompleted = cb
+}
+
+func (s *service) SetHugSuggestionCallback(cb HugSuggestionCallback) {
+	s.onHugSuggestion = cb
+}
+
+func (s *service) SetHugDeclinedCallback(cb HugDeclinedCallback) {
+	s.onHugDeclined = cb
+}
+
+func (s *service) SetHugCancelledCallback(cb HugCancelledCallback) {
+	s.onHugCancelled = cb
 }

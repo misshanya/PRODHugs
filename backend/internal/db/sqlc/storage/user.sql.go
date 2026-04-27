@@ -168,10 +168,10 @@ SELECT
     COALESCE(received.cnt, 0) AS hugs_received
 FROM users u
 LEFT JOIN (
-    SELECT giver_id, COUNT(*) AS cnt FROM hugs GROUP BY giver_id
+    SELECT giver_id, COUNT(*) AS cnt FROM hugs WHERE status = 'completed' GROUP BY giver_id
 ) given ON given.giver_id = u.id
 LEFT JOIN (
-    SELECT receiver_id, COUNT(*) AS cnt FROM hugs GROUP BY receiver_id
+    SELECT receiver_id, COUNT(*) AS cnt FROM hugs WHERE status = 'completed' GROUP BY receiver_id
 ) received ON received.receiver_id = u.id
 ORDER BY total_hugs DESC
 LIMIT $2::int OFFSET $1::int
@@ -232,6 +232,7 @@ SELECT
 FROM hugs h
 JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
+WHERE h.status = 'completed'
 ORDER BY h.created_at DESC
 LIMIT $1::int
 `
@@ -316,10 +317,10 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 
 const getUserStats = `-- name: GetUserStats :one
 SELECT
-    (SELECT COUNT(*) FROM hugs WHERE hugs.giver_id = $1::uuid)::bigint AS hugs_given,
-    (SELECT COUNT(*) FROM hugs WHERE hugs.receiver_id = $1::uuid)::bigint AS hugs_received,
-    (SELECT COUNT(*) FROM hugs WHERE hugs.giver_id = $1::uuid)::bigint +
-    (SELECT COUNT(*) FROM hugs WHERE hugs.receiver_id = $1::uuid)::bigint AS total_hugs
+    (SELECT COUNT(*) FROM hugs WHERE hugs.giver_id = $1::uuid AND hugs.status = 'completed')::bigint AS hugs_given,
+    (SELECT COUNT(*) FROM hugs WHERE hugs.receiver_id = $1::uuid AND hugs.status = 'completed')::bigint AS hugs_received,
+    (SELECT COUNT(*) FROM hugs WHERE hugs.giver_id = $1::uuid AND hugs.status = 'completed')::bigint +
+    (SELECT COUNT(*) FROM hugs WHERE hugs.receiver_id = $1::uuid AND hugs.status = 'completed')::bigint AS total_hugs
 `
 
 type GetUserStatsRow struct {

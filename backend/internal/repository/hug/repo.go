@@ -1,10 +1,11 @@
 package hug
 
 import (
+	"time"
+
 	"go-service-template/internal/db/sqlc/storage"
 	"go-service-template/internal/models"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,20 +20,33 @@ func New(db *pgxpool.Pool) *repo {
 }
 
 func toModelHug(h storage.Hug) *models.Hug {
+	var acceptedAt *time.Time
+	if h.AcceptedAt.Valid {
+		t := h.AcceptedAt.Time
+		acceptedAt = &t
+	}
 	return &models.Hug{
 		ID:         h.ID,
 		GiverID:    h.GiverID,
 		ReceiverID: h.ReceiverID,
+		Status:     h.Status,
 		CreatedAt:  h.CreatedAt.Time,
+		AcceptedAt: acceptedAt,
 	}
 }
 
 func toModelCooldown(c storage.HugCooldown) *models.HugCooldown {
+	var declineCooldownUntil *time.Time
+	if c.DeclineCooldownUntil.Valid {
+		t := c.DeclineCooldownUntil.Time
+		declineCooldownUntil = &t
+	}
 	return &models.HugCooldown{
-		GiverID:         c.GiverID,
-		ReceiverID:      c.ReceiverID,
-		LastHugAt:       c.LastHugAt.Time,
-		CooldownSeconds: c.CooldownSeconds,
+		UserAID:              c.UserAID,
+		UserBID:              c.UserBID,
+		LastHugAt:            c.LastHugAt.Time,
+		CooldownSeconds:      c.CooldownSeconds,
+		DeclineCooldownUntil: declineCooldownUntil,
 	}
 }
 
@@ -115,5 +129,32 @@ func toModelUserListItemFromAll(row storage.ListAllUsersRow) *models.User {
 	}
 }
 
-// placeholder to satisfy uuid import
-var _ = uuid.Nil
+func toModelPendingInboxItem(row storage.GetPendingHugsForUserRow) *models.PendingHugInboxItem {
+	var giverGender *string
+	if row.GiverGender.Valid {
+		giverGender = &row.GiverGender.String
+	}
+	return &models.PendingHugInboxItem{
+		ID:            row.ID,
+		GiverID:       row.GiverID,
+		ReceiverID:    row.ReceiverID,
+		GiverUsername: row.GiverUsername,
+		GiverGender:   giverGender,
+		CreatedAt:     row.CreatedAt.Time,
+	}
+}
+
+func toModelOutgoingPendingHug(row storage.GetOutgoingPendingHugRow) *models.OutgoingPendingHug {
+	var receiverGender *string
+	if row.ReceiverGender.Valid {
+		receiverGender = &row.ReceiverGender.String
+	}
+	return &models.OutgoingPendingHug{
+		ID:               row.ID,
+		GiverID:          row.GiverID,
+		ReceiverID:       row.ReceiverID,
+		ReceiverUsername:  row.ReceiverUsername,
+		ReceiverGender:   receiverGender,
+		CreatedAt:        row.CreatedAt.Time,
+	}
+}

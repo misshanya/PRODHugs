@@ -12,6 +12,24 @@ export interface HugFeedItem {
   created_at: string
 }
 
+export interface PendingHugInboxItem {
+  id: string
+  giver_id: string
+  receiver_id: string
+  giver_username: string
+  giver_gender?: string | null
+  created_at: string
+}
+
+export interface OutgoingPendingHug {
+  id: string
+  giver_id: string
+  receiver_id: string
+  receiver_username: string
+  receiver_gender?: string | null
+  created_at: string
+}
+
 export interface LeaderboardEntry {
   user_id: string
   username: string
@@ -67,6 +85,11 @@ export const useHugsStore = defineStore('hugs', () => {
   const leaderboard = ref<LeaderboardEntry[]>([])
   const loading = ref(false)
 
+  // Inbox / outgoing state
+  const inbox = ref<PendingHugInboxItem[]>([])
+  const outgoingHug = ref<OutgoingPendingHug | null>(null)
+  const inboxCount = ref(0)
+
   async function fetchBalance() {
     try {
       const res = await balanceApi.get()
@@ -82,10 +105,61 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data
   }
 
-  async function sendHug(userId: string) {
-    const res = await hugsApi.send(userId)
+  async function suggestHug(userId: string) {
+    const res = await hugsApi.suggest(userId)
+    // Set outgoing pending hug from the response
+    outgoingHug.value = {
+      id: res.data.id,
+      giver_id: res.data.giver_id,
+      receiver_id: res.data.receiver_id,
+      receiver_username: res.data.receiver_username,
+      receiver_gender: res.data.receiver_gender,
+      created_at: res.data.created_at,
+    }
+    return res.data
+  }
+
+  async function acceptHug(hugId: string) {
+    const res = await hugsApi.accept(hugId)
+    // Remove from inbox
+    inbox.value = inbox.value.filter((h) => h.id !== hugId)
+    inboxCount.value = Math.max(0, inboxCount.value - 1)
+    // Refresh balance (both users get +1 coin)
     await fetchBalance()
     return res.data
+  }
+
+  async function declineHug(hugId: string) {
+    const res = await hugsApi.decline(hugId)
+    // Remove from inbox
+    inbox.value = inbox.value.filter((h) => h.id !== hugId)
+    inboxCount.value = Math.max(0, inboxCount.value - 1)
+    return res.data
+  }
+
+  async function cancelOutgoing(hugId: string) {
+    const res = await hugsApi.cancel(hugId)
+    outgoingHug.value = null
+    return res.data
+  }
+
+  async function fetchInbox() {
+    const res = await hugsApi.getInbox()
+    inbox.value = res.data || []
+    inboxCount.value = inbox.value.length
+    return inbox.value
+  }
+
+  async function fetchOutgoing() {
+    const res = await hugsApi.getOutgoing()
+    outgoingHug.value = res.data || null
+    return outgoingHug.value
+  }
+
+  async function fetchInboxCount() {
+    const res = await hugsApi.getInboxCount()
+    inboxCount.value = res.data.count
+    return res.data.count
   }
 
   async function getCooldown(userId: string): Promise<CooldownInfo> {
@@ -144,9 +218,18 @@ export const useHugsStore = defineStore('hugs', () => {
     feed,
     leaderboard,
     loading,
+    inbox,
+    outgoingHug,
+    inboxCount,
     fetchBalance,
     claimDailyReward,
-    sendHug,
+    suggestHug,
+    acceptHug,
+    declineHug,
+    cancelOutgoing,
+    fetchInbox,
+    fetchOutgoing,
+    fetchInboxCount,
     getCooldown,
     upgradeCooldown,
     fetchFeed,

@@ -30,7 +30,6 @@ const requirements = computed(() => [
 
 const metCount = computed(() => requirements.value.filter((r) => r.met).length)
 const progressValue = computed(() => (metCount.value / requirements.value.length) * 100)
-
 </script>
 
 <template>

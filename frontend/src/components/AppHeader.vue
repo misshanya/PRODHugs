@@ -30,11 +30,16 @@ onMounted(() => {
     <!-- Mobile-only branding (replaces sidebar trigger on small screens) -->
     <div class="flex items-center gap-2 md:hidden">
       <img src="/logo.webp" alt="PROD" class="size-8 shrink-0 rounded-lg object-contain" />
-      <span class="text-sm font-semibold text-foreground"><span class="font-bold">PROD</span>нимашки</span>
+      <span class="text-sm font-semibold text-foreground"
+        ><span class="font-bold">PROD</span>нимашки</span
+      >
     </div>
     <div class="hidden md:block" />
     <div class="flex items-center gap-3">
-      <Badge variant="secondary" class="gap-1.5 font-mono tabular-nums bg-prod-yellow/15 text-prod-yellow border-prod-yellow/20">
+      <Badge
+        variant="secondary"
+        class="gap-1.5 font-mono tabular-nums bg-prod-yellow/15 text-prod-yellow border-prod-yellow/20"
+      >
         <Coins class="size-3.5" />
         {{ hugs.balance?.amount ?? 0 }}
       </Badge>

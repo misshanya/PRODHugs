@@ -33,6 +33,12 @@ components:
         - WRONG_PASSWORD
         - USER_BANNED
         - CANNOT_BAN_ADMIN
+        - ALREADY_HAS_PENDING_HUG
+        - HUG_NOT_FOUND
+        - HUG_NOT_PENDING
+        - HUG_EXPIRED
+        - DECLINE_COOLDOWN_ACTIVE
+        - PENDING_HUG_EXISTS
 
     Error:
       type: object
@@ -80,12 +86,15 @@ components:
         - id
         - giver_id
         - receiver_id
+        - status
         - created_at
       properties:
         id: { type: string, format: uuid }
         giver_id: { type: string, format: uuid }
         receiver_id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, completed, declined, expired, cancelled] }
         created_at: { type: string, format: date-time }
+        accepted_at: { type: string, format: date-time }
 
     HugFeedItem:
       type: object
@@ -109,17 +118,18 @@ components:
     CooldownInfo:
       type: object
       required:
-        - giver_id
-        - receiver_id
+        - user_a_id
+        - user_b_id
         - cooldown_seconds
         - remaining_seconds
         - can_hug
       properties:
-        giver_id: { type: string, format: uuid }
-        receiver_id: { type: string, format: uuid }
+        user_a_id: { type: string, format: uuid }
+        user_b_id: { type: string, format: uuid }
         cooldown_seconds: { type: integer }
         remaining_seconds: { type: integer }
         can_hug: { type: boolean }
+        decline_cooldown_remaining: { type: integer }
 
     UserProfile:
       type: object
@@ -197,6 +207,47 @@ components:
         timestamp: { type: string, format: date-time }
         count: { type: integer }
 
+    PendingHugInboxItem:
+      type: object
+      required:
+        - id
+        - giver_id
+        - receiver_id
+        - giver_username
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        giver_id: { type: string, format: uuid }
+        receiver_id: { type: string, format: uuid }
+        giver_username: { type: string }
+        giver_gender:
+          $ref: '#/components/schemas/Gender'
+        created_at: { type: string, format: date-time }
+
+    OutgoingPendingHug:
+      type: object
+      required:
+        - id
+        - giver_id
+        - receiver_id
+        - receiver_username
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        giver_id: { type: string, format: uuid }
+        receiver_id: { type: string, format: uuid }
+        receiver_username: { type: string }
+        receiver_gender:
+          $ref: '#/components/schemas/Gender'
+        created_at: { type: string, format: date-time }
+
+    InboxCount:
+      type: object
+      required:
+        - count
+      properties:
+        count: { type: integer }
+
     AdminUser:
       type: object
       required:
@@ -256,6 +307,12 @@ components:
             $ref: '#/components/schemas/Error'
     TooManyRequests:
       description: Rate limit / cooldown active
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: Resource expired
       content:
         application/json:
           schema:
@@ -600,8 +657,8 @@ paths:
 
   /hugs/{userId}:
     post:
-      summary: Send a hug to a user
-      operationId: sendHug
+      summary: Suggest a hug to a user
+      operationId: suggestHug
       security:
         - BearerAuth: ["user", "admin"]
       parameters:
@@ -613,7 +670,7 @@ paths:
             format: uuid
       responses:
         '201':
-          description: Hug sent successfully
+          description: Hug suggestion created (pending)
           content:
             application/json:
               schema:
@@ -624,8 +681,155 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+
+  /hugs/{hugId}/accept:
+    post:
+      summary: Accept a pending hug suggestion
+      operationId: acceptHug
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: hugId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hug accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hug'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /hugs/{hugId}/decline:
+    post:
+      summary: Decline a pending hug suggestion
+      operationId: declineHug
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: hugId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hug declined
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /hugs/{hugId}/cancel:
+    post:
+      summary: Cancel your own outgoing pending hug
+      operationId: cancelHug
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: hugId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hug cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /hugs/inbox:
+    get:
+      summary: Get pending incoming hug suggestions
+      operationId: getHugInbox
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Pending hug suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingHugInboxItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /hugs/outgoing:
+    get:
+      summary: Get current user's outgoing pending hug
+      operationId: getOutgoingHug
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Outgoing pending hug or null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutgoingPendingHug'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /hugs/inbox/count:
+    get:
+      summary: Get count of pending incoming suggestions
+      operationId: getHugInboxCount
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Inbox count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboxCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /hugs/cooldown/{userId}:
     get:

@@ -24,13 +24,7 @@ interface Particle {
 
 const particles = ref<Particle[]>([])
 
-const COLORS = [
-  '#ffdd2d',
-  '#fff705',
-  '#efc800',
-  '#ffe566',
-  '#ffd000',
-]
+const COLORS = ['#ffdd2d', '#fff705', '#efc800', '#ffe566', '#ffd000']
 
 function rand(min: number, max: number) {
   return min + Math.random() * (max - min)

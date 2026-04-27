@@ -95,7 +95,12 @@ async function handleLogin() {
           <p v-if="serverError" class="text-sm text-destructive text-center">
             {{ serverError }}
           </p>
-          <Button type="submit" variant="yellow" class="w-full rounded-[21px]" :disabled="auth.loading">
+          <Button
+            type="submit"
+            variant="yellow"
+            class="w-full rounded-[21px]"
+            :disabled="auth.loading"
+          >
             {{ auth.loading ? 'Вход...' : 'Войти' }}
           </Button>
         </form>
@@ -103,7 +108,10 @@ async function handleLogin() {
       <CardFooter class="justify-center">
         <p class="text-sm text-muted-foreground">
           Нет аккаунта?
-          <RouterLink to="/register" class="text-foreground underline underline-offset-4 hover:text-primary">
+          <RouterLink
+            to="/register"
+            class="text-foreground underline underline-offset-4 hover:text-primary"
+          >
             Зарегистрироваться
           </RouterLink>
         </p>

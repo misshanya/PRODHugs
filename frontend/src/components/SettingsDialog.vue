@@ -3,11 +3,7 @@ import { ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useAuthStore, type Gender } from '@/stores/auth'
 import { usersApi } from '@/api/client'
-import {
-  validateChangePasswordForm,
-  parseBackendError,
-  type FieldError,
-} from '@/lib/validation'
+import { validateChangePasswordForm, parseBackendError, type FieldError } from '@/lib/validation'
 import {
   Dialog,
   DialogContent,
@@ -154,7 +150,9 @@ async function savePassword() {
                 v-model="oldPassword"
                 type="password"
                 placeholder="********"
-                :class="{ 'border-destructive': passwordSubmitted && passwordErrorFor('oldPassword') }"
+                :class="{
+                  'border-destructive': passwordSubmitted && passwordErrorFor('oldPassword'),
+                }"
                 @input="passwordSubmitted && validatePasswordForm()"
               />
               <p
@@ -171,7 +169,9 @@ async function savePassword() {
                 v-model="newPassword"
                 type="password"
                 placeholder="********"
-                :class="{ 'border-destructive': passwordSubmitted && passwordErrorFor('newPassword') }"
+                :class="{
+                  'border-destructive': passwordSubmitted && passwordErrorFor('newPassword'),
+                }"
                 @input="passwordSubmitted && validatePasswordForm()"
               />
               <p
@@ -192,8 +192,7 @@ async function savePassword() {
                 type="password"
                 placeholder="********"
                 :class="{
-                  'border-destructive':
-                    passwordSubmitted && passwordErrorFor('newPasswordConfirm'),
+                  'border-destructive': passwordSubmitted && passwordErrorFor('newPasswordConfirm'),
                 }"
                 @input="passwordSubmitted && validatePasswordForm()"
               />
