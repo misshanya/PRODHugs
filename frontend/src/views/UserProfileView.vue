@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Coins, Clock, ArrowUpCircle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -63,6 +63,11 @@ async function onHugged() {
 }
 
 onMounted(load)
+
+// Re-fetch when navigating between user profiles (component is reused by Vue Router)
+watch(userId, () => {
+  load()
+})
 </script>
 
 <template>

@@ -24,65 +24,72 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 		return nil, errorz.ErrCannotHugSelf
 	}
 
-	// Verify receiver exists
+	// Verify receiver exists (can be done outside tx — user won't disappear)
 	_, err := s.userRepo.GetByID(ctx, receiverID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if giver already has an outgoing pending hug (global limit of 1)
-	hasPending, err := s.hugRepo.HasOutgoingPendingHug(ctx, giverID)
-	if err != nil {
-		return nil, err
-	}
-	if hasPending {
-		return nil, errorz.ErrAlreadyHasPendingHug
-	}
+	var h *models.Hug
 
-	// Check if there's already a pending hug for this specific pair
-	pairPending, err := s.hugRepo.HasPendingHugForPair(ctx, giverID, receiverID)
-	if err != nil {
-		return nil, err
-	}
-	if pairPending {
-		return nil, errorz.ErrPendingHugExists
-	}
-
-	// Check if the receiver has already suggested a hug to the giver
-	reversePending, err := s.hugRepo.HasPendingHugForPair(ctx, receiverID, giverID)
-	if err != nil {
-		return nil, err
-	}
-	if reversePending {
-		return nil, errorz.ErrReversePendingHugExists
-	}
-
-	// Check shared cooldown
-	cooldown, err := s.hugRepo.GetCooldown(ctx, giverID, receiverID)
-	if err != nil {
-		return nil, err
-	}
-
-	if cooldown != nil {
-		// Check decline cooldown first
-		if cooldown.DeclineCooldownUntil != nil && cooldown.DeclineCooldownUntil.After(time.Now()) {
-			return nil, errorz.ErrDeclineCooldownActive
+	// Wrap all checks + insert in a transaction to prevent TOCTOU races
+	// (e.g., two concurrent requests both passing the pending check before either inserts).
+	err = s.tx.RunInTx(ctx, func(txCtx context.Context) error {
+		// Check if giver already has an outgoing pending hug (global limit of 1)
+		hasPending, err := s.hugRepo.HasOutgoingPendingHug(txCtx, giverID)
+		if err != nil {
+			return err
+		}
+		if hasPending {
+			return errorz.ErrAlreadyHasPendingHug
 		}
 
-		// Check regular cooldown
-		elapsed := time.Since(cooldown.LastHugAt)
-		if elapsed < time.Duration(cooldown.CooldownSeconds)*time.Second {
-			return nil, errorz.ErrHugCooldownActive
+		// Check if there's already a pending hug for this specific pair
+		pairPending, err := s.hugRepo.HasPendingHugForPair(txCtx, giverID, receiverID)
+		if err != nil {
+			return err
 		}
-	}
+		if pairPending {
+			return errorz.ErrPendingHugExists
+		}
 
-	// Insert the pending hug
-	h, err := s.hugRepo.InsertHug(ctx, giverID, receiverID, models.HugStatusPending)
+		// Check if the receiver has already suggested a hug to the giver
+		reversePending, err := s.hugRepo.HasPendingHugForPair(txCtx, receiverID, giverID)
+		if err != nil {
+			return err
+		}
+		if reversePending {
+			return errorz.ErrReversePendingHugExists
+		}
+
+		// Check shared cooldown
+		cooldown, err := s.hugRepo.GetCooldown(txCtx, giverID, receiverID)
+		if err != nil {
+			return err
+		}
+
+		if cooldown != nil {
+			// Check decline cooldown first
+			if cooldown.DeclineCooldownUntil != nil && cooldown.DeclineCooldownUntil.After(time.Now()) {
+				return errorz.ErrDeclineCooldownActive
+			}
+
+			// Check regular cooldown
+			elapsed := time.Since(cooldown.LastHugAt)
+			if elapsed < time.Duration(cooldown.CooldownSeconds)*time.Second {
+				return errorz.ErrHugCooldownActive
+			}
+		}
+
+		// Insert the pending hug
+		h, err = s.hugRepo.InsertHug(txCtx, giverID, receiverID, models.HugStatusPending)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Fire WebSocket suggestion notification to receiver
+	// Fire WebSocket suggestion notification to receiver (outside tx — fire-and-forget)
 	if s.onHugSuggestion != nil {
 		giver, _ := s.userRepo.GetByID(ctx, giverID)
 		giverUsername := ""

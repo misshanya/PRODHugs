@@ -18,6 +18,8 @@ export interface WSMessage<T = unknown> {
 
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 let isIntentionallyDisconnected = false
+// Monotonically increasing ID to scope onclose handlers to the correct socket instance.
+let connectGeneration = 0
 
 export function useWebSocket() {
   function connect() {
@@ -35,7 +37,12 @@ export function useWebSocket() {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const url = `${proto}//${window.location.host}/api/v1/ws?token=${token}`
 
+    // Increment generation so stale onclose handlers from previous sockets are ignored.
+    const gen = ++connectGeneration
     const ws = new WebSocket(url)
+
+    // Assign immediately to prevent duplicate connect() calls passing the null guard.
+    socket.value = ws
 
     ws.onopen = () => {
       connected.value = true
@@ -59,6 +66,10 @@ export function useWebSocket() {
     }
 
     ws.onclose = () => {
+      // Only process if this is still the current socket (prevents stale onclose
+      // from an old socket clobbering a newly created connection).
+      if (gen !== connectGeneration) return
+
       connected.value = false
       socket.value = null
       // Auto-reconnect after 3 seconds, unless intentionally disconnected
@@ -73,8 +84,6 @@ export function useWebSocket() {
     ws.onerror = () => {
       ws.close()
     }
-
-    socket.value = ws
   }
 
   function on<T = unknown>(type: WSMessage<T>['type'], handler: (data: T) => void): () => void {
@@ -94,6 +103,8 @@ export function useWebSocket() {
 
   function disconnect() {
     isIntentionallyDisconnected = true
+    // Increment generation so any pending onclose from the current socket is ignored.
+    connectGeneration++
     // Clear reconnect timeout
     if (reconnectTimeout) {
       clearTimeout(reconnectTimeout)

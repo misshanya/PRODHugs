@@ -60,8 +60,11 @@ function startTimer() {
   }
 }
 
+let suggesting = false
+
 async function suggest() {
-  if (loading.value || remaining.value > 0 || hasGlobalPending.value) return
+  if (suggesting || loading.value || remaining.value > 0 || hasGlobalPending.value) return
+  suggesting = true
   loading.value = true
   try {
     await hugsStore.suggestHug(props.userId)
@@ -72,6 +75,7 @@ async function suggest() {
     toast.error(err.response?.data?.message || `Не удалось предложить обнимашку ${props.username}`)
   } finally {
     loading.value = false
+    suggesting = false
   }
 }
 

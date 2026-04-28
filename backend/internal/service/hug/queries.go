@@ -75,38 +75,58 @@ func (s *service) GetInboxCount(ctx context.Context, userID uuid.UUID) (int64, e
 }
 
 func (s *service) ClaimDailyReward(ctx context.Context, userID uuid.UUID) (int32, int32, int32, bool, error) {
-	// Check if already claimed today
-	existing, err := s.dailyRepo.GetDailyReward(ctx, userID)
-	if err != nil {
-		return 0, 0, 0, false, err
-	}
+	var (
+		amount       int32
+		streakDays   int32
+		balAmount    int32
+		alreadyClaimed bool
+	)
 
-	if existing != nil && existing.LastClaimedAt.UTC().Format("2006-01-02") == models.Today() {
-		// Already claimed today
-		bal, err := s.balanceRepo.GetBalance(ctx, userID)
+	// Wrap check + claim + balance update in a transaction to prevent double-claiming.
+	err := s.tx.RunInTx(ctx, func(txCtx context.Context) error {
+		// Check if already claimed today
+		existing, err := s.dailyRepo.GetDailyReward(txCtx, userID)
 		if err != nil {
-			return 0, 0, 0, true, err
+			return err
 		}
-		return 0, existing.StreakDays, bal.Amount, true, nil
-	}
 
-	// Claim
-	reward, err := s.dailyRepo.ClaimDailyReward(ctx, userID)
+		if existing != nil && existing.LastClaimedAt.UTC().Format("2006-01-02") == models.Today() {
+			// Already claimed today
+			bal, err := s.balanceRepo.GetBalance(txCtx, userID)
+			if err != nil {
+				return err
+			}
+			alreadyClaimed = true
+			streakDays = existing.StreakDays
+			balAmount = bal.Amount
+			return nil
+		}
+
+		// Claim
+		reward, err := s.dailyRepo.ClaimDailyReward(txCtx, userID)
+		if err != nil {
+			return err
+		}
+
+		// Calculate reward amount: base 5 + min(streak-1, 5)
+		bonus := reward.StreakDays - 1
+		if bonus > 5 {
+			bonus = 5
+		}
+		amount = int32(5) + bonus
+
+		bal, err := s.balanceRepo.AddBalance(txCtx, userID, amount)
+		if err != nil {
+			return err
+		}
+
+		streakDays = reward.StreakDays
+		balAmount = bal.Amount
+		return nil
+	})
 	if err != nil {
 		return 0, 0, 0, false, err
 	}
 
-	// Calculate reward amount: base 5 + min(streak-1, 5)
-	bonus := reward.StreakDays - 1
-	if bonus > 5 {
-		bonus = 5
-	}
-	amount := int32(5) + bonus
-
-	bal, err := s.balanceRepo.AddBalance(ctx, userID, amount)
-	if err != nil {
-		return 0, 0, 0, false, err
-	}
-
-	return amount, reward.StreakDays, bal.Amount, false, nil
+	return amount, streakDays, balAmount, alreadyClaimed, nil
 }

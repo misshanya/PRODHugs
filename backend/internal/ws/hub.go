@@ -64,7 +64,6 @@ func (h *Hub) HandleWS(c echo.Context) error {
 		}
 
 		h.register(cl)
-		defer h.unregister(cl)
 
 		// Write pump
 		done := make(chan struct{})
@@ -85,6 +84,9 @@ func (h *Hub) HandleWS(c echo.Context) error {
 			}
 		}
 
+		// Unregister BEFORE closing the channel to prevent Broadcast/SendToUser
+		// from sending on a closed channel (which would panic).
+		h.unregister(cl)
 		close(cl.send)
 		<-done
 	}).ServeHTTP(c.Response(), c.Request())

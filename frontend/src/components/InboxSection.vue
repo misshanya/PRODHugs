@@ -35,6 +35,7 @@ function initials(username: string): string {
 }
 
 async function accept(item: (typeof inbox.value)[number], event: MouseEvent) {
+  if (acceptingId.value || decliningId.value) return
   acceptingId.value = item.id
   try {
     await hugsStore.acceptHug(item.id)
@@ -66,6 +67,7 @@ async function accept(item: (typeof inbox.value)[number], event: MouseEvent) {
 }
 
 async function decline(item: (typeof inbox.value)[number]) {
+  if (acceptingId.value || decliningId.value) return
   decliningId.value = item.id
   try {
     await hugsStore.declineHug(item.id)
