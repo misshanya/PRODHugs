@@ -11,6 +11,7 @@ type Config struct {
 	HttpSrv    httpServer
 	MetricsSrv metricsServer
 	Postgres   postgres
+	CORS       cors
 	S3         s3
 	Kafka      kafka
 	Valkey     valkey
@@ -30,6 +31,10 @@ type postgres struct {
 	MaxConns        int32  `env:"POSTGRES_MAX_CONNS" env-default:"100"`
 	MinConns        int32  `env:"POSTGRES_MIN_CONNS" env-default:"5"`
 	MaxConnLifetime int    `env:"POSTGRES_MAX_CONN_LIFETIME" env-default:"3600"` // seconds
+}
+
+type cors struct {
+	AllowOrigins []string `env:"CORS_ALLOW_ORIGINS" env-default:"http://localhost:3000,http://localhost:3001" env-separator:","`
 }
 
 type s3 struct {
