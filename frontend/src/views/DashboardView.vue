@@ -200,7 +200,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             >Заходите каждый день для бонуса. Серия увеличивает награду.</CardDescription
           >
         </CardHeader>
-        <CardContent class="space-y-3">
+        <CardContent class="flex flex-1 flex-col justify-end space-y-3">
           <div v-if="dailyResult" class="text-sm">
             <p v-if="dailyResult.already_claimed" class="text-muted-foreground">
               Уже получено сегодня. Серия: {{ dailyResult.streak_days }} дн.
