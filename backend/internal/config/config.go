@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -61,6 +64,9 @@ func New() (*Config, error) {
 	// Read .env file
 	// If failed to read file, will try ReadEnv
 	if err := cleanenv.ReadConfig(".env", &cfg); err == nil {
+		if err := validateSecurityConfig(&cfg); err != nil {
+			return nil, err
+		}
 		return &cfg, nil
 	}
 
@@ -69,5 +75,29 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
+	if err := validateSecurityConfig(&cfg); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
+}
+
+func validateSecurityConfig(cfg *Config) error {
+	secret := strings.TrimSpace(cfg.JWT.Secret)
+	if len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters")
+	}
+
+	weakSecrets := map[string]struct{}{
+		"change-me":  {},
+		"changeme":   {},
+		"jwt-secret": {},
+		"secret":     {},
+		"hugs-as-a-service-super-secret-jwt-key-2026": {},
+	}
+	if _, weak := weakSecrets[strings.ToLower(secret)]; weak {
+		return fmt.Errorf("JWT_SECRET uses a known weak/default value")
+	}
+
+	return nil
 }
