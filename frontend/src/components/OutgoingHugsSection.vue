@@ -15,8 +15,16 @@ const buying = ref(false)
 
 const outgoing = computed(() => hugsStore.outgoingHugs)
 const slots = computed(() => hugsStore.slotInfo)
-const emptySlots = computed(() => Math.max(0, slots.value.total_slots - outgoing.value.length))
 const canBuy = computed(() => slots.value.next_slot_cost !== null)
+
+// Build a fixed-length array of slots. Each slot is either filled (has a hug) or empty.
+const slotItems = computed(() => {
+  const items: Array<{ index: number; hug: (typeof outgoing.value)[number] | null }> = []
+  for (let i = 0; i < slots.value.total_slots; i++) {
+    items.push({ index: i, hug: outgoing.value[i] ?? null })
+  }
+  return items
+})
 
 function relativeTime(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
@@ -62,63 +70,59 @@ async function buySlot() {
   <Card>
     <CardHeader class="pb-3">
       <CardTitle class="flex items-center justify-between text-base">
-        <span>Исходящие обнимашки</span>
+        <span>Предложения обняться</span>
         <span class="text-xs font-normal text-muted-foreground tabular-nums">
           {{ outgoing.length }}/{{ slots.total_slots }} слотов
         </span>
       </CardTitle>
     </CardHeader>
     <CardContent class="space-y-2">
-      <!-- Active outgoing hugs -->
-      <TransitionGroup name="slot-item" tag="div" class="space-y-2">
-        <div
-          v-for="item in outgoing"
-          :key="item.id"
-          class="flex items-center gap-2.5 rounded-md border border-prod-yellow/20 bg-prod-yellow/5 px-3 py-2"
-        >
+      <!-- Fixed slot grid: each slot transitions between filled/empty in place -->
+      <div
+        v-for="slot in slotItems"
+        :key="slot.index"
+        class="slot-row rounded-md border px-3 py-2 transition-all duration-200"
+        :class="
+          slot.hug
+            ? 'border-prod-yellow/20 bg-prod-yellow/5'
+            : 'border-dashed border-muted-foreground/20'
+        "
+      >
+        <!-- Filled slot -->
+        <div v-if="slot.hug" class="flex items-center gap-2.5">
           <Heart class="size-3.5 shrink-0 text-prod-yellow" />
           <div class="min-w-0 flex-1 text-sm">
             <span class="text-muted-foreground">
               Ты {{ suggestVerb(auth.user?.gender) }} обняться
             </span>
             <RouterLink
-              :to="`/user/${item.receiver_id}`"
+              :to="`/user/${slot.hug.receiver_id}`"
               class="font-medium hover:underline"
             >
-              {{ item.receiver_username }}
+              {{ slot.hug.receiver_username }}
             </RouterLink>
             <span class="ml-1.5 text-[10px] text-muted-foreground">
-              {{ relativeTime(item.created_at) }}
+              {{ relativeTime(slot.hug.created_at) }}
             </span>
           </div>
           <Button
             variant="ghost"
             size="sm"
             class="size-7 shrink-0 p-0"
-            :disabled="cancellingId === item.id"
-            @click="cancel(item.id)"
+            :disabled="cancellingId === slot.hug.id"
+            @click="cancel(slot.hug.id)"
           >
             <X class="size-3.5" />
           </Button>
         </div>
-      </TransitionGroup>
 
-      <!-- Empty slots placeholder -->
-      <div
-        v-for="i in emptySlots"
-        :key="`empty-${i}`"
-        class="flex items-center gap-2.5 rounded-md border border-dashed border-muted-foreground/20 px-3 py-2 text-sm text-muted-foreground"
-      >
-        <div class="size-3.5 shrink-0 rounded-full border border-dashed border-muted-foreground/30" />
-        <span>Свободный слот</span>
-      </div>
-
-      <!-- Empty state when no slots used and only 1 slot total -->
-      <div
-        v-if="outgoing.length === 0 && emptySlots === 0"
-        class="py-2 text-center text-sm text-muted-foreground"
-      >
-        Нет активных предложений
+        <!-- Empty slot -->
+        <div v-else class="flex items-center gap-2.5 text-sm text-muted-foreground">
+          <div
+            class="size-3.5 shrink-0 rounded-full border border-dashed border-muted-foreground/30"
+          />
+          <span>Свободный слот</span>
+        </div>
       </div>
 
       <!-- Buy slot button -->
@@ -141,25 +145,7 @@ async function buySlot() {
 </template>
 
 <style scoped>
-.slot-item-enter-active {
-  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.slot-item-leave-active {
-  transition: all 0.2s ease-out;
-}
-
-.slot-item-enter-from {
-  opacity: 0;
-  transform: translateX(12px);
-}
-
-.slot-item-leave-to {
-  opacity: 0;
-  transform: translateX(-12px);
-}
-
-.slot-item-move {
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+.slot-row {
+  min-height: 2.5rem;
 }
 </style>
