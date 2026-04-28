@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { accessToken, ensureAccessToken } from '@/lib/token'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,9 +63,13 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem('token')
+router.beforeEach(async (to, _from, next) => {
+  let token = accessToken.value
   const userStr = localStorage.getItem('user')
+
+  if (!token && to.meta.auth) {
+    token = await ensureAccessToken()
+  }
 
   if (to.meta.auth && !token) {
     next('/login')
@@ -76,7 +81,6 @@ router.beforeEach((to, _from, next) => {
       user = userStr ? JSON.parse(userStr) : null
     } catch {
       // Corrupt localStorage data — clear it and redirect to login.
-      localStorage.removeItem('token')
       localStorage.removeItem('user')
       next('/login')
       return

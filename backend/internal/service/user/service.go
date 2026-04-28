@@ -27,15 +27,23 @@ type balanceRepo interface {
 	AdminSetBalance(ctx context.Context, userID uuid.UUID, amount int32) (*models.Balance, error)
 }
 
+type refreshTokenRepo interface {
+	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
+	IsRefreshTokenActive(ctx context.Context, jti string) (bool, error)
+	RevokeRefreshToken(ctx context.Context, jti string) error
+	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
+}
+
 type jwtManager interface {
 	GenerateAccessToken(userID uuid.UUID, role string) (string, int64, error)
-	GenerateRefreshToken(userID uuid.UUID) (string, error)
+	GenerateRefreshToken(userID uuid.UUID) (string, string, int64, error)
 }
 
 type service struct {
-	repo        repo
-	balanceRepo balanceRepo
-	jwtManager  jwtManager
+	repo             repo
+	balanceRepo      balanceRepo
+	refreshTokenRepo refreshTokenRepo
+	jwtManager       jwtManager
 }
 
 func New(repo repo, jwtManager jwtManager, opts ...func(*service)) *service {
@@ -53,5 +61,11 @@ func New(repo repo, jwtManager jwtManager, opts ...func(*service)) *service {
 func WithBalanceRepo(br balanceRepo) func(*service) {
 	return func(s *service) {
 		s.balanceRepo = br
+	}
+}
+
+func WithRefreshTokenRepo(rtr refreshTokenRepo) func(*service) {
+	return func(s *service) {
+		s.refreshTokenRepo = rtr
 	}
 }

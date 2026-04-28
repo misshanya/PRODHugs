@@ -3,7 +3,6 @@ package ws
 import (
 	"encoding/json"
 	"log/slog"
-	"net/http"
 	"sync"
 	"time"
 
@@ -25,6 +24,11 @@ const (
 type WSMessage struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
+}
+
+type wsAuthMessage struct {
+	Type  string `json:"type"`
+	Token string `json:"token"`
 }
 
 // Hub manages WebSocket clients and broadcasts messages
@@ -50,20 +54,30 @@ func NewHub(jwtManager *jwt.Manager) *Hub {
 }
 
 // HandleWS is the Echo handler for WebSocket connections.
-// Authenticates via ?token= query parameter.
+// Authenticates via the first client message: {"type":"auth","token":"..."}.
 func (h *Hub) HandleWS(c echo.Context) error {
-	tokenStr := c.QueryParam("token")
-	if tokenStr == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
-	}
-
-	userID, _, tokenType, err := h.jwtManager.ParseToken(tokenStr)
-	if err != nil || tokenType != "access" {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
-	}
-
 	websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
+
+		// Require auth as the very first client message to avoid leaking JWT in URL.
+		_ = ws.SetReadDeadline(time.Now().Add(10 * time.Second))
+		authBuf := make([]byte, 4096)
+		n, err := ws.Read(authBuf)
+		if err != nil {
+			return
+		}
+
+		var authMsg wsAuthMessage
+		if err := json.Unmarshal(authBuf[:n], &authMsg); err != nil || authMsg.Type != "auth" || authMsg.Token == "" {
+			return
+		}
+
+		userID, _, tokenType, _, _, err := h.jwtManager.ParseToken(authMsg.Token)
+		if err != nil || tokenType != "access" {
+			return
+		}
+
+		_ = ws.SetReadDeadline(time.Time{})
 
 		cl := &client{
 			userID: userID,

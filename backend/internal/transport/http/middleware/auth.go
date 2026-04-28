@@ -30,7 +30,7 @@ func NewAuthenticator(jwtManager *jwt.Manager) openapi3filter.AuthenticationFunc
 		}
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		userID, userRole, tokenType, err := jwtManager.ParseToken(tokenString)
+		userID, userRole, tokenType, _, _, err := jwtManager.ParseToken(tokenString)
 		if err != nil {
 			return fmt.Errorf("invalid token: %w", err)
 		}

@@ -67,7 +67,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 		return nil, err
 	}
 
-	cookie := makeRefreshCookie(refreshToken, h.jwtManager.RefreshTokenDuration())
+	cookie := makeRefreshCookie(refreshToken, h.jwtManager.RefreshTokenDuration(), h.cookieSecure)
 
 	return v1.RegisterUser201JSONResponse{
 		Body: v1.AuthResponse{

@@ -35,3 +35,19 @@ func (s *service) ChangePassword(ctx context.Context, id uuid.UUID, oldPassword,
 
 	return s.repo.UpdatePassword(ctx, id, hash)
 }
+
+func (s *service) SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error {
+	return s.refreshTokenRepo.SaveRefreshToken(ctx, jti, userID, expiresAtUnix)
+}
+
+func (s *service) IsRefreshTokenActive(ctx context.Context, jti string) (bool, error) {
+	return s.refreshTokenRepo.IsRefreshTokenActive(ctx, jti)
+}
+
+func (s *service) RevokeRefreshToken(ctx context.Context, jti string) error {
+	return s.refreshTokenRepo.RevokeRefreshToken(ctx, jti)
+}
+
+func (s *service) RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error {
+	return s.refreshTokenRepo.RevokeAllUserRefreshTokens(ctx, userID)
+}

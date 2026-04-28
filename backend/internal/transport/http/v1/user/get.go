@@ -32,7 +32,7 @@ func (h *UserHandler) Login(ctx context.Context, req v1.LoginRequestObject) (v1.
 		return nil, err
 	}
 
-	cookie := makeRefreshCookie(refreshToken, h.jwtManager.RefreshTokenDuration())
+	cookie := makeRefreshCookie(refreshToken, h.jwtManager.RefreshTokenDuration(), h.cookieSecure)
 
 	return v1.Login200JSONResponse{
 		Body: v1.AuthResponse{

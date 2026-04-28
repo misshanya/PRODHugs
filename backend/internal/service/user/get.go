@@ -33,9 +33,13 @@ func (s *service) Login(ctx context.Context, username string, password string) (
 		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err := s.jwtManager.GenerateRefreshToken(u.ID)
+	refreshToken, jti, expUnix, err := s.jwtManager.GenerateRefreshToken(u.ID)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	if err := s.refreshTokenRepo.SaveRefreshToken(ctx, jti, u.ID, expUnix); err != nil {
+		return nil, "", "", fmt.Errorf("failed to persist refresh token: %w", err)
 	}
 
 	return u, accessToken, refreshToken, nil

@@ -28,11 +28,13 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 
 	balancerepo "go-service-template/internal/repository/balance"
 	blockrepo "go-service-template/internal/repository/block"
 	dailyrewardrepo "go-service-template/internal/repository/daily_reward"
 	hugrepo "go-service-template/internal/repository/hug"
+	tokenrepo "go-service-template/internal/repository/token"
 	userrepo "go-service-template/internal/repository/user"
 
 	hugservice "go-service-template/internal/service/hug"
@@ -85,12 +87,18 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	balanceRepo := balancerepo.New(a.dbPool)
 	dailyRewardRepo := dailyrewardrepo.New(a.dbPool)
 	blockRepoInst := blockrepo.New(a.dbPool)
+	refreshTokenRepo := tokenrepo.New(a.dbPool)
 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
 
 	// Services
-	userService := userservice.New(userRepo, jwtManager, userservice.WithBalanceRepo(balanceRepo))
+	userService := userservice.New(
+		userRepo,
+		jwtManager,
+		userservice.WithBalanceRepo(balanceRepo),
+		userservice.WithRefreshTokenRepo(refreshTokenRepo),
+	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
 
 	// WebSocket Hub
@@ -110,7 +118,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	})
 
 	// Handlers
-	userHandler := userhandler.New(userService, jwtManager)
+	userHandler := userhandler.New(userService, jwtManager, a.cfg.JWT.CookieSecure)
 	hugHandler := hughandler.New(hugService)
 	adminHandler := adminhandler.New(userService)
 
@@ -244,7 +252,7 @@ func (a *App) initEcho() error {
 
 	// CORS - allow all origins for now
 	a.e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: a.cfg.CORS.AllowOrigins,
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
@@ -276,6 +284,7 @@ func (a *App) initEcho() error {
 	}))
 	a.e.Use(metrics.Middleware())
 	a.e.Use(middleware.Recover())
+	a.e.Use(custommiddleware.AuthRateLimitMiddleware(rate.Limit(2), 5))
 
 	a.e.GET("/api/v1/openapi.json", func(c echo.Context) error {
 		spec, err := v1.GetSwagger()

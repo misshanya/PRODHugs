@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, setForceLogoutHandler } from '@/api/client'
+import { clearAccessToken, getAccessToken, setAccessToken } from '@/lib/token'
 import router from '@/router'
 
 export type Gender = 'male' | 'female'
@@ -13,7 +14,7 @@ export interface User {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('token'))
+  const token = ref<string | null>(getAccessToken())
   const user = ref<User | null>(
     localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
   )
@@ -29,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await authApi.register(username, password, gender)
       token.value = res.data.token
       user.value = res.data.user
-      localStorage.setItem('token', res.data.token)
+      setAccessToken(res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       await router.push('/dashboard')
     } catch (e: any) {
@@ -47,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await authApi.login(username, password)
       token.value = res.data.token
       user.value = res.data.user
-      localStorage.setItem('token', res.data.token)
+      setAccessToken(res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       await router.push('/dashboard')
     } catch (e: any) {
@@ -77,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     token.value = null
     user.value = null
-    localStorage.removeItem('token')
+    clearAccessToken()
     localStorage.removeItem('user')
     router.push('/login')
   }
@@ -87,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
   setForceLogoutHandler(() => {
     token.value = null
     user.value = null
+    clearAccessToken()
   })
 
   return { token, user, loading, error, isAuthenticated, register, login, fetchMe, logout }

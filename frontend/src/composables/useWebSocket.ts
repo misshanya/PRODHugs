@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { ensureAccessToken } from '@/lib/token'
 
 const socket = ref<WebSocket | null>(null)
 const connected = ref(false)
@@ -22,7 +23,7 @@ let isIntentionallyDisconnected = false
 let connectGeneration = 0
 
 export function useWebSocket() {
-  function connect() {
+  async function connect() {
     // Prevent duplicate connections
     if (socket.value && socket.value.readyState !== WebSocket.CLOSED) {
       return
@@ -31,11 +32,11 @@ export function useWebSocket() {
     isIntentionallyDisconnected = false
 
     // Get JWT token from localStorage
-    const token = localStorage.getItem('token')
+    const token = await ensureAccessToken()
     if (!token) return
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${proto}//${window.location.host}/api/v1/ws?token=${token}`
+    const url = `${proto}//${window.location.host}/api/v1/ws`
 
     // Increment generation so stale onclose handlers from previous sockets are ignored.
     const gen = ++connectGeneration
@@ -45,6 +46,7 @@ export function useWebSocket() {
     socket.value = ws
 
     ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'auth', token }))
       connected.value = true
       // Clear any pending reconnect timeout
       if (reconnectTimeout) {

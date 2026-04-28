@@ -15,15 +15,20 @@ type service interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string) (*models.User, error)
 	ChangePassword(ctx context.Context, id uuid.UUID, oldPassword, newPassword string) error
+	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
+	IsRefreshTokenActive(ctx context.Context, jti string) (bool, error)
+	RevokeRefreshToken(ctx context.Context, jti string) error
+	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 }
 
 type UserHandler struct {
-	svc        service
-	jwtManager *jwt.Manager
+	svc          service
+	jwtManager   *jwt.Manager
+	cookieSecure bool
 }
 
-func New(svc service, jwtManager *jwt.Manager) *UserHandler {
-	return &UserHandler{svc: svc, jwtManager: jwtManager}
+func New(svc service, jwtManager *jwt.Manager, cookieSecure bool) *UserHandler {
+	return &UserHandler{svc: svc, jwtManager: jwtManager, cookieSecure: cookieSecure}
 }
 
 func toV1User(u *models.User) v1.User {

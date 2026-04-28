@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -8,6 +11,7 @@ type Config struct {
 	HttpSrv    httpServer
 	MetricsSrv metricsServer
 	Postgres   postgres
+	CORS       cors
 	S3         s3
 	Kafka      kafka
 	Valkey     valkey
@@ -27,6 +31,10 @@ type postgres struct {
 	MaxConns        int32  `env:"POSTGRES_MAX_CONNS" env-default:"100"`
 	MinConns        int32  `env:"POSTGRES_MIN_CONNS" env-default:"5"`
 	MaxConnLifetime int    `env:"POSTGRES_MAX_CONN_LIFETIME" env-default:"3600"` // seconds
+}
+
+type cors struct {
+	AllowOrigins []string `env:"CORS_ALLOW_ORIGINS" env-default:"http://localhost:3000,http://localhost:3001" env-separator:","`
 }
 
 type s3 struct {
@@ -50,8 +58,9 @@ type valkey struct {
 
 type jwt struct {
 	Secret                  string `env:"JWT_SECRET" env-required:"true"`
-	AccessTokenDurationSec  int64  `env:"JWT_ACCESS_DURATION" env-default:"900"`    // 15 minutes
+	AccessTokenDurationSec  int64  `env:"JWT_ACCESS_DURATION" env-default:"900"`     // 15 minutes
 	RefreshTokenDurationSec int64  `env:"JWT_REFRESH_DURATION" env-default:"604800"` // 7 days
+	CookieSecure            bool   `env:"JWT_COOKIE_SECURE" env-default:"true"`
 }
 
 func New() (*Config, error) {
@@ -60,6 +69,9 @@ func New() (*Config, error) {
 	// Read .env file
 	// If failed to read file, will try ReadEnv
 	if err := cleanenv.ReadConfig(".env", &cfg); err == nil {
+		if err := validateSecurityConfig(&cfg); err != nil {
+			return nil, err
+		}
 		return &cfg, nil
 	}
 
@@ -68,5 +80,29 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
+	if err := validateSecurityConfig(&cfg); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
+}
+
+func validateSecurityConfig(cfg *Config) error {
+	secret := strings.TrimSpace(cfg.JWT.Secret)
+	if len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters")
+	}
+
+	weakSecrets := map[string]struct{}{
+		"change-me":  {},
+		"changeme":   {},
+		"jwt-secret": {},
+		"secret":     {},
+		"hugs-as-a-service-super-secret-jwt-key-2026": {},
+	}
+	if _, weak := weakSecrets[strings.ToLower(secret)]; weak {
+		return fmt.Errorf("JWT_SECRET uses a known weak/default value")
+	}
+
+	return nil
 }

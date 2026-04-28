@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import router from '@/router'
+import { clearAccessToken, getAccessToken, setAccessToken } from '@/lib/token'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -11,7 +12,7 @@ const api = axios.create({
 
 // ── Request interceptor: attach access token ──
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -51,7 +52,7 @@ export function setForceLogoutHandler(handler: () => void) {
 }
 
 function forceLogout() {
-  localStorage.removeItem('token')
+  clearAccessToken()
   localStorage.removeItem('user')
   // Clear Pinia auth store state to keep it in sync with localStorage.
   onForceLogout?.()
@@ -91,7 +92,7 @@ api.interceptors.response.use(
       const res = await api.post('/auth/refresh')
       const newToken: string = res.data.token
 
-      localStorage.setItem('token', newToken)
+      setAccessToken(newToken)
       originalRequest.headers.Authorization = `Bearer ${newToken}`
 
       processPendingQueue(newToken, null)
