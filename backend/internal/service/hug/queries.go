@@ -57,12 +57,13 @@ func (s *service) GetUserStats(ctx context.Context, userID uuid.UUID) (*models.U
 	return s.hugRepo.GetUserStats(ctx, userID)
 }
 
-func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, error) {
+func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, bool, error) {
 	var (
-		user    *models.User
-		stats   *models.UserStats
-		balance *models.Balance
-		mutual  *models.MutualHugStats
+		user      *models.User
+		stats     *models.UserStats
+		balance   *models.Balance
+		mutual    *models.MutualHugStats
+		isBlocked bool
 	)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -92,17 +93,42 @@ func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID
 			mutual, err = s.hugRepo.CountMutualHugs(gCtx, userID, vid)
 			return err
 		})
+		g.Go(func() error {
+			var err error
+			isBlocked, err = s.blockRepo.IsBlockedByEither(gCtx, vid, userID)
+			return err
+		})
 	}
 
 	if err := g.Wait(); err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, false, err
 	}
 
-	return user, stats, balance, mutual, nil
+	return user, stats, balance, mutual, isBlocked, nil
 }
 
-func (s *service) SearchUsers(ctx context.Context, query string, limit, offset int32) ([]*models.User, error) {
-	return s.hugRepo.SearchUsers(ctx, query, limit, offset)
+func (s *service) SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error) {
+	return s.hugRepo.SearchUsers(ctx, query, viewerID, limit, offset)
+}
+
+func (s *service) BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if blockerID == blockedID {
+		return errorz.ErrCannotBlockSelf
+	}
+	// Verify target exists
+	_, err := s.userRepo.GetByID(ctx, blockedID)
+	if err != nil {
+		return err
+	}
+	return s.blockRepo.Block(ctx, blockerID, blockedID)
+}
+
+func (s *service) UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	return s.blockRepo.Unblock(ctx, blockerID, blockedID)
+}
+
+func (s *service) GetBlockedUsers(ctx context.Context, userID uuid.UUID) ([]*models.BlockedUser, error) {
+	return s.blockRepo.GetBlockedUsers(ctx, userID)
 }
 
 func (s *service) ExpirePendingHugs(ctx context.Context) error {

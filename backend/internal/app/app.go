@@ -29,6 +29,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	balancerepo "go-service-template/internal/repository/balance"
+	blockrepo "go-service-template/internal/repository/block"
 	dailyrewardrepo "go-service-template/internal/repository/daily_reward"
 	hugrepo "go-service-template/internal/repository/hug"
 	userrepo "go-service-template/internal/repository/user"
@@ -78,13 +79,14 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	hugRepo := hugrepo.New(a.dbPool)
 	balanceRepo := balancerepo.New(a.dbPool)
 	dailyRewardRepo := dailyrewardrepo.New(a.dbPool)
+	blockRepoInst := blockrepo.New(a.dbPool)
 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
 
 	// Services
 	userService := userservice.New(userRepo, jwtManager, userservice.WithBalanceRepo(balanceRepo))
-	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, transactor)
+	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
 
 	// WebSocket Hub
 	a.hub = ws.NewHub(jwtManager)

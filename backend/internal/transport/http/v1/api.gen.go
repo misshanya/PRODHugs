@@ -49,6 +49,7 @@ const (
 	PENDINGHUGEXISTS      ErrorCode = "PENDING_HUG_EXISTS"
 	USERALREADYEXISTS     ErrorCode = "USER_ALREADY_EXISTS"
 	USERBANNED            ErrorCode = "USER_BANNED"
+	USERBLOCKED           ErrorCode = "USER_BLOCKED"
 	USERNOTFOUND          ErrorCode = "USER_NOT_FOUND"
 	WEAKPASSWORD          ErrorCode = "WEAK_PASSWORD"
 	WRONGPASSWORD         ErrorCode = "WRONG_PASSWORD"
@@ -104,6 +105,14 @@ type AuthResponse struct {
 type Balance struct {
 	Amount int                `json:"amount"`
 	UserId openapi_types.UUID `json:"user_id"`
+}
+
+// BlockedUser defines model for BlockedUser.
+type BlockedUser struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Gender    *Gender            `json:"gender,omitempty"`
+	Id        openapi_types.UUID `json:"id"`
+	Username  string             `json:"username"`
 }
 
 // BuySlotResponse defines model for BuySlotResponse.
@@ -249,6 +258,7 @@ type UserProfile struct {
 	HugsGiven      int                `json:"hugs_given"`
 	HugsReceived   int                `json:"hugs_received"`
 	Id             openapi_types.UUID `json:"id"`
+	IsBlocked      *bool              `json:"is_blocked,omitempty"`
 	MutualGiven    *int               `json:"mutual_given,omitempty"`
 	MutualReceived *int               `json:"mutual_received,omitempty"`
 	MutualTotal    *int               `json:"mutual_total,omitempty"`
@@ -476,6 +486,9 @@ type ServerInterface interface {
 	// Get current user info
 	// (GET /users/me)
 	GetCurrentUser(ctx echo.Context) error
+	// Get list of blocked users
+	// (GET /users/me/blocked)
+	GetBlockedUsers(ctx echo.Context) error
 	// Change current user password
 	// (PUT /users/me/password)
 	ChangePassword(ctx echo.Context) error
@@ -485,6 +498,12 @@ type ServerInterface interface {
 	// Search users by username
 	// (GET /users/search)
 	SearchUsers(ctx echo.Context, params SearchUsersParams) error
+	// Unblock a user
+	// (DELETE /users/{userId}/block)
+	UnblockUser(ctx echo.Context, userId openapi_types.UUID) error
+	// Block a user
+	// (POST /users/{userId}/block)
+	BlockUser(ctx echo.Context, userId openapi_types.UUID) error
 	// Get user profile with stats
 	// (GET /users/{userId}/profile)
 	GetUserProfile(ctx echo.Context, userId openapi_types.UUID) error
@@ -967,6 +986,17 @@ func (w *ServerInterfaceWrapper) GetCurrentUser(ctx echo.Context) error {
 	return err
 }
 
+// GetBlockedUsers converts echo context to params.
+func (w *ServerInterfaceWrapper) GetBlockedUsers(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetBlockedUsers(ctx)
+	return err
+}
+
 // ChangePassword converts echo context to params.
 func (w *ServerInterfaceWrapper) ChangePassword(ctx echo.Context) error {
 	var err error
@@ -1020,6 +1050,42 @@ func (w *ServerInterfaceWrapper) SearchUsers(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.SearchUsers(ctx, params)
+	return err
+}
+
+// UnblockUser converts echo context to params.
+func (w *ServerInterfaceWrapper) UnblockUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", ctx.Param("userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter userId: %s", err))
+	}
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UnblockUser(ctx, userId)
+	return err
+}
+
+// BlockUser converts echo context to params.
+func (w *ServerInterfaceWrapper) BlockUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", ctx.Param("userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter userId: %s", err))
+	}
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.BlockUser(ctx, userId)
 	return err
 }
 
@@ -1100,9 +1166,12 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/leaderboard", wrapper.GetLeaderboard)
 	router.GET(baseURL+"/ping", wrapper.GetPing)
 	router.GET(baseURL+"/users/me", wrapper.GetCurrentUser)
+	router.GET(baseURL+"/users/me/blocked", wrapper.GetBlockedUsers)
 	router.PUT(baseURL+"/users/me/password", wrapper.ChangePassword)
 	router.PUT(baseURL+"/users/me/settings", wrapper.UpdateUserSettings)
 	router.GET(baseURL+"/users/search", wrapper.SearchUsers)
+	router.DELETE(baseURL+"/users/:userId/block", wrapper.UnblockUser)
+	router.POST(baseURL+"/users/:userId/block", wrapper.BlockUser)
 	router.GET(baseURL+"/users/:userId/profile", wrapper.GetUserProfile)
 
 }
@@ -2300,6 +2369,31 @@ func (response GetCurrentUser404JSONResponse) VisitGetCurrentUserResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetBlockedUsersRequestObject struct {
+}
+
+type GetBlockedUsersResponseObject interface {
+	VisitGetBlockedUsersResponse(w http.ResponseWriter) error
+}
+
+type GetBlockedUsers200JSONResponse []BlockedUser
+
+func (response GetBlockedUsers200JSONResponse) VisitGetBlockedUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBlockedUsers401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetBlockedUsers401JSONResponse) VisitGetBlockedUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ChangePasswordRequestObject struct {
 	Body *ChangePasswordJSONRequestBody
 }
@@ -2394,6 +2488,80 @@ type SearchUsers401JSONResponse struct{ UnauthorizedJSONResponse }
 func (response SearchUsers401JSONResponse) VisitSearchUsersResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnblockUserRequestObject struct {
+	UserId openapi_types.UUID `json:"userId"`
+}
+
+type UnblockUserResponseObject interface {
+	VisitUnblockUserResponse(w http.ResponseWriter) error
+}
+
+type UnblockUser200JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response UnblockUser200JSONResponse) VisitUnblockUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnblockUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UnblockUser401JSONResponse) VisitUnblockUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BlockUserRequestObject struct {
+	UserId openapi_types.UUID `json:"userId"`
+}
+
+type BlockUserResponseObject interface {
+	VisitBlockUserResponse(w http.ResponseWriter) error
+}
+
+type BlockUser200JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response BlockUser200JSONResponse) VisitBlockUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BlockUser400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response BlockUser400JSONResponse) VisitBlockUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BlockUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response BlockUser401JSONResponse) VisitBlockUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BlockUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response BlockUser404JSONResponse) VisitBlockUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2528,6 +2696,9 @@ type StrictServerInterface interface {
 	// Get current user info
 	// (GET /users/me)
 	GetCurrentUser(ctx context.Context, request GetCurrentUserRequestObject) (GetCurrentUserResponseObject, error)
+	// Get list of blocked users
+	// (GET /users/me/blocked)
+	GetBlockedUsers(ctx context.Context, request GetBlockedUsersRequestObject) (GetBlockedUsersResponseObject, error)
 	// Change current user password
 	// (PUT /users/me/password)
 	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
@@ -2537,6 +2708,12 @@ type StrictServerInterface interface {
 	// Search users by username
 	// (GET /users/search)
 	SearchUsers(ctx context.Context, request SearchUsersRequestObject) (SearchUsersResponseObject, error)
+	// Unblock a user
+	// (DELETE /users/{userId}/block)
+	UnblockUser(ctx context.Context, request UnblockUserRequestObject) (UnblockUserResponseObject, error)
+	// Block a user
+	// (POST /users/{userId}/block)
+	BlockUser(ctx context.Context, request BlockUserRequestObject) (BlockUserResponseObject, error)
 	// Get user profile with stats
 	// (GET /users/{userId}/profile)
 	GetUserProfile(ctx context.Context, request GetUserProfileRequestObject) (GetUserProfileResponseObject, error)
@@ -3335,6 +3512,29 @@ func (sh *strictHandler) GetCurrentUser(ctx echo.Context) error {
 	return nil
 }
 
+// GetBlockedUsers operation middleware
+func (sh *strictHandler) GetBlockedUsers(ctx echo.Context) error {
+	var request GetBlockedUsersRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBlockedUsers(ctx.Request().Context(), request.(GetBlockedUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBlockedUsers")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetBlockedUsersResponseObject); ok {
+		return validResponse.VisitGetBlockedUsersResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // ChangePassword operation middleware
 func (sh *strictHandler) ChangePassword(ctx echo.Context) error {
 	var request ChangePasswordRequestObject
@@ -3418,6 +3618,56 @@ func (sh *strictHandler) SearchUsers(ctx echo.Context, params SearchUsersParams)
 	return nil
 }
 
+// UnblockUser operation middleware
+func (sh *strictHandler) UnblockUser(ctx echo.Context, userId openapi_types.UUID) error {
+	var request UnblockUserRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UnblockUser(ctx.Request().Context(), request.(UnblockUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnblockUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UnblockUserResponseObject); ok {
+		return validResponse.VisitUnblockUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// BlockUser operation middleware
+func (sh *strictHandler) BlockUser(ctx echo.Context, userId openapi_types.UUID) error {
+	var request BlockUserRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.BlockUser(ctx.Request().Context(), request.(BlockUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BlockUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(BlockUserResponseObject); ok {
+		return validResponse.VisitBlockUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // GetUserProfile operation middleware
 func (sh *strictHandler) GetUserProfile(ctx echo.Context, userId openapi_types.UUID) error {
 	var request GetUserProfileRequestObject
@@ -3446,67 +3696,68 @@ func (sh *strictHandler) GetUserProfile(ctx echo.Context, userId openapi_types.U
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AAD//4LeRuQDaAAA",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -148,6 +148,9 @@ export const usersApi = {
   updateSettings: (data: { gender?: string }) => api.put('/users/me/settings', data),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/users/me/password', { old_password: oldPassword, new_password: newPassword }),
+  blockUser: (userId: string) => api.post(`/users/${userId}/block`),
+  unblockUser: (userId: string) => api.delete(`/users/${userId}/block`),
+  getBlockedUsers: () => api.get('/users/me/blocked'),
 }
 
 // Leaderboard

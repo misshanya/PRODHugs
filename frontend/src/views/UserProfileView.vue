@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Coins, Clock, ArrowUpCircle } from 'lucide-vue-next'
+import { Coins, Clock, ArrowUpCircle, MoreHorizontal, Ban, ShieldCheck } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useHugsStore, type UserProfile, type CooldownInfo } from '@/stores/hugs'
 import { useAuthStore } from '@/stores/auth'
@@ -9,6 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import HugButton from '@/components/HugButton.vue'
 import RankBadge from '@/components/RankBadge.vue'
 
@@ -24,18 +30,48 @@ const error = ref('')
 
 const userId = computed(() => route.params.id as string)
 const isMe = computed(() => auth.user?.id === userId.value)
+const isBlocked = computed(() => profile.value?.is_blocked === true)
+const blocking = ref(false)
 
 async function load() {
   loading.value = true
   try {
     profile.value = await hugsStore.getUserProfile(userId.value)
-    if (!isMe.value) {
+    if (!isMe.value && !profile.value.is_blocked) {
       cooldown.value = await hugsStore.getCooldown(userId.value)
     }
   } catch {
     error.value = 'Пользователь не найден'
   } finally {
     loading.value = false
+  }
+}
+
+async function toggleBlock() {
+  if (blocking.value || !profile.value) return
+  blocking.value = true
+  try {
+    if (isBlocked.value) {
+      await hugsStore.unblockUser(userId.value)
+      profile.value = { ...profile.value, is_blocked: false }
+      toast.success('Пользователь разблокирован')
+      // Reload cooldown now that they're unblocked
+      try {
+        cooldown.value = await hugsStore.getCooldown(userId.value)
+      } catch {
+        // Ignore
+      }
+    } else {
+      await hugsStore.blockUser(userId.value)
+      profile.value = { ...profile.value, is_blocked: true }
+      cooldown.value = null
+      toast.success('Пользователь заблокирован')
+    }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    toast.error(err.response?.data?.message || 'Ошибка')
+  } finally {
+    blocking.value = false
   }
 }
 
@@ -105,13 +141,34 @@ watch(userId, () => {
                 </span>
               </div>
             </div>
-            <HugButton
-              v-if="!isMe"
-              :userId="userId"
-              :username="profile.username"
-              size="lg"
-              @hugged="onHugged"
-            />
+            <div v-if="!isMe" class="flex items-center gap-1.5">
+              <HugButton
+                v-if="!isBlocked"
+                :userId="userId"
+                :username="profile.username"
+                size="lg"
+                @hugged="onHugged"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="ghost" size="icon-sm">
+                    <MoreHorizontal class="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-48">
+                  <DropdownMenuItem @click="toggleBlock" :disabled="blocking">
+                    <template v-if="isBlocked">
+                      <ShieldCheck class="size-4" />
+                      Разблокировать
+                    </template>
+                    <template v-else>
+                      <Ban class="size-4" />
+                      Заблокировать
+                    </template>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -156,8 +213,16 @@ watch(userId, () => {
         </div>
       </div>
 
+      <!-- Blocked notice -->
+      <div
+        v-if="isBlocked"
+        class="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-sm text-muted-foreground"
+      >
+        Пользователь заблокирован
+      </div>
+
       <!-- Cooldown upgrade -->
-      <Card v-if="!isMe && cooldown">
+      <Card v-if="!isMe && !isBlocked && cooldown">
         <CardHeader>
           <CardTitle class="flex items-center gap-2 text-base">
             <Clock class="size-4" />

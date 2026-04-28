@@ -9,4 +9,6 @@ var (
 	ErrWrongPassword      = errors.New("wrong password")
 	ErrUserBanned         = errors.New("user is banned")
 	ErrCannotBanAdmin     = errors.New("cannot ban admin")
+	ErrUserBlocked        = errors.New("user is blocked")
+	ErrCannotBlockSelf    = errors.New("cannot block yourself")
 )

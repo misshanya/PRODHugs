@@ -58,6 +58,14 @@ export interface UserProfile {
   mutual_total?: number
   mutual_given?: number
   mutual_received?: number
+  is_blocked?: boolean
+}
+
+export interface BlockedUser {
+  id: string
+  username: string
+  gender?: string | null
+  created_at: string
 }
 
 export interface CooldownInfo {
@@ -243,6 +251,19 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data
   }
 
+  async function blockUser(userId: string) {
+    await usersApi.blockUser(userId)
+  }
+
+  async function unblockUser(userId: string) {
+    await usersApi.unblockUser(userId)
+  }
+
+  async function getBlockedUsers(): Promise<BlockedUser[]> {
+    const res = await usersApi.getBlockedUsers()
+    return res.data || []
+  }
+
   return {
     balance,
     feed,
@@ -274,5 +295,8 @@ export const useHugsStore = defineStore('hugs', () => {
     getHugActivity,
     searchUsers,
     getUserProfile,
+    blockUser,
+    unblockUser,
+    getBlockedUsers,
   }
 })

@@ -47,3 +47,9 @@ type User struct {
 	BannedAt pgtype.Timestamptz
 	HugSlots int32
 }
+
+type UserBlock struct {
+	BlockerID uuid.UUID
+	BlockedID uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}

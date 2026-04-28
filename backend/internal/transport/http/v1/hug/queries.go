@@ -155,7 +155,7 @@ func (h *HugHandler) GetUserProfile(ctx context.Context, req v1.GetUserProfileRe
 		viewerPtr = &viewerID
 	}
 
-	user, stats, bal, mutual, err := h.svc.GetUserProfile(ctx, req.UserId, viewerPtr)
+	user, stats, bal, mutual, isBlocked, err := h.svc.GetUserProfile(ctx, req.UserId, viewerPtr)
 	if err != nil {
 		if errors.Is(err, errorz.ErrUserNotFound) {
 			return v1.GetUserProfile404JSONResponse{
@@ -191,10 +191,14 @@ func (h *HugHandler) GetUserProfile(ctx context.Context, req v1.GetUserProfileRe
 		resp.MutualGiven = &mg
 		resp.MutualReceived = &mr
 	}
+	if isBlocked {
+		resp.IsBlocked = &isBlocked
+	}
 	return resp, nil
 }
 
 func (h *HugHandler) SearchUsers(ctx context.Context, req v1.SearchUsersRequestObject) (v1.SearchUsersResponseObject, error) {
+	viewerID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
 	query := ""
 	limit := int32(20)
 	offset := int32(0)
@@ -209,7 +213,7 @@ func (h *HugHandler) SearchUsers(ctx context.Context, req v1.SearchUsersRequestO
 		offset = int32(*req.Params.Offset)
 	}
 
-	users, err := h.svc.SearchUsers(ctx, query, limit, offset)
+	users, err := h.svc.SearchUsers(ctx, query, viewerID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

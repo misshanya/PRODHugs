@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import { ShieldX } from 'lucide-vue-next'
 import { useAuthStore, type Gender } from '@/stores/auth'
+import { useHugsStore, type BlockedUser } from '@/stores/hugs'
 import { usersApi } from '@/api/client'
 import { validateChangePasswordForm, parseBackendError, type FieldError } from '@/lib/validation'
 import {
@@ -15,21 +17,54 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import PasswordRequirements from '@/components/PasswordRequirements.vue'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 const open = defineModel<boolean>('open', { required: true })
 
 const auth = useAuthStore()
+const hugsStore = useHugsStore()
 
 // ── Gender ──
 const gender = ref<Gender | ''>((auth.user?.gender as Gender) ?? '')
 const savingGender = ref(false)
 
+// ── Blocked users ──
+const blockedUsers = ref<BlockedUser[]>([])
+const loadingBlocked = ref(false)
+const unblockingId = ref<string | null>(null)
+
+async function fetchBlocked() {
+  loadingBlocked.value = true
+  try {
+    blockedUsers.value = await hugsStore.getBlockedUsers()
+  } catch {
+    // Ignore
+  } finally {
+    loadingBlocked.value = false
+  }
+}
+
+async function unblock(userId: string) {
+  if (unblockingId.value) return
+  unblockingId.value = userId
+  try {
+    await hugsStore.unblockUser(userId)
+    blockedUsers.value = blockedUsers.value.filter((u) => u.id !== userId)
+    toast.success('Пользователь разблокирован')
+  } catch {
+    toast.error('Не удалось разблокировать')
+  } finally {
+    unblockingId.value = null
+  }
+}
+
 watch(open, (isOpen) => {
   if (isOpen) {
     gender.value = (auth.user?.gender as Gender) ?? ''
     resetPasswordForm()
+    fetchBlocked()
   }
 })
 
@@ -216,6 +251,52 @@ async function savePassword() {
           >
             {{ savingPassword ? 'Сохранение...' : 'Сменить пароль' }}
           </Button>
+        </div>
+
+        <Separator />
+
+        <!-- Blocked users section -->
+        <div class="space-y-3">
+          <Label class="text-sm font-medium">Заблокированные пользователи</Label>
+          <div v-if="loadingBlocked" class="py-4 text-center text-sm text-muted-foreground">
+            Загрузка...
+          </div>
+          <div
+            v-else-if="blockedUsers.length === 0"
+            class="py-4 text-center text-sm text-muted-foreground"
+          >
+            Нет заблокированных пользователей
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="user in blockedUsers"
+              :key="user.id"
+              class="flex items-center gap-3 rounded-md border px-3 py-2"
+            >
+              <Avatar class="size-7 shrink-0">
+                <AvatarFallback class="text-[10px]">
+                  {{ user.username.slice(0, 2).toUpperCase() }}
+                </AvatarFallback>
+              </Avatar>
+              <RouterLink
+                :to="`/user/${user.id}`"
+                class="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                @click="open = false"
+              >
+                {{ user.username }}
+              </RouterLink>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="shrink-0 gap-1 text-xs"
+                :disabled="unblockingId === user.id"
+                @click="unblock(user.id)"
+              >
+                <ShieldX class="size-3.5" />
+                Разблокировать
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </DialogContent>

@@ -19,12 +19,22 @@ WHERE id = $1;
 SELECT id, username, role, gender
 FROM users
 WHERE username ILIKE '%' || @query::text || '%'
+  AND id NOT IN (
+    SELECT blocked_id FROM user_blocks WHERE blocker_id = @viewer_id::uuid
+    UNION
+    SELECT blocker_id FROM user_blocks WHERE blocked_id = @viewer_id::uuid
+  )
 ORDER BY username
 LIMIT @lim::int OFFSET @off::int;
 
 -- name: ListAllUsers :many
 SELECT id, username, role, gender
 FROM users
+WHERE id NOT IN (
+    SELECT blocked_id FROM user_blocks WHERE blocker_id = @viewer_id::uuid
+    UNION
+    SELECT blocker_id FROM user_blocks WHERE blocked_id = @viewer_id::uuid
+  )
 ORDER BY username
 LIMIT @lim::int OFFSET @off::int;
 

@@ -36,3 +36,10 @@ type AdminStats struct {
 	TotalUsers  int64
 	BannedUsers int64
 }
+
+type BlockedUser struct {
+	ID        uuid.UUID
+	Username  string
+	Gender    *string
+	CreatedAt time.Time
+}

@@ -48,6 +48,9 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		if errors.Is(err, errorz.ErrHugCooldownActive) {
 			return v1.SuggestHug429JSONResponse{TooManyRequestsJSONResponse: v1.TooManyRequestsJSONResponse{Code: v1.COOLDOWNACTIVE, Message: "You need to wait before hugging this user again"}}, nil
 		}
+		if errors.Is(err, errorz.ErrUserBlocked) {
+			return v1.SuggestHug409JSONResponse{ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.USERBLOCKED, Message: "User is blocked"}}, nil
+		}
 		if errors.Is(err, errorz.ErrUserNotFound) {
 			return v1.SuggestHug404JSONResponse{NotFoundJSONResponse: v1.NotFoundJSONResponse{Code: v1.USERNOTFOUND, Message: "User not found"}}, nil
 		}

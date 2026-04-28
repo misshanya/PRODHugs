@@ -71,13 +71,14 @@ func (r *repo) GetUserStats(ctx context.Context, userID uuid.UUID) (*models.User
 	return toModelUserStats(row), nil
 }
 
-func (r *repo) SearchUsers(ctx context.Context, query string, limit, offset int32) ([]*models.User, error) {
+func (r *repo) SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 
 	if query == "" {
 		rows, err := q.ListAllUsers(ctx, storage.ListAllUsersParams{
-			Lim: limit,
-			Off: offset,
+			ViewerID: viewerID,
+			Lim:      limit,
+			Off:      offset,
 		})
 		if err != nil {
 			return nil, err
@@ -90,9 +91,10 @@ func (r *repo) SearchUsers(ctx context.Context, query string, limit, offset int3
 	}
 
 	rows, err := q.SearchUsers(ctx, storage.SearchUsersParams{
-		Query: query,
-		Lim:   limit,
-		Off:   offset,
+		Query:    query,
+		ViewerID: viewerID,
+		Lim:      limit,
+		Off:      offset,
 	})
 	if err != nil {
 		return nil, err

@@ -25,6 +25,15 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 		return nil, nil, errorz.ErrCannotHugSelf
 	}
 
+	// Check if either user has blocked the other
+	blocked, err := s.blockRepo.IsBlockedByEither(ctx, giverID, receiverID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if blocked {
+		return nil, nil, errorz.ErrUserBlocked
+	}
+
 	// Verify receiver exists (can be done outside tx — user won't disappear)
 	receiver, err := s.userRepo.GetByID(ctx, receiverID)
 	if err != nil {

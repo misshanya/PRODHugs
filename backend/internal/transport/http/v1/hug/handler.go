@@ -22,11 +22,14 @@ type service interface {
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID) (*models.UserStats, error)
-	GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, error)
-	SearchUsers(ctx context.Context, query string, limit, offset int32) ([]*models.User, error)
+	GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, bool, error)
+	SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error)
 	ClaimDailyReward(ctx context.Context, userID uuid.UUID) (int32, int32, int32, bool, error)
 	GetPendingInbox(ctx context.Context, userID uuid.UUID) ([]*models.PendingHugInboxItem, error)
 	GetInboxCount(ctx context.Context, userID uuid.UUID) (int64, error)
+	BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error
+	UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error
+	GetBlockedUsers(ctx context.Context, userID uuid.UUID) ([]*models.BlockedUser, error)
 }
 
 type HugHandler struct {

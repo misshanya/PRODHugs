@@ -372,13 +372,19 @@ func (q *Queries) IncrementUserSlots(ctx context.Context, id uuid.UUID) (int32, 
 const listAllUsers = `-- name: ListAllUsers :many
 SELECT id, username, role, gender
 FROM users
+WHERE id NOT IN (
+    SELECT blocked_id FROM user_blocks WHERE blocker_id = $1::uuid
+    UNION
+    SELECT blocker_id FROM user_blocks WHERE blocked_id = $1::uuid
+  )
 ORDER BY username
-LIMIT $2::int OFFSET $1::int
+LIMIT $3::int OFFSET $2::int
 `
 
 type ListAllUsersParams struct {
-	Off int32
-	Lim int32
+	ViewerID uuid.UUID
+	Off      int32
+	Lim      int32
 }
 
 type ListAllUsersRow struct {
@@ -389,7 +395,7 @@ type ListAllUsersRow struct {
 }
 
 func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]ListAllUsersRow, error) {
-	rows, err := q.db.Query(ctx, listAllUsers, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listAllUsers, arg.ViewerID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -467,14 +473,20 @@ const searchUsers = `-- name: SearchUsers :many
 SELECT id, username, role, gender
 FROM users
 WHERE username ILIKE '%' || $1::text || '%'
+  AND id NOT IN (
+    SELECT blocked_id FROM user_blocks WHERE blocker_id = $2::uuid
+    UNION
+    SELECT blocker_id FROM user_blocks WHERE blocked_id = $2::uuid
+  )
 ORDER BY username
-LIMIT $3::int OFFSET $2::int
+LIMIT $4::int OFFSET $3::int
 `
 
 type SearchUsersParams struct {
-	Query string
-	Off   int32
-	Lim   int32
+	Query    string
+	ViewerID uuid.UUID
+	Off      int32
+	Lim      int32
 }
 
 type SearchUsersRow struct {
@@ -485,7 +497,12 @@ type SearchUsersRow struct {
 }
 
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
-	rows, err := q.db.Query(ctx, searchUsers, arg.Query, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, searchUsers,
+		arg.Query,
+		arg.ViewerID,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}

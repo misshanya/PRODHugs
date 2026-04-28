@@ -32,7 +32,7 @@ type hugRepo interface {
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID) (*models.UserStats, error)
 	CountMutualHugs(ctx context.Context, userA, userB uuid.UUID) (*models.MutualHugStats, error)
-	SearchUsers(ctx context.Context, query string, limit, offset int32) ([]*models.User, error)
+	SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error)
 	ExpirePendingHugs(ctx context.Context) error
 }
 
@@ -54,6 +54,13 @@ type userRepo interface {
 	IncrementUserSlots(ctx context.Context, userID uuid.UUID) (int32, error)
 }
 
+type blockRepo interface {
+	IsBlockedByEither(ctx context.Context, userA, userB uuid.UUID) (bool, error)
+	Block(ctx context.Context, blockerID, blockedID uuid.UUID) error
+	Unblock(ctx context.Context, blockerID, blockedID uuid.UUID) error
+	GetBlockedUsers(ctx context.Context, userID uuid.UUID) ([]*models.BlockedUser, error)
+}
+
 type transactor interface {
 	RunInTx(ctx context.Context, fn func(context.Context) error) error
 }
@@ -69,6 +76,7 @@ type service struct {
 	balanceRepo balanceRepo
 	dailyRepo   dailyRewardRepo
 	userRepo    userRepo
+	blockRepo   blockRepo
 	tx          transactor
 
 	onHugCompleted  HugCompletedCallback
@@ -81,12 +89,13 @@ type service struct {
 	activityCache    *cache.TTL[string, []*models.HugActivityItem]
 }
 
-func New(hugRepo hugRepo, balanceRepo balanceRepo, dailyRepo dailyRewardRepo, userRepo userRepo, tx transactor) *service {
+func New(hugRepo hugRepo, balanceRepo balanceRepo, dailyRepo dailyRewardRepo, userRepo userRepo, blockRepo blockRepo, tx transactor) *service {
 	return &service{
 		hugRepo:          hugRepo,
 		balanceRepo:      balanceRepo,
 		dailyRepo:        dailyRepo,
 		userRepo:         userRepo,
+		blockRepo:        blockRepo,
 		tx:               tx,
 		leaderboardCache: cache.New[string, []*models.LeaderboardEntry](30 * time.Second),
 		activityCache:    cache.New[string, []*models.HugActivityItem](2 * time.Minute),

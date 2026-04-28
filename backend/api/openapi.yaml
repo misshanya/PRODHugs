@@ -40,6 +40,7 @@ components:
         - DECLINE_COOLDOWN_ACTIVE
         - PENDING_HUG_EXISTS
         - MAX_SLOTS_REACHED
+        - USER_BLOCKED
 
     Error:
       type: object
@@ -158,6 +159,7 @@ components:
         mutual_total: { type: integer }
         mutual_given: { type: integer }
         mutual_received: { type: integer }
+        is_blocked: { type: boolean }
 
     LeaderboardEntry:
       type: object
@@ -314,6 +316,19 @@ components:
       properties:
         total_users: { type: integer }
         banned_users: { type: integer }
+
+    BlockedUser:
+      type: object
+      required:
+        - id
+        - username
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        gender:
+          $ref: '#/components/schemas/Gender'
+        created_at: { type: string, format: date-time }
 
   responses:
     BadRequest:
@@ -628,6 +643,80 @@ paths:
                   message: { type: string }
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/{userId}/block:
+    post:
+      summary: Block a user
+      operationId: blockUser
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Unblock a user
+      operationId: unblockUser
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User unblocked
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/blocked:
+    get:
+      summary: Get list of blocked users
+      operationId: getBlockedUsers
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: List of blocked users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlockedUser'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
