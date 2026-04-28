@@ -41,6 +41,8 @@ services:
       POSTGRES_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
       POSTGRES_MAX_CONNS: "${POSTGRES_MAX_CONNS}"
       JWT_SECRET: "${JWT_SECRET}"
+      JWT_COOKIE_SECURE: "${JWT_COOKIE_SECURE:-false}"
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://localhost:3001}"
     restart: unless-stopped
     depends_on:
       postgres:
