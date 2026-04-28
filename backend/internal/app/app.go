@@ -33,6 +33,7 @@ import (
 	blockrepo "go-service-template/internal/repository/block"
 	dailyrewardrepo "go-service-template/internal/repository/daily_reward"
 	hugrepo "go-service-template/internal/repository/hug"
+	tokenrepo "go-service-template/internal/repository/token"
 	userrepo "go-service-template/internal/repository/user"
 
 	hugservice "go-service-template/internal/service/hug"
@@ -85,12 +86,18 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	balanceRepo := balancerepo.New(a.dbPool)
 	dailyRewardRepo := dailyrewardrepo.New(a.dbPool)
 	blockRepoInst := blockrepo.New(a.dbPool)
+	refreshTokenRepo := tokenrepo.New(a.dbPool)
 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
 
 	// Services
-	userService := userservice.New(userRepo, jwtManager, userservice.WithBalanceRepo(balanceRepo))
+	userService := userservice.New(
+		userRepo,
+		jwtManager,
+		userservice.WithBalanceRepo(balanceRepo),
+		userservice.WithRefreshTokenRepo(refreshTokenRepo),
+	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
 
 	// WebSocket Hub

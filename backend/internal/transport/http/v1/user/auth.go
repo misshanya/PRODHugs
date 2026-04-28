@@ -34,7 +34,7 @@ func expiredRefreshCookie(secure bool) *http.Cookie {
 func (h *UserHandler) RefreshToken(ctx context.Context, req v1.RefreshTokenRequestObject) (v1.RefreshTokenResponseObject, error) {
 	tokenString := req.Params.RefreshToken
 
-	userID, _, tokenType, err := h.jwtManager.ParseToken(tokenString)
+	userID, _, tokenType, jti, expUnix, err := h.jwtManager.ParseToken(tokenString)
 	if err != nil {
 		return v1.RefreshToken401JSONResponse{
 			UnauthorizedJSONResponse: v1.UnauthorizedJSONResponse{
@@ -48,6 +48,28 @@ func (h *UserHandler) RefreshToken(ctx context.Context, req v1.RefreshTokenReque
 		return v1.RefreshToken401JSONResponse{
 			UnauthorizedJSONResponse: v1.UnauthorizedJSONResponse{
 				Message: "invalid token type",
+				Code:    v1.INVALIDCREDENTIALS,
+			},
+		}, nil
+	}
+
+	if jti == "" || expUnix == 0 {
+		return v1.RefreshToken401JSONResponse{
+			UnauthorizedJSONResponse: v1.UnauthorizedJSONResponse{
+				Message: "invalid refresh token",
+				Code:    v1.INVALIDCREDENTIALS,
+			},
+		}, nil
+	}
+
+	active, err := h.svc.IsRefreshTokenActive(ctx, jti)
+	if err != nil {
+		return nil, err
+	}
+	if !active {
+		return v1.RefreshToken401JSONResponse{
+			UnauthorizedJSONResponse: v1.UnauthorizedJSONResponse{
+				Message: "refresh token revoked",
 				Code:    v1.INVALIDCREDENTIALS,
 			},
 		}, nil
@@ -79,8 +101,15 @@ func (h *UserHandler) RefreshToken(ctx context.Context, req v1.RefreshTokenReque
 	}
 
 	// Rotate refresh token
-	newRefreshToken, err := h.jwtManager.GenerateRefreshToken(u.ID)
+	newRefreshToken, newJTI, newExpUnix, err := h.jwtManager.GenerateRefreshToken(u.ID)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := h.svc.RevokeRefreshToken(ctx, jti); err != nil {
+		return nil, err
+	}
+	if err := h.svc.SaveRefreshToken(ctx, newJTI, u.ID, newExpUnix); err != nil {
 		return nil, err
 	}
 

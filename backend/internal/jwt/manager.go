@@ -46,13 +46,15 @@ func (m *Manager) GenerateAccessToken(userID uuid.UUID, role string) (string, in
 }
 
 // GenerateRefreshToken creates a long-lived JWT stored in an HttpOnly cookie.
-func (m *Manager) GenerateRefreshToken(userID uuid.UUID) (string, error) {
+func (m *Manager) GenerateRefreshToken(userID uuid.UUID) (string, string, int64, error) {
 	now := time.Now()
 	exp := now.Add(m.refreshTokenDuration)
+	jti := uuid.NewString()
 
 	claims := jwt.MapClaims{
 		"sub":  userID.String(),
 		"type": "refresh",
+		"jti":  jti,
 		"iat":  now.Unix(),
 		"exp":  exp.Unix(),
 	}
@@ -61,10 +63,10 @@ func (m *Manager) GenerateRefreshToken(userID uuid.UUID) (string, error) {
 
 	tokenString, err := token.SignedString(m.secret)
 	if err != nil {
-		return "", fmt.Errorf("failed to sign refresh token: %w", err)
+		return "", "", 0, fmt.Errorf("failed to sign refresh token: %w", err)
 	}
 
-	return tokenString, nil
+	return tokenString, jti, exp.Unix(), nil
 }
 
 // RefreshTokenDuration returns the configured refresh token lifetime.
@@ -73,7 +75,7 @@ func (m *Manager) RefreshTokenDuration() time.Duration {
 }
 
 // ParseToken validates a JWT and returns user ID, role, and token type ("access" or "refresh").
-func (m *Manager) ParseToken(tokenString string) (uuid.UUID, string, string, error) {
+func (m *Manager) ParseToken(tokenString string) (uuid.UUID, string, string, string, int64, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -81,28 +83,35 @@ func (m *Manager) ParseToken(tokenString string) (uuid.UUID, string, string, err
 		return m.secret, nil
 	})
 	if err != nil {
-		return uuid.Nil, "", "", fmt.Errorf("failed to parse token: %w", err)
+		return uuid.Nil, "", "", "", 0, fmt.Errorf("failed to parse token: %w", err)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		userIDStr, ok := claims["sub"].(string)
 		if !ok {
-			return uuid.Nil, "", "", fmt.Errorf("invalid token claims: missing sub")
+			return uuid.Nil, "", "", "", 0, fmt.Errorf("invalid token claims: missing sub")
 		}
 		userID, err := uuid.Parse(userIDStr)
 		if err != nil {
-			return uuid.Nil, "", "", fmt.Errorf("invalid user ID in token: %w", err)
+			return uuid.Nil, "", "", "", 0, fmt.Errorf("invalid user ID in token: %w", err)
 		}
 
 		role, _ := claims["role"].(string) // role is empty for refresh tokens
 
 		tokenType, ok := claims["type"].(string)
 		if !ok {
-			return uuid.Nil, "", "", fmt.Errorf("invalid token claims: missing type")
+			return uuid.Nil, "", "", "", 0, fmt.Errorf("invalid token claims: missing type")
 		}
 
-		return userID, role, tokenType, nil
+		jti, _ := claims["jti"].(string)
+
+		expFloat, ok := claims["exp"].(float64)
+		if !ok {
+			return uuid.Nil, "", "", "", 0, fmt.Errorf("invalid token claims: missing exp")
+		}
+
+		return userID, role, tokenType, jti, int64(expFloat), nil
 	}
 
-	return uuid.Nil, "", "", fmt.Errorf("invalid token")
+	return uuid.Nil, "", "", "", 0, fmt.Errorf("invalid token")
 }

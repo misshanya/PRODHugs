@@ -72,7 +72,7 @@ func (h *Hub) HandleWS(c echo.Context) error {
 			return
 		}
 
-		userID, _, tokenType, err := h.jwtManager.ParseToken(authMsg.Token)
+		userID, _, tokenType, _, _, err := h.jwtManager.ParseToken(authMsg.Token)
 		if err != nil || tokenType != "access" {
 			return
 		}
