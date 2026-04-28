@@ -372,7 +372,8 @@ func (q *Queries) IncrementUserSlots(ctx context.Context, id uuid.UUID) (int32, 
 const listAllUsers = `-- name: ListAllUsers :many
 SELECT id, username, role, gender
 FROM users
-WHERE id NOT IN (
+WHERE banned_at IS NULL
+  AND id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = $1::uuid
     UNION
     SELECT blocker_id FROM user_blocks WHERE blocked_id = $1::uuid
@@ -473,6 +474,7 @@ const searchUsers = `-- name: SearchUsers :many
 SELECT id, username, role, gender
 FROM users
 WHERE username ILIKE '%' || $1::text || '%'
+  AND banned_at IS NULL
   AND id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = $2::uuid
     UNION
