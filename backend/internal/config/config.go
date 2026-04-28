@@ -5,16 +5,21 @@ import (
 )
 
 type Config struct {
-	HttpSrv  httpServer
-	Postgres postgres
-	S3       s3
-	Kafka    kafka
-	Valkey   valkey
-	JWT      jwt
+	HttpSrv    httpServer
+	MetricsSrv metricsServer
+	Postgres   postgres
+	S3         s3
+	Kafka      kafka
+	Valkey     valkey
+	JWT        jwt
 }
 
 type httpServer struct {
 	Addr string `env:"SERVER_ADDR" env-default:":8080"`
+}
+
+type metricsServer struct {
+	Addr string `env:"METRICS_ADDR" env-default:":9090"`
 }
 
 type postgres struct {
@@ -44,8 +49,8 @@ type valkey struct {
 }
 
 type jwt struct {
-	Secret                 string `env:"JWT_SECRET" env-required:"true"`
-	AccessTokenDurationSec int64  `env:"JWT_ACCESS_DURATION" env-default:"900"`    // 15 minutes
+	Secret                  string `env:"JWT_SECRET" env-required:"true"`
+	AccessTokenDurationSec  int64  `env:"JWT_ACCESS_DURATION" env-default:"900"`    // 15 minutes
 	RefreshTokenDurationSec int64  `env:"JWT_REFRESH_DURATION" env-default:"604800"` // 7 days
 }
 

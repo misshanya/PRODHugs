@@ -1,0 +1,27 @@
+// Grafana Alloy configuration
+// Scrapes Prometheus metrics from the backend and ships them to Grafana Cloud.
+
+prometheus.scrape "backend" {
+  targets = [
+    {"__address__" = "backend:9090", "job" = "backend"},
+  ]
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = env("GRAFANA_CLOUD_PROMETHEUS_USERNAME")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+
+  external_labels = {
+    "environment" = "production",
+    "service"     = "hugs-backend",
+  }
+}

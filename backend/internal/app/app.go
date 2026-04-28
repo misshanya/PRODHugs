@@ -12,6 +12,7 @@ import (
 
 	"go-service-template/internal/errorz"
 	"go-service-template/internal/jwt"
+	"go-service-template/internal/metrics"
 	"go-service-template/internal/models"
 	"go-service-template/internal/repository"
 	"go-service-template/internal/transport/http/server"
@@ -45,12 +46,13 @@ import (
 )
 
 type App struct {
-	cfg      *config.Config
-	l        *slog.Logger
-	e        *echo.Echo
-	dbPool   *pgxpool.Pool
-	hub      *ws.Hub
-	stopJobs context.CancelFunc
+	cfg        *config.Config
+	l          *slog.Logger
+	e          *echo.Echo
+	metricsSrv *http.Server
+	dbPool     *pgxpool.Pool
+	hub        *ws.Hub
+	stopJobs   context.CancelFunc
 }
 
 // New creates and initializes a new instance of App
@@ -67,6 +69,9 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	if err := a.migrateDB(); err != nil {
 		return nil, err
 	}
+
+	// Metrics server (separate port, exposes /metrics for Prometheus scraping)
+	a.metricsSrv = metrics.Register(a.cfg.MetricsSrv.Addr, a.dbPool)
 
 	jwtManager := jwt.NewManager(
 		a.cfg.JWT.Secret,
@@ -157,6 +162,10 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 // Start performs a start of all functional services
 func (a *App) Start(errChan chan<- error) {
 	a.l.Info("Starting...")
+
+	// Start metrics server on a separate port
+	metrics.StartServer(a.metricsSrv, a.l)
+
 	if err := a.e.Start(a.cfg.HttpSrv.Addr); err != nil {
 		errChan <- err
 	}
@@ -176,6 +185,11 @@ func (a *App) Stop(ctx context.Context) error {
 	a.l.Info("Stopping http server...")
 	if err := a.e.Shutdown(ctx); err != nil {
 		stopErr = errors.Join(stopErr, fmt.Errorf("failed to shutdown http server: %w", err))
+	}
+
+	a.l.Info("Stopping metrics server...")
+	if err := metrics.StopServer(ctx, a.metricsSrv); err != nil {
+		stopErr = errors.Join(stopErr, fmt.Errorf("failed to shutdown metrics server: %w", err))
 	}
 
 	a.l.Info("Closing database pool...")
@@ -260,6 +274,7 @@ func (a *App) initEcho() error {
 			return nil
 		},
 	}))
+	a.e.Use(metrics.Middleware())
 	a.e.Use(middleware.Recover())
 
 	a.e.GET("/api/v1/openapi.json", func(c echo.Context) error {

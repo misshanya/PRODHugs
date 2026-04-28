@@ -26,6 +26,7 @@ services:
       context: ./backend
     environment:
       SERVER_ADDR: "0.0.0.0:8080"
+      METRICS_ADDR: "0.0.0.0:9090"
       POSTGRES_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
       POSTGRES_MAX_CONNS: "${POSTGRES_MAX_CONNS}"
       JWT_SECRET: "${JWT_SECRET}"
@@ -50,3 +51,17 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  alloy:
+    container_name: alloy
+    image: grafana/alloy:latest
+    command: ["run", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:Z,ro
+    environment:
+      GRAFANA_CLOUD_PROMETHEUS_URL: "${GRAFANA_CLOUD_PROMETHEUS_URL}"
+      GRAFANA_CLOUD_PROMETHEUS_USERNAME: "${GRAFANA_CLOUD_PROMETHEUS_USERNAME}"
+      GRAFANA_CLOUD_API_KEY: "${GRAFANA_CLOUD_API_KEY}"
+    restart: unless-stopped
+    depends_on:
+      - backend
