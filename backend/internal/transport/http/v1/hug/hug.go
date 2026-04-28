@@ -26,7 +26,7 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		}, nil
 	}
 
-	hug, err := h.svc.SuggestHug(ctx, giverID, receiverID)
+	hug, receiver, err := h.svc.SuggestHug(ctx, giverID, receiverID)
 	if err != nil {
 		if errors.Is(err, errorz.ErrAlreadyHasPendingHug) {
 			return v1.SuggestHug409JSONResponse{
@@ -55,14 +55,22 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		return nil, err
 	}
 
-	return v1.SuggestHug201JSONResponse{
+	resp := v1.SuggestHug201JSONResponse{
 		Id:         hug.ID,
 		GiverId:    hug.GiverID,
 		ReceiverId: hug.ReceiverID,
 		CreatedAt:  hug.CreatedAt,
 		Status:     v1.HugStatus(hug.Status),
 		AcceptedAt: hug.AcceptedAt,
-	}, nil
+	}
+	if receiver != nil {
+		resp.ReceiverUsername = &receiver.Username
+		if receiver.Gender != nil {
+			g := v1.Gender(*receiver.Gender)
+			resp.ReceiverGender = &g
+		}
+	}
+	return resp, nil
 }
 
 func (h *HugHandler) AcceptHug(ctx context.Context, req v1.AcceptHugRequestObject) (v1.AcceptHugResponseObject, error) {

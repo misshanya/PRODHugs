@@ -5,6 +5,7 @@ import { useHugsStore } from '@/stores/hugs'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import UserCard from '@/components/UserCard.vue'
+import OutgoingHugBanner from '@/components/OutgoingHugBanner.vue'
 
 const hugsStore = useHugsStore()
 const query = ref('')
@@ -53,6 +54,8 @@ onUnmounted(() => {
       <h1 class="text-2xl font-semibold tracking-tight">Пользователи</h1>
       <p class="text-muted-foreground">Обнимись с кем-нибудь</p>
     </div>
+
+    <OutgoingHugBanner />
 
     <div class="relative">
       <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

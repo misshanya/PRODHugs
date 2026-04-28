@@ -116,7 +116,7 @@ export const useHugsStore = defineStore('hugs', () => {
 
   async function suggestHug(userId: string) {
     const res = await hugsApi.suggest(userId)
-    // Set outgoing pending hug from the response
+    // The suggest endpoint now returns receiver_username/receiver_gender directly.
     outgoingHug.value = {
       id: res.data.id,
       giver_id: res.data.giver_id,

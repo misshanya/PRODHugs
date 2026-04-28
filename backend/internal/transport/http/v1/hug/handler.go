@@ -8,7 +8,7 @@ import (
 )
 
 type service interface {
-	SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID) (*models.Hug, error)
+	SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID) (*models.Hug, *models.User, error)
 	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) error
 	CancelHug(ctx context.Context, hugID, giverID uuid.UUID) error

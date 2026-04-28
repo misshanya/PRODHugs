@@ -19,15 +19,16 @@ const (
 )
 
 // SuggestHug creates a pending hug suggestion (replaces old SendHug).
-func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID) (*models.Hug, error) {
+// Returns the created hug and the receiver's user data (for the response).
+func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID) (*models.Hug, *models.User, error) {
 	if giverID == receiverID {
-		return nil, errorz.ErrCannotHugSelf
+		return nil, nil, errorz.ErrCannotHugSelf
 	}
 
 	// Verify receiver exists (can be done outside tx — user won't disappear)
-	_, err := s.userRepo.GetByID(ctx, receiverID)
+	receiver, err := s.userRepo.GetByID(ctx, receiverID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var h *models.Hug
@@ -74,7 +75,7 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Fire WebSocket notification asynchronously to avoid blocking the HTTP response.
@@ -99,7 +100,7 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 		}()
 	}
 
-	return h, nil
+	return h, receiver, nil
 }
 
 // AcceptHug accepts a pending hug suggestion.

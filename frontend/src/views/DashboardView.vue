@@ -16,7 +16,6 @@ import RankBadge from '@/components/RankBadge.vue'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { plural, hugVerb } from '@/lib/utils'
-import OutgoingHugBanner from '@/components/OutgoingHugBanner.vue'
 import InboxSection from '@/components/InboxSection.vue'
 
 const auth = useAuthStore()
@@ -223,9 +222,6 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
         </CardContent>
       </Card>
     </div>
-
-    <!-- Outgoing pending hug banner -->
-    <OutgoingHugBanner />
 
     <!-- Inbox section -->
     <InboxSection />

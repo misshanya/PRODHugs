@@ -92,6 +92,8 @@ components:
         id: { type: string, format: uuid }
         giver_id: { type: string, format: uuid }
         receiver_id: { type: string, format: uuid }
+        receiver_username: { type: string }
+        receiver_gender: { $ref: '#/components/schemas/Gender' }
         status: { type: string, enum: [pending, completed, declined, expired, cancelled] }
         created_at: { type: string, format: date-time }
         accepted_at: { type: string, format: date-time }
