@@ -43,19 +43,38 @@ func (n *Notifier) Enabled() bool {
 }
 
 // NotifyHugSuggestion notifies the receiver with Accept/Decline buttons.
-func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverName string) {
+func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverID uuid.UUID) {
+	giver, err := n.repo.GetByID(ctx, giverID)
+	if err != nil {
+		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
+		return
+	}
+	name := displayName(giver)
+
 	if n.bot != nil {
-		n.bot.SendHugSuggestion(ctx, receiverID, hugID, giverName)
+		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name)
 		return
 	}
 	// Fallback: plain text without buttons
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", giverName))
+	n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", name))
 }
 
 // NotifyHugCompleted notifies both participants that the hug was accepted.
-func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID uuid.UUID, giverName, receiverName string) {
-	n.sendToUser(ctx, giverID, fmt.Sprintf("🎉 <b>%s</b> принял(а) объятие! +1 монета", receiverName))
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("🎉 Вы обнялись с <b>%s</b>! +1 монета", giverName))
+func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID uuid.UUID) {
+	giver, err := n.repo.GetByID(ctx, giverID)
+	if err != nil {
+		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
+		return
+	}
+	receiver, err := n.repo.GetByID(ctx, receiverID)
+	if err != nil {
+		n.logger.Error("telegram: failed to look up receiver", "receiver_id", receiverID, "error", err)
+		return
+	}
+
+	receiverVerb := genderVerb(receiver.Gender, "принял", "приняла", "принял(а)")
+	n.sendToUser(ctx, giverID, fmt.Sprintf("🎉 <b>%s</b> %s объятие! +1 монета", displayName(receiver), receiverVerb))
+	n.sendToUser(ctx, receiverID, fmt.Sprintf("🎉 Вы обнялись с <b>%s</b>! +1 монета", displayName(giver)))
 }
 
 // NotifyHugDeclined notifies the giver that their hug was declined.
@@ -65,11 +84,9 @@ func (n *Notifier) NotifyHugDeclined(ctx context.Context, giverID, receiverID uu
 		n.logger.Error("telegram: failed to look up receiver", "receiver_id", receiverID, "error", err)
 		return
 	}
-	name := receiver.Username
-	if receiver.DisplayName != nil {
-		name = *receiver.DisplayName
-	}
-	n.sendToUser(ctx, giverID, fmt.Sprintf("😔 <b>%s</b> отклонил(а) объятие", name))
+
+	verb := genderVerb(receiver.Gender, "отклонил", "отклонила", "отклонил(а)")
+	n.sendToUser(ctx, giverID, fmt.Sprintf("😔 <b>%s</b> %s объятие", displayName(receiver), verb))
 }
 
 // NotifyHugCancelled notifies the receiver that the hug request was cancelled.
@@ -79,11 +96,9 @@ func (n *Notifier) NotifyHugCancelled(ctx context.Context, receiverID, giverID u
 		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
 		return
 	}
-	name := giver.Username
-	if giver.DisplayName != nil {
-		name = *giver.DisplayName
-	}
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("❌ <b>%s</b> отменил(а) запрос на объятие", name))
+
+	verb := genderVerb(giver.Gender, "отменил", "отменила", "отменил(а)")
+	n.sendToUser(ctx, receiverID, fmt.Sprintf("❌ <b>%s</b> %s запрос на объятие", displayName(giver), verb))
 }
 
 func (n *Notifier) sendToUser(ctx context.Context, userID uuid.UUID, text string) {
@@ -102,5 +117,29 @@ func (n *Notifier) sendToUser(ctx context.Context, userID uuid.UUID, text string
 
 	if err := n.client.SendMessage(*telegramID, text); err != nil {
 		n.logger.Error("telegram: failed to send message", "user_id", userID, "telegram_id", *telegramID, "error", err)
+	}
+}
+
+// displayName returns the user's display name, falling back to username.
+func displayName(u *models.User) string {
+	if u.DisplayName != nil && *u.DisplayName != "" {
+		return *u.DisplayName
+	}
+	return u.Username
+}
+
+// genderVerb returns the appropriate Russian verb form based on user gender.
+// male/female get distinct forms; nil/unknown gets the "(а)" fallback.
+func genderVerb(gender *string, male, female, fallback string) string {
+	if gender == nil {
+		return fallback
+	}
+	switch *gender {
+	case "male":
+		return male
+	case "female":
+		return female
+	default:
+		return fallback
 	}
 }

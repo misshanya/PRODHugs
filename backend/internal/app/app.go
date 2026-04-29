@@ -116,11 +116,11 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 
 	hugService.SetHugCompletedCallback(func(item *models.HugFeedItem) {
 		a.hub.Broadcast("hug_completed", hughandler.ToFeedItemDTO(item))
-		tgNotifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID, item.GiverUsername, item.ReceiverUsername)
+		tgNotifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID)
 	})
 	hugService.SetHugSuggestionCallback(func(targetUserID uuid.UUID, item *models.PendingHugInboxItem) {
 		a.hub.SendToUser(targetUserID, "hug_suggestion", item)
-		tgNotifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverUsername)
+		tgNotifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverID)
 	})
 	hugService.SetHugDeclinedCallback(func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_declined", map[string]string{"hug_id": hugID.String(), "receiver_id": receiverID.String()})
