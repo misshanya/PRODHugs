@@ -61,15 +61,6 @@ func (h *UserHandler) GetCurrentUser(ctx context.Context, req v1.GetCurrentUserR
 		return nil, err
 	}
 
-	resp := v1.GetCurrentUser200JSONResponse{
-		Id:       u.ID,
-		Role:     v1.UserRole(u.Role),
-		Username: u.Username,
-	}
-	if u.Gender != nil {
-		g := v1.Gender(*u.Gender)
-		resp.Gender = &g
-	}
-
+	resp := v1.GetCurrentUser200JSONResponse(toV1User(u))
 	return resp, nil
 }

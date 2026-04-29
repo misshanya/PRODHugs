@@ -56,6 +56,7 @@ type User struct {
 	HugSlots    int32
 	CreatedAt   pgtype.Timestamptz
 	DisplayName pgtype.Text
+	TelegramID  pgtype.Int8
 }
 
 type UserBlock struct {

@@ -12,6 +12,10 @@ type repo interface {
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error)
+	GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error)
+	SetTelegramID(ctx context.Context, userID uuid.UUID, telegramID int64) (*models.User, error)
+	ClearTelegramID(ctx context.Context, userID uuid.UUID) (*models.User, error)
+	IsTelegramIDTaken(ctx context.Context, telegramID int64, excludeUserID uuid.UUID) (bool, error)
 	UpdatePassword(ctx context.Context, id uuid.UUID, hashedPassword string) error
 	BanUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 	UnbanUser(ctx context.Context, id uuid.UUID) (*models.User, error)
@@ -40,11 +44,24 @@ type jwtManager interface {
 	GenerateRefreshToken(userID uuid.UUID) (string, string, int64, error)
 }
 
+type telegramClient interface {
+	GetChat(chatID int64) error
+	SendMessage(chatID int64, text string) error
+	Enabled() bool
+}
+
+type telegramVerifyStore interface {
+	GenerateCode(userID uuid.UUID, telegramID int64) (string, error)
+	CheckCode(userID uuid.UUID, telegramID int64, code string) (ok bool, reason string)
+}
+
 type service struct {
-	repo             repo
-	balanceRepo      balanceRepo
-	refreshTokenRepo refreshTokenRepo
-	jwtManager       jwtManager
+	repo              repo
+	balanceRepo       balanceRepo
+	refreshTokenRepo  refreshTokenRepo
+	jwtManager        jwtManager
+	telegramClient    telegramClient
+	telegramVerify    telegramVerifyStore
 }
 
 func New(repo repo, jwtManager jwtManager, opts ...func(*service)) *service {
@@ -68,5 +85,17 @@ func WithBalanceRepo(br balanceRepo) func(*service) {
 func WithRefreshTokenRepo(rtr refreshTokenRepo) func(*service) {
 	return func(s *service) {
 		s.refreshTokenRepo = rtr
+	}
+}
+
+func WithTelegramClient(tc telegramClient) func(*service) {
+	return func(s *service) {
+		s.telegramClient = tc
+	}
+}
+
+func WithTelegramVerifyStore(vs telegramVerifyStore) func(*service) {
+	return func(s *service) {
+		s.telegramVerify = vs
 	}
 }

@@ -21,6 +21,7 @@ type User struct {
 	HashedPassword string
 	Gender         *string
 	DisplayName    *string
+	TelegramID     *int64
 	BannedAt       *time.Time
 	CreatedAt      *time.Time
 }

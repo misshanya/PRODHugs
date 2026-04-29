@@ -45,8 +45,12 @@ const (
 	HUGNOTPENDING         ErrorCode = "HUG_NOT_PENDING"
 	INSUFFICIENTBALANCE   ErrorCode = "INSUFFICIENT_BALANCE"
 	INVALIDCREDENTIALS    ErrorCode = "INVALID_CREDENTIALS"
+	INVALIDTELEGRAMID     ErrorCode = "INVALID_TELEGRAM_ID"
 	MAXSLOTSREACHED       ErrorCode = "MAX_SLOTS_REACHED"
 	PENDINGHUGEXISTS      ErrorCode = "PENDING_HUG_EXISTS"
+	TELEGRAMCODEEXPIRED   ErrorCode = "TELEGRAM_CODE_EXPIRED"
+	TELEGRAMCODEINVALID   ErrorCode = "TELEGRAM_CODE_INVALID"
+	TELEGRAMIDTAKEN       ErrorCode = "TELEGRAM_ID_TAKEN"
 	USERALREADYEXISTS     ErrorCode = "USER_ALREADY_EXISTS"
 	USERBANNED            ErrorCode = "USER_BANNED"
 	USERBLOCKED           ErrorCode = "USER_BLOCKED"
@@ -246,6 +250,7 @@ type User struct {
 	Gender      *Gender            `json:"gender,omitempty"`
 	Id          openapi_types.UUID `json:"id"`
 	Role        UserRole           `json:"role"`
+	TelegramId  *int64             `json:"telegram_id"`
 	Username    string             `json:"username"`
 }
 
@@ -382,6 +387,17 @@ type UpdateUserSettingsJSONBody struct {
 	Gender      *Gender `json:"gender,omitempty"`
 }
 
+// SendTelegramCodeJSONBody defines parameters for SendTelegramCode.
+type SendTelegramCodeJSONBody struct {
+	TelegramId int64 `json:"telegram_id"`
+}
+
+// VerifyTelegramCodeJSONBody defines parameters for VerifyTelegramCode.
+type VerifyTelegramCodeJSONBody struct {
+	Code       string `json:"code"`
+	TelegramId int64  `json:"telegram_id"`
+}
+
 // SearchUsersParams defines parameters for SearchUsers.
 type SearchUsersParams struct {
 	Q      *string `form:"q,omitempty" json:"q,omitempty"`
@@ -415,6 +431,12 @@ type ChangePasswordJSONRequestBody ChangePasswordJSONBody
 
 // UpdateUserSettingsJSONRequestBody defines body for UpdateUserSettings for application/json ContentType.
 type UpdateUserSettingsJSONRequestBody UpdateUserSettingsJSONBody
+
+// SendTelegramCodeJSONRequestBody defines body for SendTelegramCode for application/json ContentType.
+type SendTelegramCodeJSONRequestBody SendTelegramCodeJSONBody
+
+// VerifyTelegramCodeJSONRequestBody defines body for VerifyTelegramCode for application/json ContentType.
+type VerifyTelegramCodeJSONRequestBody VerifyTelegramCodeJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -526,6 +548,15 @@ type ServerInterface interface {
 	// Update current user settings
 	// (PUT /users/me/settings)
 	UpdateUserSettings(ctx echo.Context) error
+	// Unlink Telegram account
+	// (DELETE /users/me/telegram)
+	UnlinkTelegram(ctx echo.Context) error
+	// Send a verification code to a Telegram chat
+	// (POST /users/me/telegram/send-code)
+	SendTelegramCode(ctx echo.Context) error
+	// Verify a Telegram code and link the account
+	// (POST /users/me/telegram/verify)
+	VerifyTelegramCode(ctx echo.Context) error
 	// Search users by username
 	// (GET /users/search)
 	SearchUsers(ctx echo.Context, params SearchUsersParams) error
@@ -1086,6 +1117,39 @@ func (w *ServerInterfaceWrapper) UpdateUserSettings(ctx echo.Context) error {
 	return err
 }
 
+// UnlinkTelegram converts echo context to params.
+func (w *ServerInterfaceWrapper) UnlinkTelegram(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UnlinkTelegram(ctx)
+	return err
+}
+
+// SendTelegramCode converts echo context to params.
+func (w *ServerInterfaceWrapper) SendTelegramCode(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SendTelegramCode(ctx)
+	return err
+}
+
+// VerifyTelegramCode converts echo context to params.
+func (w *ServerInterfaceWrapper) VerifyTelegramCode(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.VerifyTelegramCode(ctx)
+	return err
+}
+
 // SearchUsers converts echo context to params.
 func (w *ServerInterfaceWrapper) SearchUsers(ctx echo.Context) error {
 	var err error
@@ -1238,6 +1302,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/users/me/blocked", wrapper.GetBlockedUsers)
 	router.PUT(baseURL+"/users/me/password", wrapper.ChangePassword)
 	router.PUT(baseURL+"/users/me/settings", wrapper.UpdateUserSettings)
+	router.DELETE(baseURL+"/users/me/telegram", wrapper.UnlinkTelegram)
+	router.POST(baseURL+"/users/me/telegram/send-code", wrapper.SendTelegramCode)
+	router.POST(baseURL+"/users/me/telegram/verify", wrapper.VerifyTelegramCode)
 	router.GET(baseURL+"/users/search", wrapper.SearchUsers)
 	router.DELETE(baseURL+"/users/:userId/block", wrapper.UnblockUser)
 	router.POST(baseURL+"/users/:userId/block", wrapper.BlockUser)
@@ -2608,6 +2675,103 @@ func (response UpdateUserSettings401JSONResponse) VisitUpdateUserSettingsRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UnlinkTelegramRequestObject struct {
+}
+
+type UnlinkTelegramResponseObject interface {
+	VisitUnlinkTelegramResponse(w http.ResponseWriter) error
+}
+
+type UnlinkTelegram200JSONResponse User
+
+func (response UnlinkTelegram200JSONResponse) VisitUnlinkTelegramResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnlinkTelegram401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UnlinkTelegram401JSONResponse) VisitUnlinkTelegramResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SendTelegramCodeRequestObject struct {
+	Body *SendTelegramCodeJSONRequestBody
+}
+
+type SendTelegramCodeResponseObject interface {
+	VisitSendTelegramCodeResponse(w http.ResponseWriter) error
+}
+
+type SendTelegramCode200JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response SendTelegramCode200JSONResponse) VisitSendTelegramCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SendTelegramCode400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SendTelegramCode400JSONResponse) VisitSendTelegramCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SendTelegramCode401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SendTelegramCode401JSONResponse) VisitSendTelegramCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifyTelegramCodeRequestObject struct {
+	Body *VerifyTelegramCodeJSONRequestBody
+}
+
+type VerifyTelegramCodeResponseObject interface {
+	VisitVerifyTelegramCodeResponse(w http.ResponseWriter) error
+}
+
+type VerifyTelegramCode200JSONResponse User
+
+func (response VerifyTelegramCode200JSONResponse) VisitVerifyTelegramCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifyTelegramCode400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response VerifyTelegramCode400JSONResponse) VisitVerifyTelegramCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifyTelegramCode401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response VerifyTelegramCode401JSONResponse) VisitVerifyTelegramCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchUsersRequestObject struct {
 	Params SearchUsersParams
 }
@@ -2853,6 +3017,15 @@ type StrictServerInterface interface {
 	// Update current user settings
 	// (PUT /users/me/settings)
 	UpdateUserSettings(ctx context.Context, request UpdateUserSettingsRequestObject) (UpdateUserSettingsResponseObject, error)
+	// Unlink Telegram account
+	// (DELETE /users/me/telegram)
+	UnlinkTelegram(ctx context.Context, request UnlinkTelegramRequestObject) (UnlinkTelegramResponseObject, error)
+	// Send a verification code to a Telegram chat
+	// (POST /users/me/telegram/send-code)
+	SendTelegramCode(ctx context.Context, request SendTelegramCodeRequestObject) (SendTelegramCodeResponseObject, error)
+	// Verify a Telegram code and link the account
+	// (POST /users/me/telegram/verify)
+	VerifyTelegramCode(ctx context.Context, request VerifyTelegramCodeRequestObject) (VerifyTelegramCodeResponseObject, error)
 	// Search users by username
 	// (GET /users/search)
 	SearchUsers(ctx context.Context, request SearchUsersRequestObject) (SearchUsersResponseObject, error)
@@ -3797,6 +3970,87 @@ func (sh *strictHandler) UpdateUserSettings(ctx echo.Context) error {
 	return nil
 }
 
+// UnlinkTelegram operation middleware
+func (sh *strictHandler) UnlinkTelegram(ctx echo.Context) error {
+	var request UnlinkTelegramRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UnlinkTelegram(ctx.Request().Context(), request.(UnlinkTelegramRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnlinkTelegram")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UnlinkTelegramResponseObject); ok {
+		return validResponse.VisitUnlinkTelegramResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SendTelegramCode operation middleware
+func (sh *strictHandler) SendTelegramCode(ctx echo.Context) error {
+	var request SendTelegramCodeRequestObject
+
+	var body SendTelegramCodeJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SendTelegramCode(ctx.Request().Context(), request.(SendTelegramCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SendTelegramCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SendTelegramCodeResponseObject); ok {
+		return validResponse.VisitSendTelegramCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifyTelegramCode operation middleware
+func (sh *strictHandler) VerifyTelegramCode(ctx echo.Context) error {
+	var request VerifyTelegramCodeRequestObject
+
+	var body VerifyTelegramCodeJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyTelegramCode(ctx.Request().Context(), request.(VerifyTelegramCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyTelegramCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifyTelegramCodeResponseObject); ok {
+		return validResponse.VisitVerifyTelegramCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // SearchUsers operation middleware
 func (sh *strictHandler) SearchUsers(ctx echo.Context, params SearchUsersParams) error {
 	var request SearchUsersRequestObject
@@ -3900,71 +4154,75 @@ func (sh *strictHandler) GetUserProfile(ctx echo.Context, userId openapi_types.U
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"H4sIAAAAAAAC/+xde3PbOJL/KijeVu3MFR3ZSW5q1v/JsmzrxiO7LHsydzkfCyJbFDYUwAFAJ9qUvvsW",
+	"HqRICdTTkhUnf1kSQaDR/UM/gEb7qxeyUcooUCm8068eB5EyKkB/OcPRHfyVgZDqW8ioBKo/4jRNSIgl",
+	"YbTxT8Go+k2EQxhh9elvHAbeqfcfjWnXDfNUNNqcM+5NJhPfi0CEnKSqE+9UjYXywSa+12J0kJBwDwOH",
+	"+UgT37tgvE+iCOjuhx0UQ01875JR2P2QdyBYxkNA8CUlHCI1cpfJC5bRaPejd5lEZqiJ790z9jumYytw",
+	"sYe5YwkoISMiUQOFjCUR+0wRDiV5AkXQA8WZHDJO/gV74EVlNPXYvqE6bEYjQnsSG66knKXAJTELso8p",
+	"hSjIBHD9XY5T8E49QiXEwNU8JJM4qW8w8T0Of2Va+qcfK639au+Pfv4y6/8TzPLQpD0I4C7KEkxDcBNl",
+	"O8aanQPGR+qTF2EJR5KMwPM9miUJ7ifgnUqeQTG0kJzQWHURcsByyz4iItIEjwOKR5rQpS/EQCMz2UVS",
+	"vjStJr5HogpxWUYiz9EtZ4keH2g2UlJQDPd8Dyvulvg+fUE1yImeeTgjUD1g0dwO5RfScQo1k8M7q/Xn",
+	"5SrZJ6MNnUQtY43GyjzoVJe2AxdFZ1MsVYnBI5aZNTmPMdVbsJIAZsjJX/Tz7p0kJSz8BJEb+ytg82Cx",
+	"uDm0SrN2ciwb9xIm65FF4XOwUGuIhBkduGjCV1mshunQAZuj2HTgV0Zykdqy5kB3Mi9dTINhFpdo7DOW",
+	"ANaGO7ckgYCQ0ahGKUcQJoRCULTmMMKEKi472xePF3erkYuDNSQd9DdfIjgoEGC6cczeRbpfcNDF+3NM",
+	"kvEdfMY8qocKTjjgaByECSYjY5/nRbFIOSzHmuSAPwURHq9iNu1Q1deW48y4A/MAYxGs5Em0VMOJ741A",
+	"CByvsGR1z9P2tTS1LAW5QfrQbv4W3DZ7vQ83d+ee7z302ndB8/qu3Tz/n6D9Z6d33/N8r9P9o3ndOQ9a",
+	"d+3zdve+07zu5W27N/fBxc1DV73canbV16uHy6DXvr5Qv9zcXJ/ffOgGzdZ954+27qr3cHHRaXXa3fvg",
+	"rHnd7LbUzx/ubrqXc4ScNbvddqnns2Y3aJ7/3ul6vpcTedXsBbft7nmne6lG9nxPjV8mK/9uW9lf2n/e",
+	"du505+ft1nWn2w7miS31O2XG780/g971zX0vuGs3W1ftKbXXN63f9NecX/ft6/blXfP3oKN+LX0L7pu/",
+	"tbvl31o35+3Avjf3e06ry2O4LKxFLtMR1p7AAPQH1ztXRsnNLL0whHRd47aJQYzJ06oGfHVHC0LQ3a5r",
+	"PIsX1x1ogTlV2gLLTJSFkgKN1ENfR+EJSFDdW3OhPuaRmlaiISQJRA7ZuSx1wc/qbAoqlhrwqyxuqvCI",
+	"yHFHwsilt2r1rRKykHiUrir/WRexeN+3w9RQeAEQ1VC3MQbXd802wthagI+Xo2tdqK49zV0sirWQO8ME",
+	"1wiroLrwFx0u6RcZKK8xCJnZ86qG7S0mJGIDJIeAVFuk2iJCUcgIFT5SLERkgLBEI/ylPiSdi9cLV9fp",
+	"5EX1z53xfO73ll51saJD++xLK1/EK67tOQ+jbnFeA46A9xnmUZtKPp4fY20ADrNYBAoE1M0q/dxiIqrx",
+	"rDH95Fw9hnOqh23Dy3ViqmnsWUJwiZTKnGcnaGfjYv5NJmNGaHyVxaLerc5nSySMlgZaeZe3xmQpZ2FS",
+	"jIw5x+NnidnstOtR66DjGXX/jvyPzXXtIXguaynpDXTyVJRaJf2w5xthbJPAfk17u0SO7t2xWfaP8Jdr",
+	"oLEceqfv3vrfziashARijkezjCZU/vJ+JVu/5TZuHcuviZDuNXNoG97PvbFdx5FbzgYkgTVPKXbOrWfw",
+	"X1a1TyLomx1r917ZKJMZThbRYlsspsY20g7Lmv5WLSRWccS2OgtZ6FFVfK8a90q5ORBmnMhxT8nYnpUD",
+	"5sCbmdJrX72+/naRy+m/P9x79pBPS0I/nQpuKGVqjgmJjUuqccdtgqWSORowjoZZHBMaIyaHwJE+rEOf",
+	"iRwiXhxxCh9ZpPsI0wipiagJSSIV11UQJBAWCKMe8CcSAmredjzfewIuzIgnb47fHCt2sxQoTol36r17",
+	"c/zmned7KZZDPeOG1pWN1G5jx6Ats1pu+qy0E3mn3iVIfWh4a3Y5KtkFb4+P1zpprS5lASEHuRwFtp1D",
+	"jHOnsooZwBERCCf2WPj98Und+i7m0qie5qqX3i1/aZpqUAaUd/qxCqWPuUWaPPqeyEYjrEIp8yNSrEc/",
+	"SRBSfVBE/Kx7s5IR+SHyQtGYo+YtZbNIAZZGcTBdP0WG1ANm+CVIZJgeYTHUYW1O9JThxbH7QoY/2OP2",
+	"FHM8Aqlf+fjVI4obf2XAx8qZ0BrO06s51xzYKIYBzhLpnb499pUrRUbKfTk5Vt8Itd98R9juHoANBgJq",
+	"Rih3eezo8nFLzKwUdk5TDuaizXks3eKYUOWhooSYnRojkQPGlXLeEE4Sq8iVgrdrG1NI5sDV+Kr+dKJJ",
+	"o+TKpJkDbYZxqYqP8vN0N+SUPp8CwnTvlXWo8X6mclsWYjyal0HIMxaN14IEjiKiHuHktqTsBzgR4Nfm",
+	"AiwEqfPgzm0MqjOePKu1eqnMBVeenQYDyjQ0or2tDfXG++VvFPlomyymnlLSeiX9Xeg92dwNWriOqNF6",
+	"CUiYX0YPtI+N/tnn6tmlJbY5OfM5aUK5k9Tkar0qWGgZWmCoEZ368ux7EnNZyMfLuV/KA35NuDgroaJW",
+	"P9hdgaM85lxmbM9N+66JOV+Rwd1uH2+yB5O78ZqwMkNqalXDeJiLYwOst4aYxjC1jlFpygvQP93iWoZ7",
+	"u831qiC/3gbfQUPcEPmdgDueSsQN6xQL8ZnxaBVg3+ZtXxW0yxwoafKTt7/qqD///uuyGKToZ/8x1cpp",
+	"kPX5j64tBDOf72SlFOKrXyvlDfdla+Vhutv+itZKmQMzXk9pqbzTW+MSuJrp/3/ER/9qHv3vo/17fPSP",
+	"4PE//7ZSSK+HejxkY5KL+VtYJOqNfyx/o7hv+ByrqpCiWVWZHDbCIYSfjspIcu4Rt1SzJatoZgu3kg9X",
+	"t5AWwva5Y9OZra8nTGxkMH8UObs/V7RdRVcXMLSvkYTIMeIgskRuBMlJVagQftLZfIU89dFQQeJUuAmL",
+	"ieZBatMGq0K91o8PyayfLMlaq4fLycoazN+vb7BQmZWvuDmApAWERBaGIMQgSzzfG+r0RU1JD+RRi7FP",
+	"BOZPZu9gwEEMkb7ThkLTqrzwZpk1OXB/YnowoUFbwTgz1j9158YmgLnQqbFXUqY3NFFLUXMnKHPnjefP",
+	"Lw/V8+H7htcsjiFCLJMlrCTj1dGieZRzZR3MzEpGkYBphML6DqeSs4/rRfcgYAXBIckQESJTdo7CZ4Q1",
+	"B8ygb1CXoaYFn5YQMixBOa/f/B+dE7xdPPf2PqjL1hXcscauQthCi7dbo1Z3LdZ51XUVbHVnOGpYHa2h",
+	"iZjUJ598M420b/WSK87KnDNBaLwczjER0m5KOe3tnW1h9/MPbqPIr5jpmvhzlAmJ+oB+PTp5+ysKh5jj",
+	"UK0NH6kJYEIRligBLCRiFFACKvTw9eeIxESazB/1VaQQEpxM+/D89UL+qm9Q44Pl9L47eve2Qq6QmEuT",
+	"oYQLMrXysvNgSuOYB/oOxaivP6gmmWKYCBkHUSV6p7HX1p7Lyd48F32ak68IiDa0S/vzYtaOxEoKw0zS",
+	"Wp/pqU0pEaIu7WaaALEzF/OsOGiuO3GzzzdStotj0mrq8nzeUphxDlRqnlVPxCNMkvER19ev6/VpK8Fk",
+	"VLqovUs+uu6Du05sVDNkCEf5tfCNDdnbFWA5W7FmC5lofqKoNAUjjWEWiwa2dy4X4bl0NdPbRxLW7FXQ",
+	"FVKxrljGkzEaZjHSd8RMapNyMhNlst6+R0OWbZyatd16UETlbHaThWLOshQi1B/rH0ryyWseFBukiwSV",
+	"V5Z4DVkFlSoZDonnz5HOYd63XM1uTVHYyVxyNul0Ru+lmCwUYyNLY45NHQS3GnwwDb5LmVrm7HGnd3Mo",
+	"WDmhnzhEWQg/T1HRHytnWF82q9pBDYkBmHsOC7SuuACItk7d/a/1Uncf96Tii7v0K6j3OwiVR6H4hjTf",
+	"XkKP8zkiClkOiZCMLzOiV7bVATL4KotRPomXspF2fK1Fyz5kic+E9tmXJVzWlzr3wmPXRdJV0satSlBz",
+	"Flkcg1APXsY3ydUToSEbOYmq8r5R3NRfJoGWrVm0M2NSGsXBZP3U+IIvEwSpkREbzHPYzV1m75kvYm35",
+	"mv0uOeu8zu/gcd6umKNWjXrrxVaqeAHPbDYC/btAzEknplGZzEISuhZAo5+N612zs2xsiwrsNMafKWnn",
+	"ukKm6E8zHg6x2Pe5+DOeci+S51k2Rpii6e7ojIrSMiyJ7+swi5V/bSpJ1cuwqZ9fZfFKjrXu9GD9al0d",
+	"w23U84JaWwh6rbzotZHhe+9PVoCsLlm8BYyMuBEu64ASihwAMhWwFmxT6effDoD2cGKpADctHPadI87g",
+	"A41ZxpGKBl1WyAE7W42tHnfnpsEP4M0Aryhj953jzuJjJVVX2lN0g61nXlsVbDvZfzrZh50sORS27Az6",
+	"yfLv5/36VTsH4Z6PHyyEENY4lKxyByqZlm1bFPmUqrv9uMm+2ubEXEG8FXYmSu8goJIrlf0S8VsZFRom",
+	"M0U/ZjcHZcapQBgJMkoTQDlRCmxhnlYph4DETMUNfx5pO6gcUpRhXVI5xLTbqHJI5ehaTQEBjVJGqI2M",
+	"TI79aOGpdcsEzUUWy45ilbok71b51HiLnYNnvsm51mH3dCchZ3ijVBepNl1gWuxf7GXfsvzfBVbRCra4",
+	"hZ3KVkUuttQLbkoqDF9618pkz5euWe0hYYvC5+BbS8JiSRRsnN89o9sqfflVdry2m1yhxtc3cXRpL5JU",
+	"dFj1ilaxrARISaipkuZcVtMbWb286SHcE6+i9Jlr7L30Fdw6W5pLYP8XprY5RlekVrFYgK6Kxbw05uJC",
+	"Kgmhn+7zli8ghHxslGlSXuDQ2vAAFYTg0J6HObnZEECjo/y/g9RsBwCN8u5a5r997GGJLyuFuqxKeen1",
+	"V2JsFO+RACq/hZWtQIMwegJOBpZrSMHM7AUU6AyHuBaa+t0FB3J/6Of7R2a+WkpG55eKzfllg8q+a8DZ",
+	"NxQ8HqgdKmRbVoCHDVaDpAouFVSVX62VqRyCS48KwDwc1kZ5Pf14jUqMf3k112l/ee/wtX/sgdXjsihX",
+	"vUakO8IyHBIav1Coa9BiSzT2xzP3u2cLyqlYeElJOdXkW6o2tgcLmpefs9sz+3fN9MjlKnHuTJMfoqu5",
+	"4FIW3EEezWyR8lKBhmPNp9OC83WbiuW69K8gc7w8nTpIWK7YBLQtKzzvcQs5qyPe9MufcrFlPPFOvQZO",
+	"SePpxJs8Tv4dAAD//8A9G2JOfQAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

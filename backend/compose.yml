@@ -15,6 +15,7 @@ services:
       POSTGRES_MAX_CONNS: "${POSTGRES_MAX_CONNS}"
 
       JWT_SECRET: "${JWT_SECRET}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
     restart: unless-stopped
     depends_on:
       postgres:

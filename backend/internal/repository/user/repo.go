@@ -36,6 +36,10 @@ func toModelUser(u storage.User) *models.User {
 	if u.DisplayName.Valid {
 		displayName = &u.DisplayName.String
 	}
+	var telegramID *int64
+	if u.TelegramID.Valid {
+		telegramID = &u.TelegramID.Int64
+	}
 	return &models.User{
 		ID:             u.ID,
 		Username:       u.Username,
@@ -43,6 +47,7 @@ func toModelUser(u storage.User) *models.User {
 		HashedPassword: u.Password,
 		Gender:         gender,
 		DisplayName:    displayName,
+		TelegramID:     telegramID,
 		BannedAt:       bannedAt,
 		CreatedAt:      createdAt,
 	}

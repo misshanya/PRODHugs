@@ -39,6 +39,7 @@ import (
 
 	hugservice "go-service-template/internal/service/hug"
 	userservice "go-service-template/internal/service/user"
+	"go-service-template/internal/telegram"
 
 	adminhandler "go-service-template/internal/transport/http/v1/admin"
 	hughandler "go-service-template/internal/transport/http/v1/hug"
@@ -92,12 +93,19 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
 
+	// Telegram client, notifier & verification store
+	tgClient := telegram.New(a.cfg.Telegram.BotToken)
+	tgNotifier := telegram.NewNotifier(tgClient, userRepo, a.l)
+	tgVerifyStore := telegram.NewVerifyStore()
+
 	// Services
 	userService := userservice.New(
 		userRepo,
 		jwtManager,
 		userservice.WithBalanceRepo(balanceRepo),
 		userservice.WithRefreshTokenRepo(refreshTokenRepo),
+		userservice.WithTelegramClient(tgClient),
+		userservice.WithTelegramVerifyStore(tgVerifyStore),
 	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
 
@@ -106,15 +114,27 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 
 	hugService.SetHugCompletedCallback(func(item *models.HugFeedItem) {
 		a.hub.Broadcast("hug_completed", hughandler.ToFeedItemDTO(item))
+		tgNotifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID, item.GiverUsername, item.ReceiverUsername)
 	})
 	hugService.SetHugSuggestionCallback(func(targetUserID uuid.UUID, item *models.PendingHugInboxItem) {
 		a.hub.SendToUser(targetUserID, "hug_suggestion", item)
+		tgNotifier.NotifyHugSuggestion(context.Background(), targetUserID, item.GiverUsername)
 	})
 	hugService.SetHugDeclinedCallback(func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_declined", map[string]string{"hug_id": hugID.String(), "receiver_id": receiverID.String()})
+		go tgNotifier.NotifyHugDeclined(context.Background(), targetUserID, receiverID)
 	})
 	hugService.SetHugCancelledCallback(func(targetUserID uuid.UUID, hugID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_cancelled", map[string]string{"hug_id": hugID.String()})
+		// For cancelled hugs, targetUserID is the receiver, we need to look up the giver.
+		// The hugID is available — look up the hug to find the giver.
+		go func() {
+			hug, err := hugRepo.GetHugByID(context.Background(), hugID)
+			if err != nil || hug == nil {
+				return
+			}
+			tgNotifier.NotifyHugCancelled(context.Background(), targetUserID, hug.GiverID)
+		}()
 	})
 
 	// Handlers

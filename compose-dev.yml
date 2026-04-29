@@ -43,6 +43,7 @@ services:
       JWT_SECRET: "${JWT_SECRET}"
       JWT_COOKIE_SECURE: "${JWT_COOKIE_SECURE:-false}"
       CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://localhost:3001}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
     restart: unless-stopped
     depends_on:
       postgres:

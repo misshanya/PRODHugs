@@ -94,6 +94,26 @@ SET gender = $2, display_name = $3
 WHERE id = $1
 RETURNING *;
 
+-- name: GetUserTelegramID :one
+SELECT telegram_id FROM users WHERE id = $1;
+
+-- name: SetUserTelegramID :one
+UPDATE users
+SET telegram_id = $2
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearUserTelegramID :one
+UPDATE users
+SET telegram_id = NULL
+WHERE id = $1
+RETURNING *;
+
+-- name: IsTelegramIDTaken :one
+SELECT EXISTS(
+    SELECT 1 FROM users WHERE telegram_id = $1 AND id != $2
+) AS taken;
+
 -- name: UpdateUserPassword :exec
 UPDATE users
 SET password = $2

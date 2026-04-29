@@ -16,6 +16,9 @@ type service interface {
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error)
 	ChangePassword(ctx context.Context, id uuid.UUID, oldPassword, newPassword string) error
+	SendTelegramCode(ctx context.Context, userID uuid.UUID, telegramID int64) error
+	VerifyTelegramCode(ctx context.Context, userID uuid.UUID, telegramID int64, code string) (*models.User, error)
+	UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
 	IsRefreshTokenActive(ctx context.Context, jti string) (bool, error)
 	RevokeRefreshToken(ctx context.Context, jti string) error
@@ -38,6 +41,7 @@ func toV1User(u *models.User) v1.User {
 		Username:    u.Username,
 		Role:        v1.UserRole(u.Role),
 		DisplayName: u.DisplayName,
+		TelegramId:  u.TelegramID,
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)

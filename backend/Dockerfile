@@ -20,6 +20,7 @@ FROM scratch AS runner
 
 WORKDIR /app
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/service ./service
 
 EXPOSE 8080 9090

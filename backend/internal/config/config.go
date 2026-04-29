@@ -16,6 +16,11 @@ type Config struct {
 	Kafka      kafka
 	Valkey     valkey
 	JWT        jwt
+	Telegram   telegram
+}
+
+type telegram struct {
+	BotToken string `env:"TELEGRAM_BOT_TOKEN"`
 }
 
 type httpServer struct {
