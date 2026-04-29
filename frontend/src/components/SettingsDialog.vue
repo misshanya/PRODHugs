@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { ShieldX } from 'lucide-vue-next'
+import { ShieldX, Send } from 'lucide-vue-next'
 import { useAuthStore, type Gender } from '@/stores/auth'
 import { useHugsStore, type BlockedUser } from '@/stores/hugs'
 import { authApi, usersApi } from '@/api/client'
@@ -279,7 +279,7 @@ async function savePassword() {
             <div
               class="flex items-center gap-2 rounded-md border border-green-800/40 bg-green-950/30 px-3 py-2 text-sm"
             >
-              <span class="text-green-400">✓</span>
+              <Send class="size-4 text-green-400" />
               <span>Telegram привязан</span>
             </div>
             <Button
