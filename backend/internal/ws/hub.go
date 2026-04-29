@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go-service-template/internal/jwt"
+	"go-service-template/internal/metrics"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -145,8 +146,10 @@ func (h *Hub) register(cl *client) {
 		h.userIndex[cl.userID] = make(map[*client]struct{})
 	}
 	h.userIndex[cl.userID][cl] = struct{}{}
+	count := len(h.userIndex)
 	h.mu.Unlock()
 
+	metrics.SetWSUniqueUserCount(count)
 	h.broadcastOnlineCount()
 }
 
@@ -159,8 +162,10 @@ func (h *Hub) unregister(cl *client) {
 			delete(h.userIndex, cl.userID)
 		}
 	}
+	count := len(h.userIndex)
 	h.mu.Unlock()
 
+	metrics.SetWSUniqueUserCount(count)
 	h.broadcastOnlineCount()
 }
 

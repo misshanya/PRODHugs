@@ -16,6 +16,11 @@ import (
 )
 
 var (
+    // wsUniqueUserCount tracks the number of distinct authenticated WebSocket users.
+    wsUniqueUserCount = prometheus.NewGauge(prometheus.GaugeOpts{
+        Name: "ws_unique_user_count",
+        Help: "Number of distinct authenticated WebSocket users.",
+    })
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
@@ -55,6 +60,9 @@ func Register(addr string, pool *pgxpool.Pool) *http.Server {
 	reg.MustRegister(httpRequestDuration)
 	reg.MustRegister(httpRequestsInFlight)
 
+	// WebSocket metrics
+	reg.MustRegister(wsUniqueUserCount)
+
 	// DB pool metrics (using GaugeFuncs that read live stats from pgxpool)
 	if pool != nil {
 		reg.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
@@ -90,6 +98,11 @@ func Register(addr string, pool *pgxpool.Pool) *http.Server {
 		Addr:    addr,
 		Handler: mux,
 	}
+}
+
+// SetWSUniqueUserCount updates the WebSocket unique user count gauge.
+func SetWSUniqueUserCount(count int) {
+	wsUniqueUserCount.Set(float64(count))
 }
 
 // Middleware returns an Echo middleware that instruments HTTP requests with
