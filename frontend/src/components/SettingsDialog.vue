@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { toast } from 'vue-sonner'
 import { ShieldX } from 'lucide-vue-next'
 import { useAuthStore, type Gender } from '@/stores/auth'
 import { useHugsStore, type BlockedUser } from '@/stores/hugs'
-import { usersApi } from '@/api/client'
+import { authApi, usersApi } from '@/api/client'
 import { validateChangePasswordForm, parseBackendError, type FieldError } from '@/lib/validation'
 import {
   Dialog,
@@ -32,12 +32,11 @@ const gender = ref<Gender | ''>((auth.user?.gender as Gender) ?? '')
 const savingProfile = ref(false)
 
 // ── Telegram ──
-type TelegramStep = 'idle' | 'code_sent' | 'linked'
-const telegramStep = ref<TelegramStep>(auth.user?.telegram_id != null ? 'linked' : 'idle')
-const telegramId = ref(auth.user?.telegram_id != null ? String(auth.user.telegram_id) : '')
-const telegramCode = ref('')
-const telegramError = ref('')
+const telegramLinked = ref(auth.user?.telegram_id != null)
 const telegramLoading = ref(false)
+const telegramPolling = ref(false)
+const telegramError = ref('')
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 // ── Blocked users ──
 const blockedUsers = ref<BlockedUser[]>([])
@@ -73,10 +72,9 @@ watch(open, (isOpen) => {
   if (isOpen) {
     displayName.value = auth.user?.display_name ?? ''
     gender.value = (auth.user?.gender as Gender) ?? ''
-    telegramStep.value = auth.user?.telegram_id != null ? 'linked' : 'idle'
-    telegramId.value = auth.user?.telegram_id != null ? String(auth.user.telegram_id) : ''
-    telegramCode.value = ''
+    telegramLinked.value = auth.user?.telegram_id != null
     telegramError.value = ''
+    stopPolling()
     resetPasswordForm()
     fetchBlocked()
   }
@@ -101,64 +99,47 @@ async function saveProfile() {
   }
 }
 
-function parseTelegramId(): number | null {
-  const trimmed = telegramId.value.trim()
-  if (trimmed === '') return null
-  const n = Number(trimmed)
-  if (!Number.isInteger(n) || n <= 0) return null
-  return n
-}
-
-function telegramErrorFromCode(e: unknown): string {
-  const data = (e as { response?: { data?: { code?: string } } })?.response?.data
-  const code = data?.code
-  if (code === 'INVALID_TELEGRAM_ID')
-    return 'Не удалось связаться с этим Telegram ID. Убедитесь, что вы начали диалог с ботом и ID верный.'
-  if (code === 'TELEGRAM_ID_TAKEN') return 'Этот Telegram ID уже привязан к другому аккаунту.'
-  if (code === 'TELEGRAM_CODE_INVALID') return 'Неверный код подтверждения.'
-  if (code === 'TELEGRAM_CODE_EXPIRED') return 'Код подтверждения истёк. Запросите новый.'
-  const parsed = parseBackendError(e)
-  return parsed.generalError ?? 'Ошибка'
-}
-
-async function sendTelegramCode() {
-  telegramError.value = ''
-  const id = parseTelegramId()
-  if (!id) {
-    telegramError.value = 'Telegram ID должен быть положительным числом'
-    return
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
   }
+  telegramPolling.value = false
+}
+
+async function linkTelegram() {
+  telegramError.value = ''
   telegramLoading.value = true
   try {
-    await usersApi.sendTelegramCode(id)
-    telegramStep.value = 'code_sent'
-    telegramCode.value = ''
-  } catch (e) {
-    telegramError.value = telegramErrorFromCode(e)
-  } finally {
+    const res = await usersApi.createTelegramLinkToken()
+    window.open(res.data.bot_url, '_blank')
+    // Start polling for link confirmation
+    telegramPolling.value = true
     telegramLoading.value = false
-  }
-}
-
-async function verifyTelegramCode() {
-  telegramError.value = ''
-  const id = parseTelegramId()
-  if (!id) return
-  const code = telegramCode.value.trim()
-  if (code.length !== 6) {
-    telegramError.value = 'Введите 6-значный код'
-    return
-  }
-  telegramLoading.value = true
-  try {
-    const res = await usersApi.verifyTelegramCode(id, code)
-    auth.user = res.data
-    localStorage.setItem('user', JSON.stringify(res.data))
-    telegramStep.value = 'linked'
-    toast.success('Telegram привязан')
+    let attempts = 0
+    pollTimer = setInterval(async () => {
+      attempts++
+      if (attempts > 60) {
+        stopPolling()
+        telegramError.value = 'Время ожидания истекло. Попробуйте снова.'
+        return
+      }
+      try {
+        const me = await authApi.me()
+        if (me.data.telegram_id != null) {
+          auth.user = me.data
+          localStorage.setItem('user', JSON.stringify(me.data))
+          telegramLinked.value = true
+          stopPolling()
+          toast.success('Telegram привязан')
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 2000)
   } catch (e) {
-    telegramError.value = telegramErrorFromCode(e)
-  } finally {
+    const parsed = parseBackendError(e)
+    telegramError.value = parsed.generalError ?? 'Ошибка'
     telegramLoading.value = false
   }
 }
@@ -170,16 +151,17 @@ async function unlinkTelegram() {
     const res = await usersApi.unlinkTelegram()
     auth.user = res.data
     localStorage.setItem('user', JSON.stringify(res.data))
-    telegramStep.value = 'idle'
-    telegramId.value = ''
-    telegramCode.value = ''
+    telegramLinked.value = false
     toast.success('Telegram отвязан')
   } catch (e) {
-    telegramError.value = telegramErrorFromCode(e)
+    const parsed = parseBackendError(e)
+    telegramError.value = parsed.generalError ?? 'Ошибка'
   } finally {
     telegramLoading.value = false
   }
 }
+
+onUnmounted(() => stopPolling())
 
 // ── Password ──
 const oldPassword = ref('')
@@ -292,13 +274,13 @@ async function savePassword() {
         <div class="space-y-3">
           <Label class="text-sm font-medium">Telegram уведомления</Label>
 
-          <!-- State C: Already linked -->
-          <div v-if="telegramStep === 'linked'" class="space-y-2">
+          <!-- Linked state -->
+          <div v-if="telegramLinked" class="space-y-2">
             <div
               class="flex items-center gap-2 rounded-md border border-green-800/40 bg-green-950/30 px-3 py-2 text-sm"
             >
               <span class="text-green-400">✓</span>
-              <span>Telegram привязан (ID: {{ auth.user?.telegram_id }})</span>
+              <span>Telegram привязан</span>
             </div>
             <Button
               variant="outline"
@@ -311,93 +293,38 @@ async function savePassword() {
             </Button>
           </div>
 
-          <!-- State A: Not linked — enter ID -->
-          <div v-else-if="telegramStep === 'idle'" class="grid gap-1.5">
-            <Label for="settings-telegram-id" class="text-xs text-muted-foreground"
-              >Telegram ID</Label
-            >
-            <Input
-              id="settings-telegram-id"
-              v-model="telegramId"
-              inputmode="numeric"
-              placeholder="Например: 123456789"
-              :class="{ 'border-destructive': telegramError }"
-            />
-            <div class="space-y-1 text-[11px] text-muted-foreground">
-              <p>
-                1. Начните диалог с ботом
-                <a
-                  href="https://t.me/prodhugsbot"
-                  target="_blank"
-                  class="text-primary underline underline-offset-2"
-                  >@prodhugsbot</a
-                >
-                (нажмите Start).
-              </p>
-              <p>
-                2. Узнайте свой ID у
-                <a
-                  href="https://t.me/userinfobot"
-                  target="_blank"
-                  class="text-primary underline underline-offset-2"
-                  >@userinfobot</a
-                >
-                и введите его выше.
-              </p>
+          <!-- Not linked — polling state -->
+          <div v-else-if="telegramPolling" class="space-y-2">
+            <p class="text-sm text-muted-foreground">
+              Нажмите <strong>Start</strong> в открывшемся боте...
+            </p>
+            <div class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span class="inline-block size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Ожидание привязки
             </div>
+            <button
+              type="button"
+              class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              @click="stopPolling(); telegramError = ''"
+            >
+              Отмена
+            </button>
+          </div>
+
+          <!-- Not linked — idle state -->
+          <div v-else class="space-y-2">
+            <p class="text-[11px] text-muted-foreground">
+              Привяжите Telegram, чтобы получать уведомления об объятиях.
+            </p>
             <Button
               variant="yellow"
               size="sm"
-              class="mt-1 rounded-[21px]"
-              :disabled="telegramLoading || !telegramId.trim()"
-              @click="sendTelegramCode"
+              class="rounded-[21px]"
+              :disabled="telegramLoading"
+              @click="linkTelegram"
             >
-              {{ telegramLoading ? 'Отправка...' : 'Отправить код' }}
+              {{ telegramLoading ? 'Загрузка...' : 'Привязать Telegram' }}
             </Button>
-          </div>
-
-          <!-- State B: Code sent — enter verification code -->
-          <div v-else-if="telegramStep === 'code_sent'" class="grid gap-1.5">
-            <p class="text-xs text-muted-foreground">
-              Код отправлен на Telegram ID <strong>{{ telegramId }}</strong>
-            </p>
-            <Label for="settings-telegram-code" class="text-xs text-muted-foreground"
-              >Код подтверждения</Label
-            >
-            <Input
-              id="settings-telegram-code"
-              v-model="telegramCode"
-              inputmode="numeric"
-              maxlength="6"
-              placeholder="6-значный код"
-              :class="{ 'border-destructive': telegramError }"
-            />
-            <div class="flex items-center gap-3">
-              <Button
-                variant="yellow"
-                size="sm"
-                class="rounded-[21px]"
-                :disabled="telegramLoading || telegramCode.trim().length !== 6"
-                @click="verifyTelegramCode"
-              >
-                {{ telegramLoading ? 'Проверка...' : 'Подтвердить' }}
-              </Button>
-              <button
-                type="button"
-                class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                :disabled="telegramLoading"
-                @click="sendTelegramCode"
-              >
-                Отправить заново
-              </button>
-              <button
-                type="button"
-                class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                @click="telegramStep = 'idle'; telegramError = ''; telegramCode = ''"
-              >
-                Назад
-              </button>
-            </div>
           </div>
 
           <p v-if="telegramError" class="text-xs text-destructive">

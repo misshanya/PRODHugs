@@ -16,6 +16,7 @@ services:
 
       JWT_SECRET: "${JWT_SECRET}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME}"
     restart: unless-stopped
     depends_on:
       postgres:

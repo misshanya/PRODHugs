@@ -44,15 +44,8 @@ type jwtManager interface {
 	GenerateRefreshToken(userID uuid.UUID) (string, string, int64, error)
 }
 
-type telegramClient interface {
-	GetChat(chatID int64) error
-	SendMessage(chatID int64, text string) error
-	Enabled() bool
-}
-
-type telegramVerifyStore interface {
-	GenerateCode(userID uuid.UUID, telegramID int64) (string, error)
-	CheckCode(userID uuid.UUID, telegramID int64, code string) (ok bool, reason string)
+type telegramLinkStore interface {
+	GenerateToken(userID uuid.UUID) (string, error)
 }
 
 type service struct {
@@ -60,8 +53,8 @@ type service struct {
 	balanceRepo       balanceRepo
 	refreshTokenRepo  refreshTokenRepo
 	jwtManager        jwtManager
-	telegramClient    telegramClient
-	telegramVerify    telegramVerifyStore
+	telegramLinkStore telegramLinkStore
+	botUsername        string
 }
 
 func New(repo repo, jwtManager jwtManager, opts ...func(*service)) *service {
@@ -88,14 +81,14 @@ func WithRefreshTokenRepo(rtr refreshTokenRepo) func(*service) {
 	}
 }
 
-func WithTelegramClient(tc telegramClient) func(*service) {
+func WithTelegramLinkStore(ls telegramLinkStore) func(*service) {
 	return func(s *service) {
-		s.telegramClient = tc
+		s.telegramLinkStore = ls
 	}
 }
 
-func WithTelegramVerifyStore(vs telegramVerifyStore) func(*service) {
+func WithBotUsername(username string) func(*service) {
 	return func(s *service) {
-		s.telegramVerify = vs
+		s.botUsername = username
 	}
 }

@@ -150,10 +150,8 @@ export const usersApi = {
   getProfile: (userId: string) => api.get(`/users/${userId}/profile`),
   updateSettings: (data: { gender?: string; display_name?: string | null }) =>
     api.put('/users/me/settings', data),
-  sendTelegramCode: (telegramId: number) =>
-    api.post('/users/me/telegram/send-code', { telegram_id: telegramId }),
-  verifyTelegramCode: (telegramId: number, code: string) =>
-    api.post('/users/me/telegram/verify', { telegram_id: telegramId, code }),
+  createTelegramLinkToken: () =>
+    api.post<{ token: string; bot_url: string }>('/users/me/telegram/link-token'),
   unlinkTelegram: () => api.delete('/users/me/telegram'),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/users/me/password', { old_password: oldPassword, new_password: newPassword }),

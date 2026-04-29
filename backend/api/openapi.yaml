@@ -43,8 +43,6 @@ components:
         - USER_BLOCKED
         - INVALID_TELEGRAM_ID
         - TELEGRAM_ID_TAKEN
-        - TELEGRAM_CODE_INVALID
-        - TELEGRAM_CODE_EXPIRED
 
     Error:
       type: object
@@ -720,74 +718,25 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /users/me/telegram/send-code:
+  /users/me/telegram/link-token:
     post:
-      summary: Send a verification code to a Telegram chat
-      operationId: sendTelegramCode
+      summary: Generate a deep-link token for Telegram account linking
+      operationId: createTelegramLinkToken
       security:
         - BearerAuth: ["user", "admin"]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - telegram_id
-              properties:
-                telegram_id:
-                  type: integer
-                  format: int64
-              additionalProperties: false
       responses:
         '200':
-          description: Code sent
+          description: Link token created
           content:
             application/json:
               schema:
                 type: object
                 required:
-                  - message
+                  - token
+                  - bot_url
                 properties:
-                  message: { type: string }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /users/me/telegram/verify:
-    post:
-      summary: Verify a Telegram code and link the account
-      operationId: verifyTelegramCode
-      security:
-        - BearerAuth: ["user", "admin"]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - telegram_id
-                - code
-              properties:
-                telegram_id:
-                  type: integer
-                  format: int64
-                code:
-                  type: string
-                  minLength: 6
-                  maxLength: 6
-              additionalProperties: false
-      responses:
-        '200':
-          description: Telegram linked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                  token: { type: string }
+                  bot_url: { type: string }
         '401':
           $ref: '#/components/responses/Unauthorized'
 

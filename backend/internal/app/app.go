@@ -93,10 +93,11 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
 
-	// Telegram client, notifier & verification store
+	// Telegram client, notifier & link store
 	tgClient := telegram.New(a.cfg.Telegram.BotToken)
 	tgNotifier := telegram.NewNotifier(tgClient, userRepo, a.l)
-	tgVerifyStore := telegram.NewVerifyStore()
+	tgLinkStore := telegram.NewLinkStore()
+	tgBot := telegram.NewBot(tgClient, tgLinkStore, userRepo, a.l)
 
 	// Services
 	userService := userservice.New(
@@ -104,8 +105,8 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 		jwtManager,
 		userservice.WithBalanceRepo(balanceRepo),
 		userservice.WithRefreshTokenRepo(refreshTokenRepo),
-		userservice.WithTelegramClient(tgClient),
-		userservice.WithTelegramVerifyStore(tgVerifyStore),
+		userservice.WithTelegramLinkStore(tgLinkStore),
+		userservice.WithBotUsername(a.cfg.Telegram.BotUsername),
 	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
 
@@ -166,9 +167,14 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// WebSocket endpoint (outside OpenAPI validation)
 	a.e.GET("/api/v1/ws", a.hub.HandleWS)
 
-	// Background job: expire stale pending hugs every 5 minutes.
+	// Background jobs
 	jobCtx, jobCancel := context.WithCancel(context.Background())
 	a.stopJobs = jobCancel
+
+	// Telegram bot (long-polling)
+	go tgBot.Run(jobCtx)
+
+	// Expire stale pending hugs every 5 minutes.
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()

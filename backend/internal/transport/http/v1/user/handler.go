@@ -16,8 +16,7 @@ type service interface {
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error)
 	ChangePassword(ctx context.Context, id uuid.UUID, oldPassword, newPassword string) error
-	SendTelegramCode(ctx context.Context, userID uuid.UUID, telegramID int64) error
-	VerifyTelegramCode(ctx context.Context, userID uuid.UUID, telegramID int64, code string) (*models.User, error)
+	GenerateLinkToken(ctx context.Context, userID uuid.UUID) (string, string, error)
 	UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
 	IsRefreshTokenActive(ctx context.Context, jti string) (bool, error)

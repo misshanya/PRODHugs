@@ -20,7 +20,8 @@ type Config struct {
 }
 
 type telegram struct {
-	BotToken string `env:"TELEGRAM_BOT_TOKEN"`
+	BotToken    string `env:"TELEGRAM_BOT_TOKEN"`
+	BotUsername string `env:"TELEGRAM_BOT_USERNAME"`
 }
 
 type httpServer struct {
