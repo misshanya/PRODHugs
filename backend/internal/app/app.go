@@ -93,22 +93,23 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
 
-	// Telegram client, notifier & link store
-	tgClient := telegram.New(a.cfg.Telegram.BotToken)
-	tgNotifier := telegram.NewNotifier(tgClient, userRepo, a.l)
-	tgLinkStore := telegram.NewLinkStore()
-	tgBot := telegram.NewBot(tgClient, tgLinkStore, userRepo, a.l)
-
 	// Services
 	userService := userservice.New(
 		userRepo,
 		jwtManager,
 		userservice.WithBalanceRepo(balanceRepo),
 		userservice.WithRefreshTokenRepo(refreshTokenRepo),
-		userservice.WithTelegramLinkStore(tgLinkStore),
-		userservice.WithBotUsername(a.cfg.Telegram.BotUsername),
 	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
+
+	// Telegram: client, bot, notifier & link store
+	tgClient := telegram.New(a.cfg.Telegram.BotToken)
+	tgLinkStore := telegram.NewLinkStore()
+	tgBot := telegram.NewBot(tgClient, tgLinkStore, userRepo, hugService, a.l)
+	tgNotifier := telegram.NewNotifier(tgClient, tgBot, userRepo, a.l)
+
+	// Telegram link store for user service (generating deep-link tokens)
+	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
 
 	// WebSocket Hub
 	a.hub = ws.NewHub(jwtManager)
@@ -119,7 +120,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	})
 	hugService.SetHugSuggestionCallback(func(targetUserID uuid.UUID, item *models.PendingHugInboxItem) {
 		a.hub.SendToUser(targetUserID, "hug_suggestion", item)
-		tgNotifier.NotifyHugSuggestion(context.Background(), targetUserID, item.GiverUsername)
+		tgNotifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverUsername)
 	})
 	hugService.SetHugDeclinedCallback(func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_declined", map[string]string{"hug_id": hugID.String(), "receiver_id": receiverID.String()})

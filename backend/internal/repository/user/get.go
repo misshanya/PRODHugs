@@ -9,6 +9,7 @@ import (
 	"go-service-template/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (r *repo) GetByUsername(ctx context.Context, username string) (*models.User, error) {
@@ -29,6 +30,20 @@ func (r *repo) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) 
 	q := repository.Queries(ctx, r.q)
 
 	u, err := q.GetUserByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errorz.ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return toModelUser(u), nil
+}
+
+func (r *repo) GetByTelegramID(ctx context.Context, telegramID int64) (*models.User, error) {
+	q := repository.Queries(ctx, r.q)
+
+	u, err := q.GetUserByTelegramID(ctx, pgtype.Int8{Int64: telegramID, Valid: true})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errorz.ErrUserNotFound

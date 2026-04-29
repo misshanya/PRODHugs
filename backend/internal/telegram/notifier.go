@@ -20,14 +20,18 @@ type userRepo interface {
 // All methods are fire-and-forget: errors are logged but never propagated.
 type Notifier struct {
 	client *Client
+	bot    *Bot
 	repo   userRepo
 	logger *slog.Logger
 }
 
 // NewNotifier creates a new Notifier. If client is nil or disabled, notifications are skipped.
-func NewNotifier(client *Client, repo userRepo, logger *slog.Logger) *Notifier {
+// The bot parameter is used for sending hug suggestions with inline buttons;
+// pass nil to send plain-text suggestions instead.
+func NewNotifier(client *Client, bot *Bot, repo userRepo, logger *slog.Logger) *Notifier {
 	return &Notifier{
 		client: client,
+		bot:    bot,
 		repo:   repo,
 		logger: logger,
 	}
@@ -38,8 +42,13 @@ func (n *Notifier) Enabled() bool {
 	return n.client != nil && n.client.Enabled()
 }
 
-// NotifyHugSuggestion notifies the receiver that someone wants to hug them.
-func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, giverName string) {
+// NotifyHugSuggestion notifies the receiver with Accept/Decline buttons.
+func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverName string) {
+	if n.bot != nil {
+		n.bot.SendHugSuggestion(ctx, receiverID, hugID, giverName)
+		return
+	}
+	// Fallback: plain text without buttons
 	n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", giverName))
 }
 

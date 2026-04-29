@@ -380,6 +380,28 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const getUserByTelegramID = `-- name: GetUserByTelegramID :one
+SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id FROM users WHERE telegram_id = $1
+`
+
+func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int8) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByTelegramID, telegramID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.Role,
+		&i.Gender,
+		&i.BannedAt,
+		&i.HugSlots,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.TelegramID,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
 FROM users

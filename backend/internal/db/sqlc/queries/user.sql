@@ -114,6 +114,9 @@ SELECT EXISTS(
     SELECT 1 FROM users WHERE telegram_id = $1 AND id != $2
 ) AS taken;
 
+-- name: GetUserByTelegramID :one
+SELECT * FROM users WHERE telegram_id = $1;
+
 -- name: UpdateUserPassword :exec
 UPDATE users
 SET password = $2

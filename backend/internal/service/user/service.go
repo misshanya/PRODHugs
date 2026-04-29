@@ -81,14 +81,9 @@ func WithRefreshTokenRepo(rtr refreshTokenRepo) func(*service) {
 	}
 }
 
-func WithTelegramLinkStore(ls telegramLinkStore) func(*service) {
-	return func(s *service) {
-		s.telegramLinkStore = ls
-	}
-}
-
-func WithBotUsername(username string) func(*service) {
-	return func(s *service) {
-		s.botUsername = username
-	}
+// SetTelegramLinkStore configures the Telegram link store and bot username
+// for deep-link token generation. Called after construction to break circular deps.
+func (s *service) SetTelegramLinkStore(ls telegramLinkStore, botUsername string) {
+	s.telegramLinkStore = ls
+	s.botUsername = botUsername
 }
