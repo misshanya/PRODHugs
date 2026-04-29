@@ -3,10 +3,9 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"go-service-template/internal/models"
 	"log/slog"
 	"strings"
-
-	"go-service-template/internal/models"
 
 	tgbot "github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
@@ -78,14 +77,14 @@ func (b *Bot) handleUpdate(ctx context.Context, bot *tgbot.Bot, update *tgmodels
 	// Parse payload: "/start TOKEN" or just "/start"
 	parts := strings.SplitN(text, " ", 2)
 	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
-		b.reply(ctx, bot, chatID, "Чтобы привязать аккаунт, используйте кнопку в настройках приложения.")
+		b.reply(ctx, bot, chatID, "Чтобы привязать аккаунт, используй настройки на сайте")
 		return
 	}
 
 	token := strings.TrimSpace(parts[1])
 	userID, ok := b.linkStore.ConsumeToken(token)
 	if !ok {
-		b.reply(ctx, bot, chatID, "Ссылка недействительна или истекла. Попробуйте снова через настройки приложения.")
+		b.reply(ctx, bot, chatID, "Ссылка недействительна или истекла. Попробуй снова через настройки приложения")
 		return
 	}
 
@@ -93,11 +92,11 @@ func (b *Bot) handleUpdate(ctx context.Context, bot *tgbot.Bot, update *tgmodels
 	taken, err := b.userRepo.IsTelegramIDTaken(ctx, chatID, userID)
 	if err != nil {
 		b.logger.Error("telegram bot: failed to check telegram_id", "error", err)
-		b.reply(ctx, bot, chatID, "Произошла ошибка. Попробуйте позже.")
+		b.reply(ctx, bot, chatID, "Произошла ошибка. Попробуй позже :(")
 		return
 	}
 	if taken {
-		b.reply(ctx, bot, chatID, "Этот Telegram аккаунт уже привязан к другому пользователю.")
+		b.reply(ctx, bot, chatID, "Этот Telegram аккаунт уже привязан к другому пользователю :(")
 		return
 	}
 
@@ -105,12 +104,12 @@ func (b *Bot) handleUpdate(ctx context.Context, bot *tgbot.Bot, update *tgmodels
 	_, err = b.userRepo.SetTelegramID(ctx, userID, chatID)
 	if err != nil {
 		b.logger.Error("telegram bot: failed to set telegram_id", "user_id", userID, "chat_id", chatID, "error", err)
-		b.reply(ctx, bot, chatID, "Произошла ошибка при привязке. Попробуйте позже.")
+		b.reply(ctx, bot, chatID, "Произошла ошибка при привязке. Попробуй позже :(")
 		return
 	}
 
 	b.logger.Info("telegram bot: account linked", "user_id", userID, "chat_id", chatID)
-	b.reply(ctx, bot, chatID, "✅ Аккаунт привязан! Теперь вы будете получать уведомления об объятиях.")
+	b.reply(ctx, bot, chatID, "✅ Аккаунт привязан! Теперь ты не пропустишь обнимашки от любимых продовцев")
 }
 
 func (b *Bot) reply(ctx context.Context, bot *tgbot.Bot, chatID int64, text string) {
