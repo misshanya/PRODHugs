@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   Users,
   ShieldBan,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAdminStore, type AdminUser } from '@/stores/admin'
+import { useOnlineStore } from '@/stores/online'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { parseBackendError, type FieldError } from '@/lib/validation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,7 +44,17 @@ import {
 } from '@/components/ui/dialog'
 
 const admin = useAdminStore()
+const onlineStore = useOnlineStore()
 const loading = ref(true)
+
+// ── Sorted users: online first, backend order preserved within each group ──
+const sortedUsers = computed(() =>
+  [...admin.users].sort((a, b) => {
+    const aOnline = onlineStore.isOnline(a.id) ? 0 : 1
+    const bOnline = onlineStore.isOnline(b.id) ? 0 : 1
+    return aOnline - bOnline
+  }),
+)
 
 // ── Live online count ──
 const onlineCount = ref<number | null>(null)
@@ -381,17 +392,24 @@ function formatDate(dateStr: string): string {
       </div>
 
       <div v-else class="space-y-2">
-        <div
-          v-for="user in admin.users"
-          :key="user.id"
-          class="flex items-center justify-between rounded-[10px] border p-3 transition-colors hover:bg-accent/50"
-        >
+        <TransitionGroup name="user-list" tag="div" class="space-y-2">
+          <div
+            v-for="user in sortedUsers"
+            :key="user.id"
+            class="flex items-center justify-between rounded-[10px] border p-3 transition-colors hover:bg-accent/50"
+          >
           <div class="flex items-center gap-3 min-w-0 flex-1">
-            <Avatar class="size-9 shrink-0">
-              <AvatarFallback class="text-xs">
-                {{ (user.display_name || user.username).slice(0, 2).toUpperCase() }}
-              </AvatarFallback>
-            </Avatar>
+            <div class="relative shrink-0">
+              <Avatar class="size-9">
+                <AvatarFallback class="text-xs">
+                  {{ (user.display_name || user.username).slice(0, 2).toUpperCase() }}
+                </AvatarFallback>
+              </Avatar>
+              <span
+                v-if="onlineStore.isOnline(user.id)"
+                class="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center rounded-full border-2 border-background bg-emerald-500"
+              />
+            </div>
             <div class="min-w-0">
               <div class="flex items-center gap-2">
                 <p class="text-sm font-medium truncate">
@@ -481,7 +499,8 @@ function formatDate(dateStr: string): string {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+          </div>
+        </TransitionGroup>
 
         <!-- Infinite scroll sentinel -->
         <div ref="sentinel" class="h-1" />
@@ -707,3 +726,9 @@ function formatDate(dateStr: string): string {
     </Dialog>
   </div>
 </template>
+
+<style scoped>
+.user-list-move {
+  transition: transform 0.4s ease;
+}
+</style>

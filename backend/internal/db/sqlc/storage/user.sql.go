@@ -517,15 +517,20 @@ func (q *Queries) IsTelegramIDTaken(ctx context.Context, arg IsTelegramIDTakenPa
 }
 
 const listAllUsers = `-- name: ListAllUsers :many
-SELECT id, username, role, gender, display_name
-FROM users
-WHERE banned_at IS NULL
-  AND id NOT IN (
+SELECT u.id, u.username, u.role, u.gender, u.display_name
+FROM users u
+LEFT JOIN LATERAL (
+    SELECT MAX(created_at) AS last_visit
+    FROM refresh_tokens
+    WHERE user_id = u.id
+) rt ON true
+WHERE u.banned_at IS NULL
+  AND u.id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = $1::uuid
     UNION
     SELECT blocker_id FROM user_blocks WHERE blocked_id = $1::uuid
   )
-ORDER BY username
+ORDER BY COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT $3::int OFFSET $2::int
 `
 
@@ -580,7 +585,7 @@ LEFT JOIN LATERAL (
     FROM refresh_tokens
     WHERE user_id = u.id
 ) rt ON true
-ORDER BY u.username
+ORDER BY last_visit_at DESC NULLS LAST
 LIMIT $2::int OFFSET $1::int
 `
 
@@ -632,16 +637,21 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT id, username, role, gender, display_name
-FROM users
-WHERE username ILIKE '%' || $1::text || '%'
-  AND banned_at IS NULL
-  AND id NOT IN (
+SELECT u.id, u.username, u.role, u.gender, u.display_name
+FROM users u
+LEFT JOIN LATERAL (
+    SELECT MAX(created_at) AS last_visit
+    FROM refresh_tokens
+    WHERE user_id = u.id
+) rt ON true
+WHERE u.username ILIKE '%' || $1::text || '%'
+  AND u.banned_at IS NULL
+  AND u.id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = $2::uuid
     UNION
     SELECT blocker_id FROM user_blocks WHERE blocked_id = $2::uuid
   )
-ORDER BY username
+ORDER BY COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT $4::int OFFSET $3::int
 `
 

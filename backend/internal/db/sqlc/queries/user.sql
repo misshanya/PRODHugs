@@ -16,28 +16,38 @@ FROM users
 WHERE id = $1;
 
 -- name: SearchUsers :many
-SELECT id, username, role, gender, display_name
-FROM users
-WHERE username ILIKE '%' || @query::text || '%'
-  AND banned_at IS NULL
-  AND id NOT IN (
+SELECT u.id, u.username, u.role, u.gender, u.display_name
+FROM users u
+LEFT JOIN LATERAL (
+    SELECT MAX(created_at) AS last_visit
+    FROM refresh_tokens
+    WHERE user_id = u.id
+) rt ON true
+WHERE u.username ILIKE '%' || @query::text || '%'
+  AND u.banned_at IS NULL
+  AND u.id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = @viewer_id::uuid
     UNION
     SELECT blocker_id FROM user_blocks WHERE blocked_id = @viewer_id::uuid
   )
-ORDER BY username
+ORDER BY COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT @lim::int OFFSET @off::int;
 
 -- name: ListAllUsers :many
-SELECT id, username, role, gender, display_name
-FROM users
-WHERE banned_at IS NULL
-  AND id NOT IN (
+SELECT u.id, u.username, u.role, u.gender, u.display_name
+FROM users u
+LEFT JOIN LATERAL (
+    SELECT MAX(created_at) AS last_visit
+    FROM refresh_tokens
+    WHERE user_id = u.id
+) rt ON true
+WHERE u.banned_at IS NULL
+  AND u.id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = @viewer_id::uuid
     UNION
     SELECT blocker_id FROM user_blocks WHERE blocked_id = @viewer_id::uuid
   )
-ORDER BY username
+ORDER BY COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT @lim::int OFFSET @off::int;
 
 -- name: GetLeaderboard :many
@@ -151,7 +161,7 @@ LEFT JOIN LATERAL (
     FROM refresh_tokens
     WHERE user_id = u.id
 ) rt ON true
-ORDER BY u.username
+ORDER BY last_visit_at DESC NULLS LAST
 LIMIT @lim::int OFFSET @off::int;
 
 -- name: AdminUpdateUsername :one

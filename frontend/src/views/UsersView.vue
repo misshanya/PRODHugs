@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Search, Loader2 } from 'lucide-vue-next'
 import { useHugsStore } from '@/stores/hugs'
+import { useOnlineStore } from '@/stores/online'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import UserCard from '@/components/UserCard.vue'
@@ -10,12 +11,22 @@ import OutgoingHugsSection from '@/components/OutgoingHugsSection.vue'
 const PAGE_SIZE = 30
 
 const hugsStore = useHugsStore()
+const onlineStore = useOnlineStore()
 const query = ref('')
 const users = ref<any[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(true)
 const sentinel = ref<HTMLElement | null>(null)
+
+// ── Sorted users: online first, backend order preserved within each group ──
+const sortedUsers = computed(() =>
+  [...users.value].sort((a, b) => {
+    const aOnline = onlineStore.isOnline(a.id) ? 0 : 1
+    const bOnline = onlineStore.isOnline(b.id) ? 0 : 1
+    return aOnline - bOnline
+  }),
+)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 // Monotonic counter to discard out-of-order search responses.
@@ -117,7 +128,9 @@ onUnmounted(() => {
     </div>
 
     <div v-else class="space-y-2">
-      <UserCard v-for="user in users" :key="user.id" :user="user" />
+      <TransitionGroup name="user-list" tag="div" class="space-y-2">
+        <UserCard v-for="user in sortedUsers" :key="user.id" :user="user" />
+      </TransitionGroup>
 
       <div v-if="hasMore" ref="sentinel" class="flex justify-center py-4">
         <Loader2 v-if="loadingMore" class="size-5 animate-spin text-muted-foreground" />
@@ -125,3 +138,9 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.user-list-move {
+  transition: transform 0.4s ease;
+}
+</style>

@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type HugFeedItem, type PendingHugInboxItem } from '@/stores/hugs'
+import { useOnlineStore } from '@/stores/online'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
@@ -14,6 +15,7 @@ import AppBottomNav from '@/components/AppBottomNav.vue'
 
 const auth = useAuthStore()
 const hugsStore = useHugsStore()
+const onlineStore = useOnlineStore()
 const route = useRoute()
 const ws = useWebSocket()
 
@@ -123,6 +125,12 @@ function setupGlobalWsListeners() {
       hugsStore.inboxCount = data.count
     }),
   )
+
+  wsCleanups.push(
+    ws.on<{ user_ids: string[] }>('online_users', (data) => {
+      onlineStore.setUsers(data.user_ids)
+    }),
+  )
 }
 
 // Watch for auth changes (login/logout)
@@ -137,6 +145,7 @@ watch(
     } else {
       ws.disconnect()
       clearGlobalWsListeners()
+      onlineStore.clear()
       hugsStore.inboxCount = 0
       hugsStore.inbox = []
       hugsStore.outgoingHugs = []

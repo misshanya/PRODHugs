@@ -90,7 +90,8 @@ func (h *Hub) HandleWS(c echo.Context) error {
 
 		h.register(cl)
 
-		// Send current online count to newly connected admin clients.
+		// Send current online state to newly connected clients.
+		h.sendOnlineUsers(cl)
 		if role == "admin" {
 			h.sendOnlineCount(cl)
 		}
@@ -151,6 +152,7 @@ func (h *Hub) register(cl *client) {
 
 	metrics.SetWSUniqueUserCount(count)
 	h.broadcastOnlineCount()
+	h.broadcastOnlineUsers()
 }
 
 func (h *Hub) unregister(cl *client) {
@@ -167,6 +169,7 @@ func (h *Hub) unregister(cl *client) {
 
 	metrics.SetWSUniqueUserCount(count)
 	h.broadcastOnlineCount()
+	h.broadcastOnlineUsers()
 }
 
 // Broadcast sends a typed message to all connected clients.
@@ -247,6 +250,69 @@ func (h *Hub) sendOnlineCount(cl *client) {
 	case cl.send <- payload:
 	default:
 	}
+}
+
+// OnlineUserIDs returns a snapshot of all unique online user IDs.
+func (h *Hub) OnlineUserIDs() []uuid.UUID {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	ids := make([]uuid.UUID, 0, len(h.userIndex))
+	for id := range h.userIndex {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// onlineUserIDStrings returns online user IDs as strings (must be called under at least RLock).
+func (h *Hub) onlineUserIDStrings() []string {
+	ids := make([]string, 0, len(h.userIndex))
+	for id := range h.userIndex {
+		ids = append(ids, id.String())
+	}
+	return ids
+}
+
+// sendOnlineUsers sends the current set of online user IDs to a single client.
+func (h *Hub) sendOnlineUsers(cl *client) {
+	h.mu.RLock()
+	ids := h.onlineUserIDStrings()
+	h.mu.RUnlock()
+
+	payload, err := json.Marshal(WSMessage{
+		Type: "online_users",
+		Data: map[string][]string{"user_ids": ids},
+	})
+	if err != nil {
+		return
+	}
+
+	select {
+	case cl.send <- payload:
+	default:
+	}
+}
+
+// broadcastOnlineUsers pushes the current set of online user IDs to all connected clients.
+func (h *Hub) broadcastOnlineUsers() {
+	h.mu.RLock()
+	ids := h.onlineUserIDStrings()
+
+	payload, err := json.Marshal(WSMessage{
+		Type: "online_users",
+		Data: map[string][]string{"user_ids": ids},
+	})
+	if err != nil {
+		h.mu.RUnlock()
+		return
+	}
+
+	for cl := range h.clients {
+		select {
+		case cl.send <- payload:
+		default:
+		}
+	}
+	h.mu.RUnlock()
 }
 
 // broadcastOnlineCount pushes the current unique user count to all admin clients.
