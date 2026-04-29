@@ -1,34 +1,73 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { Search, Loader2 } from 'lucide-vue-next'
 import { useHugsStore } from '@/stores/hugs'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import UserCard from '@/components/UserCard.vue'
 import OutgoingHugsSection from '@/components/OutgoingHugsSection.vue'
 
+const PAGE_SIZE = 30
+
 const hugsStore = useHugsStore()
 const query = ref('')
 const users = ref<any[]>([])
 const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const sentinel = ref<HTMLElement | null>(null)
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 // Monotonic counter to discard out-of-order search responses.
 let searchGeneration = 0
+let observer: IntersectionObserver | null = null
 
 async function search() {
   const gen = ++searchGeneration
   loading.value = true
+  hasMore.value = true
   try {
-    const result = await hugsStore.searchUsers(query.value, 30, 0)
-    // Only apply if this is still the latest search request.
-    if (gen === searchGeneration) {
-      users.value = result
-    }
+    const result = await hugsStore.searchUsers(query.value, PAGE_SIZE, 0)
+    if (gen !== searchGeneration) return
+    users.value = result
+    hasMore.value = result.length >= PAGE_SIZE
   } finally {
     if (gen === searchGeneration) {
       loading.value = false
     }
   }
+  await nextTick()
+  observeSentinel()
+}
+
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value || loading.value) return
+  const gen = searchGeneration
+  loadingMore.value = true
+  try {
+    const result = await hugsStore.searchUsers(query.value, PAGE_SIZE, users.value.length)
+    if (gen !== searchGeneration) return
+    users.value.push(...result)
+    hasMore.value = result.length >= PAGE_SIZE
+  } finally {
+    if (gen === searchGeneration) {
+      loadingMore.value = false
+    }
+  }
+}
+
+function observeSentinel() {
+  observer?.disconnect()
+  if (!sentinel.value) return
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting) {
+        loadMore()
+      }
+    },
+    { rootMargin: '200px' },
+  )
+  observer.observe(sentinel.value)
 }
 
 watch(query, () => {
@@ -43,6 +82,7 @@ onUnmounted(() => {
     clearTimeout(debounceTimer)
     debounceTimer = null
   }
+  observer?.disconnect()
   // Increment generation so any in-flight search response is discarded.
   searchGeneration++
 })
@@ -78,6 +118,10 @@ onUnmounted(() => {
 
     <div v-else class="space-y-2">
       <UserCard v-for="user in users" :key="user.id" :user="user" />
+
+      <div v-if="hasMore" ref="sentinel" class="flex justify-center py-4">
+        <Loader2 v-if="loadingMore" class="size-5 animate-spin text-muted-foreground" />
+      </div>
     </div>
   </div>
 </template>
