@@ -284,7 +284,20 @@ func (a *App) initEcho() error {
 	}))
 	a.e.Use(metrics.Middleware())
 	a.e.Use(middleware.Recover())
-	a.e.Use(custommiddleware.AuthRateLimitMiddleware(rate.Limit(2), 5))
+	a.e.Use(custommiddleware.AuthRateLimitMiddleware(rate.Limit(2), 5, map[string]custommiddleware.PathRateLimit{
+		// Registration: 2 accounts per hour per IP
+		"/api/v1/auth/register": {
+			Rate:  rate.Every(30 * time.Minute), // 1 token per 30 min = 2/hour sustained
+			Burst: 2,                            // allow 2 immediate, then wait
+			TTL:   1 * time.Hour,
+		},
+		// Username check: more lenient (fired on every keystroke with debounce)
+		"/api/v1/auth/check-username": {
+			Rate:  rate.Limit(5),
+			Burst: 10,
+			TTL:   5 * time.Minute,
+		},
+	}))
 
 	a.e.GET("/api/v1/openapi.json", func(c echo.Context) error {
 		spec, err := v1.GetSwagger()
