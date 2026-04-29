@@ -41,6 +41,7 @@ type Hub struct {
 
 type client struct {
 	userID uuid.UUID
+	role   string
 	ws     *websocket.Conn
 	send   chan []byte
 }
@@ -72,7 +73,7 @@ func (h *Hub) HandleWS(c echo.Context) error {
 			return
 		}
 
-		userID, _, tokenType, _, _, err := h.jwtManager.ParseToken(authMsg.Token)
+		userID, role, tokenType, _, _, err := h.jwtManager.ParseToken(authMsg.Token)
 		if err != nil || tokenType != "access" {
 			return
 		}
@@ -81,11 +82,17 @@ func (h *Hub) HandleWS(c echo.Context) error {
 
 		cl := &client{
 			userID: userID,
+			role:   role,
 			ws:     ws,
 			send:   make(chan []byte, 256),
 		}
 
 		h.register(cl)
+
+		// Send current online count to newly connected admin clients.
+		if role == "admin" {
+			h.sendOnlineCount(cl)
+		}
 
 		// Write pump: sends queued messages and periodic keepalive pings.
 		done := make(chan struct{})
@@ -133,19 +140,18 @@ func (h *Hub) HandleWS(c echo.Context) error {
 
 func (h *Hub) register(cl *client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	h.clients[cl] = struct{}{}
 	if h.userIndex[cl.userID] == nil {
 		h.userIndex[cl.userID] = make(map[*client]struct{})
 	}
 	h.userIndex[cl.userID][cl] = struct{}{}
+	h.mu.Unlock()
+
+	h.broadcastOnlineCount()
 }
 
 func (h *Hub) unregister(cl *client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	delete(h.clients, cl)
 	if uClients, ok := h.userIndex[cl.userID]; ok {
 		delete(uClients, cl)
@@ -153,6 +159,9 @@ func (h *Hub) unregister(cl *client) {
 			delete(h.userIndex, cl.userID)
 		}
 	}
+	h.mu.Unlock()
+
+	h.broadcastOnlineCount()
 }
 
 // Broadcast sends a typed message to all connected clients.
@@ -201,9 +210,61 @@ func (h *Hub) SendToUser(userID uuid.UUID, msgType string, data any) {
 	}
 }
 
-// ClientCount returns the number of connected clients
+// ClientCount returns the number of connected clients.
 func (h *Hub) ClientCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients)
+}
+
+// UniqueUserCount returns the number of distinct authenticated users.
+func (h *Hub) UniqueUserCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.userIndex)
+}
+
+// sendOnlineCount sends the current unique user count to a single client.
+func (h *Hub) sendOnlineCount(cl *client) {
+	h.mu.RLock()
+	count := len(h.userIndex)
+	h.mu.RUnlock()
+
+	payload, err := json.Marshal(WSMessage{
+		Type: "online_count",
+		Data: map[string]int{"count": count},
+	})
+	if err != nil {
+		return
+	}
+
+	select {
+	case cl.send <- payload:
+	default:
+	}
+}
+
+// broadcastOnlineCount pushes the current unique user count to all admin clients.
+func (h *Hub) broadcastOnlineCount() {
+	h.mu.RLock()
+	count := len(h.userIndex)
+
+	payload, err := json.Marshal(WSMessage{
+		Type: "online_count",
+		Data: map[string]int{"count": count},
+	})
+	if err != nil {
+		h.mu.RUnlock()
+		return
+	}
+
+	for cl := range h.clients {
+		if cl.role == "admin" {
+			select {
+			case cl.send <- payload:
+			default:
+			}
+		}
+	}
+	h.mu.RUnlock()
 }

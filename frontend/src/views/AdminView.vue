@@ -13,9 +13,11 @@ import {
   Coins,
   Tag,
   Trash2,
+  Radio,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAdminStore, type AdminUser } from '@/stores/admin'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { parseBackendError, type FieldError } from '@/lib/validation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -43,6 +45,13 @@ import {
 const admin = useAdminStore()
 const loading = ref(true)
 
+// ── Live online count ──
+const onlineCount = ref<number | null>(null)
+const { on } = useWebSocket()
+const unsubOnline = on<{ count: number }>('online_count', (data) => {
+  onlineCount.value = data.count
+})
+
 // ── Infinite scroll ──
 const sentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
@@ -66,6 +75,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   observer?.disconnect()
+  unsubOnline()
 })
 
 // ── Dialogs ──
@@ -308,11 +318,12 @@ function formatDate(dateStr: string): string {
     </div>
 
     <!-- Stats cards -->
-    <div v-if="loading" class="grid grid-cols-2 gap-4">
+    <div v-if="loading" class="grid grid-cols-3 gap-4">
+      <Skeleton class="h-24 rounded-lg" />
       <Skeleton class="h-24 rounded-lg" />
       <Skeleton class="h-24 rounded-lg" />
     </div>
-    <div v-else class="grid grid-cols-2 gap-4">
+    <div v-else class="grid grid-cols-3 gap-4">
       <Card>
         <CardHeader class="pb-2">
           <CardTitle class="text-sm font-medium text-muted-foreground"
@@ -336,6 +347,26 @@ function formatDate(dateStr: string): string {
             <span class="text-2xl font-bold tabular-nums">{{
               admin.stats?.banned_users ?? 0
             }}</span>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader class="pb-2">
+          <CardTitle class="text-sm font-medium text-muted-foreground">Сейчас онлайн</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div class="flex items-center gap-2">
+            <Radio class="size-5 text-emerald-500" />
+            <span class="text-2xl font-bold tabular-nums">{{ onlineCount ?? '—' }}</span>
+            <span
+              v-if="onlineCount != null"
+              class="relative flex size-2"
+            >
+              <span
+                class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75"
+              />
+              <span class="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
           </div>
         </CardContent>
       </Card>

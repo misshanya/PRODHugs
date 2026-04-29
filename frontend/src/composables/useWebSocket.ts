@@ -14,6 +14,7 @@ export interface WSMessage<T = unknown> {
     | 'hug_cancelled'
     | 'hug_expired'
     | 'inbox_count'
+    | 'online_count'
   data: T
 }
 
