@@ -9,6 +9,7 @@ var (
 	ErrWrongPassword      = errors.New("wrong password")
 	ErrUserBanned         = errors.New("user is banned")
 	ErrCannotBanAdmin     = errors.New("cannot ban admin")
+	ErrCannotDeleteAdmin  = errors.New("cannot delete admin")
 	ErrUserBlocked        = errors.New("user is blocked")
 	ErrCannotBlockSelf    = errors.New("cannot block yourself")
 	ErrInvalidTelegramID  = errors.New("invalid telegram ID")

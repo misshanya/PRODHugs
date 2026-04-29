@@ -112,6 +112,13 @@ export const useAdminStore = defineStore('admin', () => {
     if (idx !== -1) users.value[idx]!.balance = amount
   }
 
+  async function deleteUser(userId: string) {
+    await adminApi.deleteUser(userId)
+    const idx = users.value.findIndex((u) => u.id === userId)
+    if (idx !== -1) users.value.splice(idx, 1)
+    if (stats.value) stats.value.total_users--
+  }
+
   return {
     stats,
     users,
@@ -128,5 +135,6 @@ export const useAdminStore = defineStore('admin', () => {
     updateDisplayName,
     updatePassword,
     updateBalance,
+    deleteUser,
   }
 })

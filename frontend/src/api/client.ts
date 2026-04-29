@@ -181,4 +181,5 @@ export const adminApi = {
     api.put(`/admin/users/${userId}/password`, { password }),
   updateBalance: (userId: string, amount: number) =>
     api.put(`/admin/users/${userId}/balance`, { amount }),
+  deleteUser: (userId: string) => api.delete(`/admin/users/${userId}`),
 }

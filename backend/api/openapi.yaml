@@ -43,6 +43,7 @@ components:
         - USER_BLOCKED
         - INVALID_TELEGRAM_ID
         - TELEGRAM_ID_TAKEN
+        - CANNOT_DELETE_ADMIN
 
     Error:
       type: object
@@ -1582,6 +1583,31 @@ paths:
                 properties:
                   user_id: { type: string, format: uuid }
                   amount: { type: integer }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/users/{userId}:
+    delete:
+      summary: Permanently delete a user and all associated data
+      operationId: adminDeleteUser
+      security:
+        - BearerAuth: ["admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

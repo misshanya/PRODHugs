@@ -179,3 +179,7 @@ UPDATE users
 SET display_name = $2
 WHERE id = $1
 RETURNING *;
+
+-- name: AdminDeleteUser :execrows
+DELETE FROM users
+WHERE id = $1 AND role != 'admin';

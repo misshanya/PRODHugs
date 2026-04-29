@@ -12,6 +12,7 @@ import {
   Venus,
   Coins,
   Tag,
+  Trash2,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAdminStore, type AdminUser } from '@/stores/admin'
@@ -252,6 +253,34 @@ async function toggleBan(user: AdminUser) {
   }
 }
 
+// Delete dialog
+const deleteDialogOpen = ref(false)
+const deleteConfirmUsername = ref('')
+const deletingUser = ref(false)
+
+function openDeleteDialog(user: AdminUser) {
+  editingUser.value = user
+  deleteConfirmUsername.value = ''
+  deletingUser.value = false
+  deleteDialogOpen.value = true
+}
+
+async function confirmDeleteUser() {
+  if (!editingUser.value) return
+  if (deleteConfirmUsername.value !== editingUser.value.username) return
+  deletingUser.value = true
+  try {
+    await admin.deleteUser(editingUser.value.id)
+    toast.success(`Пользователь ${editingUser.value.username} удалён`)
+    deleteDialogOpen.value = false
+  } catch (e) {
+    const parsed = parseBackendError(e)
+    toast.error(parsed.generalError ?? 'Ошибка удаления')
+  } finally {
+    deletingUser.value = false
+  }
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ru-RU', {
     day: 'numeric',
@@ -407,6 +436,14 @@ function formatDate(dateStr: string): string {
               <DropdownMenuItem @click="openBalanceDialog(user)">
                 <Coins class="size-4" />
                 Изменить баланс
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                class="text-destructive focus:text-destructive"
+                @click="openDeleteDialog(user)"
+              >
+                <Trash2 class="size-4" />
+                Удалить
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -596,6 +633,40 @@ function formatDate(dateStr: string): string {
             @click="savePassword"
           >
             {{ savingPassword ? 'Сохранение...' : 'Сменить пароль' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Delete user dialog -->
+    <Dialog v-model:open="deleteDialogOpen">
+      <DialogContent class="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Удалить пользователя</DialogTitle>
+          <DialogDescription>
+            Это действие необратимо. Все данные пользователя будут удалены.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="grid gap-1.5">
+            <Label for="admin-delete-confirm">
+              Введите <span class="font-mono font-semibold">{{ editingUser?.username }}</span> для
+              подтверждения
+            </Label>
+            <Input
+              id="admin-delete-confirm"
+              v-model="deleteConfirmUsername"
+              placeholder="имя пользователя"
+              @keydown.enter="confirmDeleteUser"
+            />
+          </div>
+          <Button
+            variant="destructive"
+            class="w-full rounded-[21px]"
+            :disabled="deletingUser || deleteConfirmUsername !== editingUser?.username"
+            @click="confirmDeleteUser"
+          >
+            {{ deletingUser ? 'Удаление...' : 'Удалить навсегда' }}
           </Button>
         </div>
       </DialogContent>

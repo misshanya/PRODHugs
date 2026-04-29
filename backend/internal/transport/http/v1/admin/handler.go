@@ -18,6 +18,7 @@ type service interface {
 	AdminUpdatePassword(ctx context.Context, id uuid.UUID, newPassword string) error
 	AdminUpdateBalance(ctx context.Context, id uuid.UUID, amount int32) (*models.Balance, error)
 	AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, displayName *string) (*models.User, error)
+	AdminDeleteUser(ctx context.Context, id uuid.UUID) error
 }
 
 type AdminHandler struct {

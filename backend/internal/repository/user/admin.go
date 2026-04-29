@@ -115,6 +115,19 @@ func (r *repo) AdminUpdatePassword(ctx context.Context, id uuid.UUID, hashedPass
 	})
 }
 
+func (r *repo) AdminDeleteUser(ctx context.Context, id uuid.UUID) error {
+	q := repository.Queries(ctx, r.q)
+
+	rows, err := q.AdminDeleteUser(ctx, id)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errorz.ErrCannotDeleteAdmin
+	}
+	return nil
+}
+
 func (r *repo) AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, displayName *string) (*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 
