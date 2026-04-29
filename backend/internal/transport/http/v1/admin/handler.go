@@ -46,10 +46,11 @@ func toV1AdminUser(u *models.User) v1.AdminUser {
 
 func toV1AdminUserFromAdmin(u *models.AdminUser) v1.AdminUser {
 	au := v1.AdminUser{
-		Id:       u.ID,
-		Username: u.Username,
-		Role:     v1.AdminUserRole(u.Role),
-		Balance:  int(u.Balance),
+		Id:        u.ID,
+		Username:  u.Username,
+		Role:      v1.AdminUserRole(u.Role),
+		Balance:   int(u.Balance),
+		CreatedAt: u.CreatedAt,
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)

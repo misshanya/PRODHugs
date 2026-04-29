@@ -221,7 +221,7 @@ async function toggleBan(user: AdminUser) {
   }
 }
 
-function formatBanDate(dateStr: string): string {
+function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'short',
@@ -324,7 +324,10 @@ function formatBanDate(dateStr: string): string {
                   <Coins class="inline size-3 mr-0.5" />{{ user.balance }}
                 </p>
                 <p v-if="user.banned_at" class="text-xs text-destructive/70">
-                  с {{ formatBanDate(user.banned_at) }}
+                  с {{ formatDate(user.banned_at) }}
+                </p>
+                <p v-if="user.created_at" class="text-xs text-muted-foreground">
+                  рег. {{ formatDate(user.created_at) }}
                 </p>
               </div>
             </div>

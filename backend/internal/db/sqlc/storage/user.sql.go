@@ -16,7 +16,7 @@ const adminUpdateGender = `-- name: AdminUpdateGender :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at
 `
 
 type AdminUpdateGenderParams struct {
@@ -35,6 +35,7 @@ func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderPa
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -59,7 +60,7 @@ const adminUpdateUsername = `-- name: AdminUpdateUsername :one
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at
 `
 
 type AdminUpdateUsernameParams struct {
@@ -78,6 +79,7 @@ func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUserna
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -86,7 +88,7 @@ const banUser = `-- name: BanUser :one
 UPDATE users
 SET banned_at = NOW()
 WHERE id = $1 AND role != 'admin'
-RETURNING id, username, password, role, gender, banned_at, hug_slots
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at
 `
 
 func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -100,6 +102,7 @@ func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -127,11 +130,11 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password, role, gender)
+INSERT INTO users (username, password, role, gender, created_at)
 VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, NOW()
 )
-RETURNING id, username, password, role, gender, banned_at, hug_slots
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at
 `
 
 type CreateUserParams struct {
@@ -157,6 +160,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -281,7 +285,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecent
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password, role, gender, banned_at, hug_slots
+SELECT id, username, password, role, gender, banned_at, hug_slots, created_at
 FROM users
 WHERE id = $1
 `
@@ -297,12 +301,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password, role, gender, banned_at, hug_slots
+SELECT id, username, password, role, gender, banned_at, hug_slots, created_at
 FROM users
 WHERE username = $1
 `
@@ -318,6 +323,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -422,7 +428,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 }
 
 const listUsersAdmin = `-- name: ListUsersAdmin :many
-SELECT u.id, u.username, u.role, u.gender, u.banned_at,
+SELECT u.id, u.username, u.role, u.gender, u.banned_at, u.created_at,
        COALESCE(b.amount, 0)::int AS balance
 FROM users u
 LEFT JOIN balances b ON b.user_id = u.id
@@ -436,12 +442,13 @@ type ListUsersAdminParams struct {
 }
 
 type ListUsersAdminRow struct {
-	ID       uuid.UUID
-	Username string
-	Role     string
-	Gender   pgtype.Text
-	BannedAt pgtype.Timestamptz
-	Balance  int32
+	ID        uuid.UUID
+	Username  string
+	Role      string
+	Gender    pgtype.Text
+	BannedAt  pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+	Balance   int32
 }
 
 func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) ([]ListUsersAdminRow, error) {
@@ -459,6 +466,7 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 			&i.Role,
 			&i.Gender,
 			&i.BannedAt,
+			&i.CreatedAt,
 			&i.Balance,
 		); err != nil {
 			return nil, err
@@ -533,7 +541,7 @@ const unbanUser = `-- name: UnbanUser :one
 UPDATE users
 SET banned_at = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at
 `
 
 func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -547,6 +555,7 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -571,7 +580,7 @@ const updateUserSettings = `-- name: UpdateUserSettings :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at
 `
 
 type UpdateUserSettingsParams struct {
@@ -590,6 +599,7 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.Gender,
 		&i.BannedAt,
 		&i.HugSlots,
+		&i.CreatedAt,
 	)
 	return i, err
 }

@@ -28,6 +28,10 @@ func toModelUser(u storage.User) *models.User {
 	if u.BannedAt.Valid {
 		bannedAt = &u.BannedAt.Time
 	}
+	var createdAt *time.Time
+	if u.CreatedAt.Valid {
+		createdAt = &u.CreatedAt.Time
+	}
 	return &models.User{
 		ID:             u.ID,
 		Username:       u.Username,
@@ -35,6 +39,7 @@ func toModelUser(u storage.User) *models.User {
 		HashedPassword: u.Password,
 		Gender:         gender,
 		BannedAt:       bannedAt,
+		CreatedAt:      createdAt,
 	}
 }
 
@@ -47,12 +52,17 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 	if u.BannedAt.Valid {
 		bannedAt = &u.BannedAt.Time
 	}
+	var createdAt *time.Time
+	if u.CreatedAt.Valid {
+		createdAt = &u.CreatedAt.Time
+	}
 	return &models.AdminUser{
-		ID:       u.ID,
-		Username: u.Username,
-		Role:     u.Role,
-		Gender:   gender,
-		BannedAt: bannedAt,
-		Balance:  u.Balance,
+		ID:        u.ID,
+		Username:  u.Username,
+		Role:      u.Role,
+		Gender:    gender,
+		BannedAt:  bannedAt,
+		CreatedAt: createdAt,
+		Balance:   u.Balance,
 	}
 }

@@ -1,7 +1,7 @@
 -- name: CreateUser :one
-INSERT INTO users (username, password, role, gender)
+INSERT INTO users (username, password, role, gender, created_at)
 VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, NOW()
 )
 RETURNING *;
 
@@ -115,7 +115,7 @@ SELECT COUNT(*) FROM users;
 SELECT COUNT(*) FROM users WHERE banned_at IS NOT NULL;
 
 -- name: ListUsersAdmin :many
-SELECT u.id, u.username, u.role, u.gender, u.banned_at,
+SELECT u.id, u.username, u.role, u.gender, u.banned_at, u.created_at,
        COALESCE(b.amount, 0)::int AS balance
 FROM users u
 LEFT JOIN balances b ON b.user_id = u.id

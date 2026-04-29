@@ -9,6 +9,7 @@ export interface AdminUser {
   role: string
   gender?: Gender | null
   banned_at?: string | null
+  created_at?: string | null
   balance: number
 }
 

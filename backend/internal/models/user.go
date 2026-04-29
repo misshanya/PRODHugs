@@ -21,15 +21,17 @@ type User struct {
 	HashedPassword string
 	Gender         *string
 	BannedAt       *time.Time
+	CreatedAt      *time.Time
 }
 
 type AdminUser struct {
-	ID       uuid.UUID
-	Username string
-	Role     string
-	Gender   *string
-	BannedAt *time.Time
-	Balance  int32
+	ID        uuid.UUID
+	Username  string
+	Role      string
+	Gender    *string
+	BannedAt  *time.Time
+	CreatedAt *time.Time
+	Balance   int32
 }
 
 type AdminStats struct {
