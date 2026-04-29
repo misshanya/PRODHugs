@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   Users,
   ShieldBan,
@@ -48,6 +48,8 @@ let observer: IntersectionObserver | null = null
 onMounted(async () => {
   await Promise.all([admin.fetchStats(), admin.fetchUsers()])
   loading.value = false
+
+  await nextTick()
 
   observer = new IntersectionObserver(
     (entries) => {
