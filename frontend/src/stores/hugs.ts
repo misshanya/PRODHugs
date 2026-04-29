@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { hugsApi, balanceApi, leaderboardApi, usersApi } from '@/api/client'
+import { useAuthStore } from '@/stores/auth'
 
 export interface HugFeedItem {
   id: string
@@ -104,6 +105,7 @@ export const useHugsStore = defineStore('hugs', () => {
   const balance = ref<Balance | null>(null)
   const feed = ref<HugFeedItem[]>([])
   const leaderboard = ref<LeaderboardEntry[]>([])
+  const history = ref<HugFeedItem[]>([])
   const loading = ref(false)
   const feedLoading = ref(false)
   const leaderboardLoading = ref(false)
@@ -152,10 +154,28 @@ export const useHugsStore = defineStore('hugs', () => {
   }
 
   async function acceptHug(hugId: string) {
+    // Capture inbox item before it gets removed so we can build a history entry
+    const inboxItem = inbox.value.find((h) => h.id === hugId)
     const res = await hugsApi.accept(hugId)
     // Remove from inbox
     inbox.value = inbox.value.filter((h) => h.id !== hugId)
     inboxCount.value = Math.max(0, inboxCount.value - 1)
+    // Prepend to history immediately so the user sees the hug right away
+    if (inboxItem) {
+      const auth = useAuthStore()
+      const historyItem: HugFeedItem = {
+        id: hugId,
+        giver_id: inboxItem.giver_id,
+        receiver_id: inboxItem.receiver_id,
+        giver_username: inboxItem.giver_username,
+        receiver_username: auth.user?.username ?? '',
+        giver_gender: inboxItem.giver_gender,
+        giver_display_name: inboxItem.giver_display_name,
+        receiver_display_name: auth.user?.display_name ?? null,
+        created_at: new Date().toISOString(),
+      }
+      history.value.unshift(historyItem)
+    }
     // Refresh balance (both users get +1 coin)
     await fetchBalance()
     return res.data
@@ -240,7 +260,8 @@ export const useHugsStore = defineStore('hugs', () => {
 
   async function getHugHistory() {
     const res = await hugsApi.getHistory()
-    return res.data || []
+    history.value = res.data || []
+    return history.value
   }
 
   async function getHugActivity(): Promise<HugActivityItem[]> {
@@ -275,6 +296,7 @@ export const useHugsStore = defineStore('hugs', () => {
     balance,
     feed,
     leaderboard,
+    history,
     loading,
     feedLoading,
     leaderboardLoading,

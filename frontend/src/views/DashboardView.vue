@@ -3,12 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { Heart, ArrowUp, ArrowDown, Gift, Coins, Users, Trophy, Newspaper } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
-import {
-  useHugsStore,
-  type DailyRewardResponse,
-  type UserProfile,
-  type HugFeedItem,
-} from '@/stores/hugs'
+import { useHugsStore, type DailyRewardResponse, type UserProfile } from '@/stores/hugs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -22,7 +17,6 @@ const auth = useAuthStore()
 const hugs = useHugsStore()
 
 const profile = ref<UserProfile | null>(null)
-const history = ref<HugFeedItem[]>([])
 const dailyResult = ref<DailyRewardResponse | null>(null)
 const claimingDaily = ref(false)
 const loading = ref(true)
@@ -56,7 +50,7 @@ onMounted(async () => {
   const outgoingPromise = hugs.fetchOutgoing()
 
   let profilePromise: Promise<UserProfile> | undefined
-  let historyPromise: Promise<HugFeedItem[]> | undefined
+  let historyPromise: ReturnType<typeof hugs.getHugHistory> | undefined
 
   if (auth.user) {
     profilePromise = hugs.getUserProfile(auth.user.id)
@@ -65,10 +59,9 @@ onMounted(async () => {
 
   await balancePromise
 
-  const [p, h] = await Promise.all([profilePromise, historyPromise, inboxPromise, outgoingPromise])
+  const [p] = await Promise.all([profilePromise, historyPromise, inboxPromise, outgoingPromise])
   if (unmounted) return
   if (p) profile.value = p
-  if (h) history.value = h
   loading.value = false
 })
 
@@ -237,13 +230,13 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
           <Skeleton v-for="i in 3" :key="i" class="h-8 w-full rounded" />
         </div>
         <div
-          v-else-if="history.length === 0"
+          v-else-if="hugs.history.length === 0"
           class="py-6 text-center text-sm text-muted-foreground"
         >
           Пока нет обнимашек
         </div>
         <div v-else class="max-h-96 space-y-1 overflow-y-auto">
-          <div v-for="(hug, i) in history" :key="hug.id">
+          <div v-for="(hug, i) in hugs.history" :key="hug.id">
             <Separator v-if="i > 0" class="my-1" />
             <div class="flex items-center justify-between py-2">
               <div class="flex items-center gap-2 text-sm">
@@ -266,7 +259,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
                     class="font-medium text-foreground hover:underline"
                     >{{ hug.giver_display_name || hug.giver_username }}</RouterLink
                   >
-                  {{ hugVerb(auth.user?.gender) }} тебя
+                  {{ hugVerb(hug.giver_gender) }} тебя
                 </span>
               </div>
               <span class="text-xs text-muted-foreground tabular-nums">
