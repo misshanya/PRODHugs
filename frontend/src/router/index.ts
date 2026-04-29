@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { accessToken, ensureAccessToken } from '@/lib/token'
+import { authApi } from '@/api/client'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -65,7 +66,6 @@ const router = createRouter({
 
 router.beforeEach(async (to, _from, next) => {
   let token = accessToken.value
-  const userStr = localStorage.getItem('user')
 
   if (!token && to.meta.auth) {
     token = await ensureAccessToken()
@@ -76,19 +76,18 @@ router.beforeEach(async (to, _from, next) => {
   } else if (to.meta.guest && token) {
     next('/dashboard')
   } else if (to.meta.admin) {
-    let user: { role?: string } | null = null
+    // Verify admin role against the server, not just localStorage.
     try {
-      user = userStr ? JSON.parse(userStr) : null
+      const res = await authApi.me()
+      const user = res.data
+      localStorage.setItem('user', JSON.stringify(user))
+      if (user?.role !== 'admin') {
+        next('/dashboard')
+      } else {
+        next()
+      }
     } catch {
-      // Corrupt localStorage data — clear it and redirect to login.
-      localStorage.removeItem('user')
-      next('/login')
-      return
-    }
-    if (user?.role !== 'admin') {
       next('/dashboard')
-    } else {
-      next()
     }
   } else {
     next()

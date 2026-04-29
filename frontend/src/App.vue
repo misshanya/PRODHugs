@@ -32,6 +32,12 @@ async function initAuthState() {
     await ensureAccessToken()
   }
   if (auth.isAuthenticated) {
+    // Refresh user info from the server to get the latest role (admin flag)
+    try {
+      await auth.fetchMe()
+    } catch {
+      // If fetching fails, the auth store will handle logout.
+    }
     ws.connect()
     hugsStore.fetchInboxCount()
     hugsStore.fetchOutgoing()
