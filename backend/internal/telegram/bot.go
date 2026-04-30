@@ -28,16 +28,23 @@ type hugAcceptor interface {
 	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) error
 }
 
+// telegramLoginService handles the auth/registration logic for Telegram login.
+type telegramLoginService interface {
+	LoginViaTelegram(ctx context.Context, info *TelegramUserInfo) (*models.User, error)
+}
+
 // Bot is a long-polling Telegram bot that handles /start deep-link commands
 // and inline keyboard callbacks for hug actions.
 type Bot struct {
-	tg        *tgbot.Bot
-	client    *Client
-	linkStore *LinkStore
-	userRepo  botUserRepo
-	hugSvc    hugAcceptor
-	logger    *slog.Logger
-	enabled   bool
+	tg         *tgbot.Bot
+	client     *Client
+	linkStore  *LinkStore
+	loginStore *LoginStore
+	loginSvc   telegramLoginService
+	userRepo   botUserRepo
+	hugSvc     hugAcceptor
+	logger     *slog.Logger
+	enabled    bool
 }
 
 // NewBot creates a new Telegram bot. If the client is disabled (no token),
@@ -64,6 +71,13 @@ func NewBot(client *Client, linkStore *LinkStore, userRepo botUserRepo, hugSvc h
 	b.tg = tg
 	b.enabled = true
 	return b
+}
+
+// SetLoginStore configures the login store and service for Telegram login.
+// Called after construction to break circular dependencies.
+func (b *Bot) SetLoginStore(store *LoginStore, svc telegramLoginService) {
+	b.loginStore = store
+	b.loginSvc = svc
 }
 
 // Run starts the long-polling bot. Blocks until ctx is cancelled.
@@ -134,6 +148,14 @@ func (b *Bot) handleStart(ctx context.Context, bot *tgbot.Bot, msg *tgmodels.Mes
 	}
 
 	token := strings.TrimSpace(parts[1])
+
+	// Handle login_ prefixed tokens for Telegram login flow
+	if strings.HasPrefix(token, "login_") {
+		b.handleLoginStart(ctx, bot, msg, strings.TrimPrefix(token, "login_"))
+		return
+	}
+
+	// Original account-linking flow
 	userID, ok := b.linkStore.ConsumeToken(token)
 	if !ok {
 		b.reply(ctx, bot, chatID, "Ссылка недействительна или истекла. Попробуй снова через настройки приложения")
@@ -160,6 +182,58 @@ func (b *Bot) handleStart(ctx context.Context, bot *tgbot.Bot, msg *tgmodels.Mes
 
 	b.logger.Info("telegram bot: account linked", "user_id", userID, "chat_id", chatID)
 	b.reply(ctx, bot, chatID, "✅ Аккаунт привязан! Теперь ты не пропустишь обнимашки от любимых продовцев")
+}
+
+func (b *Bot) handleLoginStart(ctx context.Context, bot *tgbot.Bot, msg *tgmodels.Message, botToken string) {
+	chatID := msg.Chat.ID
+
+	if b.loginStore == nil || b.loginSvc == nil {
+		b.reply(ctx, bot, chatID, "Вход через Telegram временно недоступен")
+		return
+	}
+
+	pollToken, ok := b.loginStore.ConsumeBotToken(botToken)
+	if !ok {
+		b.reply(ctx, bot, chatID, "Ссылка недействительна или истекла. Попробуй снова")
+		return
+	}
+
+	// Build Telegram user info from the message sender
+	info := &TelegramUserInfo{
+		TelegramID: chatID,
+		FirstName:  msg.From.FirstName,
+		LastName:   msg.From.LastName,
+	}
+	if msg.From.Username != "" {
+		info.Username = msg.From.Username
+	}
+
+	// Store user info on the session
+	b.loginStore.SetSessionUserInfo(pollToken, info)
+
+	// Attempt login/registration via the service
+	user, err := b.loginSvc.LoginViaTelegram(ctx, info)
+	if err != nil {
+		b.logger.Error("telegram bot: login failed", "chat_id", chatID, "error", err)
+		b.loginStore.FailSession(pollToken, err.Error())
+		b.reply(ctx, bot, chatID, "Не удалось войти: "+friendlyLoginError(err))
+		return
+	}
+
+	// Mark session as authenticated
+	b.loginStore.AuthenticateSession(pollToken, user.ID)
+	b.logger.Info("telegram bot: login successful", "user_id", user.ID, "chat_id", chatID)
+	b.reply(ctx, bot, chatID, "✅ Вход выполнен! Можешь вернуться в приложение")
+}
+
+func friendlyLoginError(err error) string {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "banned"):
+		return "ваш аккаунт заблокирован"
+	default:
+		return "попробуйте позже"
+	}
 }
 
 func (b *Bot) handleCallback(ctx context.Context, bot *tgbot.Bot, cb *tgmodels.CallbackQuery) {

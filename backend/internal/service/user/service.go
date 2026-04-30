@@ -11,6 +11,7 @@ type repo interface {
 	Create(ctx context.Context, input *models.CreateUser) (*models.User, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
+	GetByTelegramID(ctx context.Context, telegramID int64) (*models.User, error)
 	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error)
 	GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error)
 	SetTelegramID(ctx context.Context, userID uuid.UUID, telegramID int64) (*models.User, error)

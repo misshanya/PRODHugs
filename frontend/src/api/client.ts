@@ -37,7 +37,14 @@ function processPendingQueue(token: string | null, error: unknown) {
   pendingQueue = []
 }
 
-const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout']
+const AUTH_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/logout',
+  '/auth/telegram/init',
+  '/auth/telegram/poll',
+]
 
 function isAuthRequest(config: InternalAxiosRequestConfig | undefined): boolean {
   if (!config?.url) return false
@@ -118,6 +125,13 @@ export const authApi = {
   me: () => api.get('/users/me'),
   checkUsername: (username: string) =>
     api.get<{ available: boolean }>('/auth/check-username', { params: { username } }),
+  initTelegramLogin: () =>
+    api.post<{ bot_url: string; poll_token: string }>('/auth/telegram/init'),
+  pollTelegramLogin: (pollToken: string) =>
+    api.post<{ token: string; user: { id: string; username: string; role: string } }>(
+      '/auth/telegram/poll',
+      { poll_token: pollToken },
+    ),
 }
 
 // Hugs

@@ -128,6 +128,7 @@ const HANDLER_ERROR_MAP: Record<string, { field: string | null; message: string 
     message: 'Ваш аккаунт заблокирован. Обратитесь к администратору.',
   },
   CANNOT_BAN_ADMIN: { field: null, message: 'Невозможно заблокировать администратора' },
+  TELEGRAM_LOGIN_FAILED: { field: null, message: 'Не удалось войти через Telegram' },
 }
 
 export interface ParsedBackendError {

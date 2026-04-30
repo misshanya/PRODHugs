@@ -8,9 +8,11 @@ import {
   parseBackendError,
   type FieldError,
 } from '@/lib/validation'
+import { useTelegramLogin } from '@/composables/useTelegramLogin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Card,
@@ -21,8 +23,16 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import PasswordRequirements from '@/components/PasswordRequirements.vue'
+import { Send, Loader2 } from 'lucide-vue-next'
 
 const auth = useAuthStore()
+const {
+  telegramPolling,
+  telegramError,
+  telegramLoading,
+  startTelegramLogin,
+  cancelTelegramLogin,
+} = useTelegramLogin()
 const username = ref('')
 const displayName = ref('')
 const password = ref('')
@@ -118,7 +128,19 @@ async function handleRegister() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-background p-4">
-    <Card class="w-full max-w-sm">
+    <Card class="w-full max-w-sm relative">
+      <!-- Telegram polling overlay -->
+      <div
+        v-if="telegramPolling"
+        class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-lg bg-background/95 backdrop-blur-sm"
+      >
+        <Loader2 class="h-8 w-8 animate-spin text-primary" />
+        <p class="text-sm text-center text-muted-foreground px-6">
+          Нажмите <strong>Start</strong> в открывшемся боте, чтобы зарегистрироваться
+        </p>
+        <Button variant="ghost" size="sm" @click="cancelTelegramLogin"> Отмена </Button>
+      </div>
+
       <CardHeader class="text-center">
         <img src="/logo.webp" alt="PROD" class="mx-auto mb-2 size-12 rounded-lg object-contain" />
         <CardTitle class="text-xl">Регистрация</CardTitle>
@@ -277,6 +299,23 @@ async function handleRegister() {
             {{ auth.loading ? 'Регистрация...' : 'Зарегистрироваться' }}
           </Button>
         </form>
+        <!-- Telegram registration section -->
+        <div class="mt-6 flex flex-col items-center">
+          <Separator class="my-2 w-full" />
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full flex items-center justify-center gap-2"
+            :disabled="telegramLoading"
+            @click="startTelegramLogin"
+          >
+            <Send class="w-4 h-4" />
+            {{ telegramLoading ? 'Открывается бот...' : 'Регистрация через Telegram' }}
+          </Button>
+          <p v-if="telegramError" class="mt-2 text-sm text-destructive text-center">
+            {{ telegramError }}
+          </p>
+        </div>
       </CardContent>
       <CardFooter class="justify-center">
         <p class="text-sm text-muted-foreground">

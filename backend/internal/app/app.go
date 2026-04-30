@@ -102,14 +102,18 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
 
-	// Telegram: client, bot, notifier & link store
+	// Telegram: client, bot, notifier, link store & login store
 	tgClient := telegram.New(a.cfg.Telegram.BotToken)
 	tgLinkStore := telegram.NewLinkStore()
+	tgLoginStore := telegram.NewLoginStore()
 	tgBot := telegram.NewBot(tgClient, tgLinkStore, userRepo, hugService, a.l)
 	tgNotifier := telegram.NewNotifier(tgClient, tgBot, userRepo, a.l)
 
 	// Telegram link store for user service (generating deep-link tokens)
 	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
+
+	// Telegram login: wire login store + service into bot
+	tgBot.SetLoginStore(tgLoginStore, userService)
 
 	// WebSocket Hub
 	a.hub = ws.NewHub(jwtManager)
@@ -141,6 +145,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 
 	// Handlers
 	userHandler := userhandler.New(userService, jwtManager, a.cfg.JWT.CookieSecure)
+	userHandler.SetTelegramLoginStore(tgLoginStore, a.cfg.Telegram.BotUsername)
 	hugHandler := hughandler.New(hugService)
 	adminHandler := adminhandler.New(userService)
 
@@ -322,6 +327,18 @@ func (a *App) initEcho() error {
 		"/api/v1/auth/check-username": {
 			Rate:  rate.Limit(5),
 			Burst: 10,
+			TTL:   5 * time.Minute,
+		},
+		// Telegram login init: 5 per minute per IP
+		"/api/v1/auth/telegram/init": {
+			Rate:  rate.Every(12 * time.Second),
+			Burst: 5,
+			TTL:   1 * time.Minute,
+		},
+		// Telegram login poll: more lenient (polled every 2 seconds)
+		"/api/v1/auth/telegram/poll": {
+			Rate:  rate.Limit(2),
+			Burst: 5,
 			TTL:   5 * time.Minute,
 		},
 	}))

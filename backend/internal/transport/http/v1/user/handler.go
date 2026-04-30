@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-service-template/internal/jwt"
 	"go-service-template/internal/models"
+	"go-service-template/internal/telegram"
 	v1 "go-service-template/internal/transport/http/v1"
 
 	"github.com/google/uuid"
@@ -28,10 +29,19 @@ type UserHandler struct {
 	svc          service
 	jwtManager   *jwt.Manager
 	cookieSecure bool
+	loginStore   *telegram.LoginStore
+	botUsername  string
 }
 
 func New(svc service, jwtManager *jwt.Manager, cookieSecure bool) *UserHandler {
 	return &UserHandler{svc: svc, jwtManager: jwtManager, cookieSecure: cookieSecure}
+}
+
+// SetTelegramLoginStore configures the login store and bot username for
+// the Telegram login endpoints. Called after construction.
+func (h *UserHandler) SetTelegramLoginStore(store *telegram.LoginStore, botUsername string) {
+	h.loginStore = store
+	h.botUsername = botUsername
 }
 
 func toV1User(u *models.User) v1.User {
