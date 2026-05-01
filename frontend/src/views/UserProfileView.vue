@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
 import HugButton from '@/components/HugButton.vue'
 import RankBadge from '@/components/RankBadge.vue'
 
@@ -141,6 +142,13 @@ watch(userId, () => {
               </p>
               <div class="flex items-center justify-center gap-2 sm:justify-start">
                 <RankBadge :rank="profile.rank" />
+                <Badge
+                  v-if="profile.tag"
+                  variant="outline"
+                  class="text-[10px] px-1.5 py-0"
+                >
+                  {{ profile.tag }}
+                </Badge>
                 <span class="text-xs text-muted-foreground">
                   {{ profile.role === 'admin' ? 'Администратор' : 'Пользователь' }}
                 </span>

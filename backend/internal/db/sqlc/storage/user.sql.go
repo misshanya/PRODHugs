@@ -29,7 +29,7 @@ const adminUpdateDisplayName = `-- name: AdminUpdateDisplayName :one
 UPDATE users
 SET display_name = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 type AdminUpdateDisplayNameParams struct {
@@ -51,6 +51,7 @@ func (q *Queries) AdminUpdateDisplayName(ctx context.Context, arg AdminUpdateDis
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -59,7 +60,7 @@ const adminUpdateGender = `-- name: AdminUpdateGender :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 type AdminUpdateGenderParams struct {
@@ -81,6 +82,7 @@ func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderPa
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -101,11 +103,42 @@ func (q *Queries) AdminUpdatePassword(ctx context.Context, arg AdminUpdatePasswo
 	return err
 }
 
+const adminUpdateTag = `-- name: AdminUpdateTag :one
+UPDATE users
+SET tag = $2
+WHERE id = $1
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
+`
+
+type AdminUpdateTagParams struct {
+	ID  uuid.UUID
+	Tag pgtype.Text
+}
+
+func (q *Queries) AdminUpdateTag(ctx context.Context, arg AdminUpdateTagParams) (User, error) {
+	row := q.db.QueryRow(ctx, adminUpdateTag, arg.ID, arg.Tag)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.Role,
+		&i.Gender,
+		&i.BannedAt,
+		&i.HugSlots,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.TelegramID,
+		&i.Tag,
+	)
+	return i, err
+}
+
 const adminUpdateUsername = `-- name: AdminUpdateUsername :one
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 type AdminUpdateUsernameParams struct {
@@ -127,6 +160,7 @@ func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUserna
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -135,7 +169,7 @@ const banUser = `-- name: BanUser :one
 UPDATE users
 SET banned_at = NOW()
 WHERE id = $1 AND role != 'admin'
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -152,6 +186,7 @@ func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -160,7 +195,7 @@ const clearUserTelegramID = `-- name: ClearUserTelegramID :one
 UPDATE users
 SET telegram_id = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -177,6 +212,7 @@ func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, 
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -208,7 +244,7 @@ INSERT INTO users (username, password, role, gender, created_at)
 VALUES (
     $1, $2, $3, $4, NOW()
 )
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 type CreateUserParams struct {
@@ -237,6 +273,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -248,6 +285,7 @@ SELECT
     u.role,
     u.gender,
     u.display_name,
+    u.tag,
     COALESCE(given.cnt, 0) + COALESCE(received.cnt, 0) AS total_hugs,
     COALESCE(given.cnt, 0) AS hugs_given,
     COALESCE(received.cnt, 0) AS hugs_received
@@ -274,6 +312,7 @@ type GetLeaderboardRow struct {
 	Role         string
 	Gender       pgtype.Text
 	DisplayName  pgtype.Text
+	Tag          pgtype.Text
 	TotalHugs    int32
 	HugsGiven    int64
 	HugsReceived int64
@@ -294,6 +333,7 @@ func (q *Queries) GetLeaderboard(ctx context.Context, arg GetLeaderboardParams) 
 			&i.Role,
 			&i.Gender,
 			&i.DisplayName,
+			&i.Tag,
 			&i.TotalHugs,
 			&i.HugsGiven,
 			&i.HugsReceived,
@@ -373,7 +413,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecent
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 FROM users
 WHERE id = $1
 `
@@ -392,12 +432,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
-SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id FROM users WHERE telegram_id = $1
+SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag FROM users WHERE telegram_id = $1
 `
 
 func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int8) (User, error) {
@@ -414,12 +455,13 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+SELECT id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 FROM users
 WHERE username = $1
 `
@@ -438,6 +480,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -520,7 +563,7 @@ func (q *Queries) IsTelegramIDTaken(ctx context.Context, arg IsTelegramIDTakenPa
 }
 
 const listAllUsers = `-- name: ListAllUsers :many
-SELECT u.id, u.username, u.role, u.gender, u.display_name
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag
 FROM users u
 LEFT JOIN LATERAL (
     SELECT MAX(created_at) AS last_visit
@@ -549,6 +592,7 @@ type ListAllUsersRow struct {
 	Role        string
 	Gender      pgtype.Text
 	DisplayName pgtype.Text
+	Tag         pgtype.Text
 }
 
 func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]ListAllUsersRow, error) {
@@ -566,6 +610,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 			&i.Role,
 			&i.Gender,
 			&i.DisplayName,
+			&i.Tag,
 		); err != nil {
 			return nil, err
 		}
@@ -578,7 +623,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 }
 
 const listUsersAdmin = `-- name: ListUsersAdmin :many
-SELECT u.id, u.username, u.role, u.gender, u.display_name, u.banned_at, u.created_at,
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.banned_at, u.created_at,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -603,6 +648,7 @@ type ListUsersAdminRow struct {
 	Role        string
 	Gender      pgtype.Text
 	DisplayName pgtype.Text
+	Tag         pgtype.Text
 	BannedAt    pgtype.Timestamptz
 	CreatedAt   pgtype.Timestamptz
 	Balance     int32
@@ -624,6 +670,7 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 			&i.Role,
 			&i.Gender,
 			&i.DisplayName,
+			&i.Tag,
 			&i.BannedAt,
 			&i.CreatedAt,
 			&i.Balance,
@@ -640,7 +687,7 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT u.id, u.username, u.role, u.gender, u.display_name
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag
 FROM users u
 LEFT JOIN LATERAL (
     SELECT MAX(created_at) AS last_visit
@@ -671,6 +718,7 @@ type SearchUsersRow struct {
 	Role        string
 	Gender      pgtype.Text
 	DisplayName pgtype.Text
+	Tag         pgtype.Text
 }
 
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
@@ -693,6 +741,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.Role,
 			&i.Gender,
 			&i.DisplayName,
+			&i.Tag,
 		); err != nil {
 			return nil, err
 		}
@@ -708,7 +757,7 @@ const setUserTelegramID = `-- name: SetUserTelegramID :one
 UPDATE users
 SET telegram_id = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 type SetUserTelegramIDParams struct {
@@ -730,6 +779,7 @@ func (q *Queries) SetUserTelegramID(ctx context.Context, arg SetUserTelegramIDPa
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -738,7 +788,7 @@ const unbanUser = `-- name: UnbanUser :one
 UPDATE users
 SET banned_at = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -755,6 +805,7 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }
@@ -777,19 +828,25 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 
 const updateUserSettings = `-- name: UpdateUserSettings :one
 UPDATE users
-SET gender = $2, display_name = $3
+SET gender = $2, display_name = $3, tag = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag
 `
 
 type UpdateUserSettingsParams struct {
 	ID          uuid.UUID
 	Gender      pgtype.Text
 	DisplayName pgtype.Text
+	Tag         pgtype.Text
 }
 
 func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserSettings, arg.ID, arg.Gender, arg.DisplayName)
+	row := q.db.QueryRow(ctx, updateUserSettings,
+		arg.ID,
+		arg.Gender,
+		arg.DisplayName,
+		arg.Tag,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -802,6 +859,7 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.CreatedAt,
 		&i.DisplayName,
 		&i.TelegramID,
+		&i.Tag,
 	)
 	return i, err
 }

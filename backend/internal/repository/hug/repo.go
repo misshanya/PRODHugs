@@ -114,10 +114,15 @@ func toModelLeaderboardEntry(row storage.GetLeaderboardRow) *models.LeaderboardE
 	if row.Gender.Valid {
 		gender = &row.Gender.String
 	}
+	var tag *string
+	if row.Tag.Valid {
+		tag = &row.Tag.String
+	}
 	return &models.LeaderboardEntry{
 		UserID:       row.ID,
 		Username:     row.Username,
 		DisplayName:  displayName,
+		Tag:          tag,
 		Role:         row.Role,
 		TotalHugs:    row.TotalHugs,
 		HugsGiven:    row.HugsGiven,
@@ -144,12 +149,17 @@ func toModelUserListItem(row storage.SearchUsersRow) *models.User {
 	if row.DisplayName.Valid {
 		displayName = &row.DisplayName.String
 	}
+	var tag *string
+	if row.Tag.Valid {
+		tag = &row.Tag.String
+	}
 	return &models.User{
 		ID:          row.ID,
 		Username:    row.Username,
 		Role:        row.Role,
 		Gender:      gender,
 		DisplayName: displayName,
+		Tag:         tag,
 	}
 }
 
@@ -162,12 +172,17 @@ func toModelUserListItemFromAll(row storage.ListAllUsersRow) *models.User {
 	if row.DisplayName.Valid {
 		displayName = &row.DisplayName.String
 	}
+	var tag *string
+	if row.Tag.Valid {
+		tag = &row.Tag.String
+	}
 	return &models.User{
 		ID:          row.ID,
 		Username:    row.Username,
 		Role:        row.Role,
 		Gender:      gender,
 		DisplayName: displayName,
+		Tag:         tag,
 	}
 }
 

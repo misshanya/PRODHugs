@@ -76,6 +76,10 @@ components:
           type: integer
           format: int64
           nullable: true
+        tag:
+          type: string
+          nullable: true
+          maxLength: 20
 
     AuthResponse:
       type: object
@@ -255,6 +259,9 @@ components:
         display_name:
           type: string
           nullable: true
+        tag:
+          type: string
+          nullable: true
         hugs_given: { type: integer }
         hugs_received: { type: integer }
         total_hugs: { type: integer }
@@ -280,6 +287,9 @@ components:
         user_id: { type: string, format: uuid }
         username: { type: string }
         display_name:
+          type: string
+          nullable: true
+        tag:
           type: string
           nullable: true
         total_hugs: { type: integer }
@@ -312,6 +322,9 @@ components:
         gender:
           $ref: '#/components/schemas/Gender'
         display_name:
+          type: string
+          nullable: true
+        tag:
           type: string
           nullable: true
 
@@ -427,6 +440,9 @@ components:
         display_name:
           type: string
           nullable: true
+        tag:
+          type: string
+          nullable: true
         banned_at:
           type: string
           format: date-time
@@ -462,6 +478,9 @@ components:
         gender:
           $ref: '#/components/schemas/Gender'
         display_name:
+          type: string
+          nullable: true
+        tag:
           type: string
           nullable: true
         created_at: { type: string, format: date-time }
@@ -836,6 +855,10 @@ paths:
                   nullable: true
                   minLength: 1
                   maxLength: 32
+                tag:
+                  type: string
+                  nullable: true
+                  maxLength: 20
               additionalProperties: false
       responses:
         '200':
@@ -1761,6 +1784,47 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  /admin/users/{userId}/tag:
+    put:
+      summary: Change a user's tag
+      operationId: adminUpdateTag
+      security:
+        - BearerAuth: ["admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tag:
+                  type: string
+                  nullable: true
+                  maxLength: 20
+              additionalProperties: false
+      responses:
+        '200':
+          description: Tag updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /admin/users/{userId}/password:
     put:

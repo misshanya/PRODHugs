@@ -2,6 +2,7 @@
 import { useAuthStore } from '@/stores/auth'
 import { useOnlineStore } from '@/stores/online'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import HugButton from './HugButton.vue'
 
 const props = defineProps<{
@@ -10,6 +11,7 @@ const props = defineProps<{
     username: string
     role: string
     display_name?: string | null
+    tag?: string | null
   }
 }>()
 
@@ -35,9 +37,18 @@ const isMe = auth.user?.id === props.user.id
         />
       </div>
       <div class="min-w-0">
-        <p class="text-sm font-medium truncate">
-          {{ user.display_name || user.username }}
-        </p>
+        <div class="flex items-center gap-1.5">
+          <p class="text-sm font-medium truncate">
+            {{ user.display_name || user.username }}
+          </p>
+          <Badge
+            v-if="user.tag"
+            variant="outline"
+            class="shrink-0 text-[9px] px-1.5 py-0"
+          >
+            {{ user.tag }}
+          </Badge>
+        </div>
         <p class="text-xs text-muted-foreground mt-1">
           <template v-if="user.display_name">@{{ user.username }} · </template>
           {{ user.role === 'admin' ? 'Админ' : 'Пользователь' }}

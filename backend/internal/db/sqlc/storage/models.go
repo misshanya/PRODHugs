@@ -66,6 +66,7 @@ type User struct {
 	CreatedAt   pgtype.Timestamptz
 	DisplayName pgtype.Text
 	TelegramID  pgtype.Int8
+	Tag         pgtype.Text
 }
 
 type UserBlock struct {

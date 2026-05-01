@@ -40,6 +40,10 @@ func toModelUser(u storage.User) *models.User {
 	if u.TelegramID.Valid {
 		telegramID = &u.TelegramID.Int64
 	}
+	var tag *string
+	if u.Tag.Valid {
+		tag = &u.Tag.String
+	}
 	return &models.User{
 		ID:             u.ID,
 		Username:       u.Username,
@@ -47,6 +51,7 @@ func toModelUser(u storage.User) *models.User {
 		HashedPassword: u.Password,
 		Gender:         gender,
 		DisplayName:    displayName,
+		Tag:            tag,
 		TelegramID:     telegramID,
 		BannedAt:       bannedAt,
 		CreatedAt:      createdAt,
@@ -74,12 +79,17 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 	if u.LastVisitAt.Valid {
 		lastVisitAt = &u.LastVisitAt.Time
 	}
+	var tag *string
+	if u.Tag.Valid {
+		tag = &u.Tag.String
+	}
 	return &models.AdminUser{
 		ID:          u.ID,
 		Username:    u.Username,
 		Role:        u.Role,
 		Gender:      gender,
 		DisplayName: displayName,
+		Tag:         tag,
 		BannedAt:    bannedAt,
 		CreatedAt:   createdAt,
 		Balance:     u.Balance,

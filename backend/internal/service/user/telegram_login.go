@@ -72,7 +72,7 @@ func (s *service) LoginViaTelegram(ctx context.Context, info *telegram.TelegramU
 	// Set display name from Telegram first+last name
 	displayName := buildDisplayName(info.FirstName, info.LastName)
 	if displayName != "" {
-		u, err = s.repo.UpdateSettings(ctx, u.ID, nil, &displayName)
+		u, err = s.repo.UpdateSettings(ctx, u.ID, nil, &displayName, nil)
 		if err != nil {
 			// Non-critical, log but don't fail
 			return u, nil

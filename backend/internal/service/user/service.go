@@ -12,7 +12,8 @@ type repo interface {
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetByTelegramID(ctx context.Context, telegramID int64) (*models.User, error)
-	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error)
+	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string, tag *string) (*models.User, error)
+	AdminUpdateTag(ctx context.Context, id uuid.UUID, tag *string) (*models.User, error)
 	GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error)
 	SetTelegramID(ctx context.Context, userID uuid.UUID, telegramID int64) (*models.User, error)
 	ClearTelegramID(ctx context.Context, userID uuid.UUID) (*models.User, error)
@@ -32,6 +33,11 @@ type repo interface {
 
 type balanceRepo interface {
 	AdminSetBalance(ctx context.Context, userID uuid.UUID, amount int32) (*models.Balance, error)
+	DeductBalance(ctx context.Context, userID uuid.UUID, delta int32) (*models.Balance, error)
+}
+
+type transactor interface {
+	RunInTx(ctx context.Context, fn func(context.Context) error) error
 }
 
 type refreshTokenRepo interface {
@@ -57,6 +63,7 @@ type service struct {
 	jwtManager        jwtManager
 	telegramLinkStore telegramLinkStore
 	botUsername        string
+	tx                transactor
 }
 
 func New(repo repo, jwtManager jwtManager, opts ...func(*service)) *service {
@@ -74,6 +81,12 @@ func New(repo repo, jwtManager jwtManager, opts ...func(*service)) *service {
 func WithBalanceRepo(br balanceRepo) func(*service) {
 	return func(s *service) {
 		s.balanceRepo = br
+	}
+}
+
+func WithTransactor(tx transactor) func(*service) {
+	return func(s *service) {
+		s.tx = tx
 	}
 }
 

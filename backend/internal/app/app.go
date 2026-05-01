@@ -101,6 +101,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 		jwtManager,
 		userservice.WithBalanceRepo(balanceRepo),
 		userservice.WithRefreshTokenRepo(refreshTokenRepo),
+		userservice.WithTransactor(transactor),
 	)
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, intimacyRepoInst, transactor)
 

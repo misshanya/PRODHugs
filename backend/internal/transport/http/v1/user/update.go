@@ -33,8 +33,27 @@ func (h *UserHandler) UpdateUserSettings(ctx context.Context, req v1.UpdateUserS
 		}
 	}
 
-	u, err := h.svc.UpdateSettings(ctx, userID, gender, displayName)
+	// tag: trim whitespace; treat empty string as clearing the tag
+	var tag *string
+	if req.Body.Tag != nil {
+		t := strings.TrimSpace(*req.Body.Tag)
+		if t == "" {
+			tag = nil
+		} else {
+			tag = &t
+		}
+	}
+
+	u, err := h.svc.UpdateSettings(ctx, userID, gender, displayName, tag)
 	if err != nil {
+		if errors.Is(err, errorz.ErrInsufficientBalance) {
+			return v1.UpdateUserSettings400JSONResponse{
+				BadRequestJSONResponse: v1.BadRequestJSONResponse{
+					Code:    v1.INSUFFICIENTBALANCE,
+					Message: "Недостаточно монет для смены тега (нужно 5)",
+				},
+			}, nil
+		}
 		return nil, err
 	}
 

@@ -57,6 +57,7 @@ func (h *HugHandler) GetBlockedUsers(ctx context.Context, _ v1.GetBlockedUsersRe
 			Id:          u.ID,
 			Username:    u.Username,
 			DisplayName: u.DisplayName,
+			Tag:         u.Tag,
 			CreatedAt:   u.CreatedAt,
 		}
 		if u.Gender != nil {

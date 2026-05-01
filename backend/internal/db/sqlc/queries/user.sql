@@ -16,7 +16,7 @@ FROM users
 WHERE id = $1;
 
 -- name: SearchUsers :many
-SELECT u.id, u.username, u.role, u.gender, u.display_name
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag
 FROM users u
 LEFT JOIN LATERAL (
     SELECT MAX(created_at) AS last_visit
@@ -34,7 +34,7 @@ ORDER BY COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT @lim::int OFFSET @off::int;
 
 -- name: ListAllUsers :many
-SELECT u.id, u.username, u.role, u.gender, u.display_name
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag
 FROM users u
 LEFT JOIN LATERAL (
     SELECT MAX(created_at) AS last_visit
@@ -57,6 +57,7 @@ SELECT
     u.role,
     u.gender,
     u.display_name,
+    u.tag,
     COALESCE(given.cnt, 0) + COALESCE(received.cnt, 0) AS total_hugs,
     COALESCE(given.cnt, 0) AS hugs_given,
     COALESCE(received.cnt, 0) AS hugs_received
@@ -101,7 +102,7 @@ LIMIT @lim::int;
 
 -- name: UpdateUserSettings :one
 UPDATE users
-SET gender = $2, display_name = $3
+SET gender = $2, display_name = $3, tag = $4
 WHERE id = $1
 RETURNING *;
 
@@ -152,7 +153,7 @@ SELECT COUNT(*) FROM users;
 SELECT COUNT(*) FROM users WHERE banned_at IS NOT NULL;
 
 -- name: ListUsersAdmin :many
-SELECT u.id, u.username, u.role, u.gender, u.display_name, u.banned_at, u.created_at,
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.banned_at, u.created_at,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -194,6 +195,12 @@ RETURNING hug_slots;
 -- name: AdminUpdateDisplayName :one
 UPDATE users
 SET display_name = $2
+WHERE id = $1
+RETURNING *;
+
+-- name: AdminUpdateTag :one
+UPDATE users
+SET tag = $2
 WHERE id = $1
 RETURNING *;
 

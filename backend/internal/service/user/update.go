@@ -11,8 +11,40 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *service) UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error) {
-	return s.repo.UpdateSettings(ctx, id, gender, displayName)
+const tagChangeCost = 5
+
+func (s *service) UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string, tag *string) (*models.User, error) {
+	// Setting a non-empty tag that differs from the current one costs coins.
+	// Clearing (removing) a tag is free.
+	if tag != nil && *tag != "" {
+		currentUser, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+
+		// Only charge if the new tag is different from the current one.
+		if currentUser.Tag == nil || *currentUser.Tag != *tag {
+			var result *models.User
+			err := s.tx.RunInTx(ctx, func(txCtx context.Context) error {
+				bal, err := s.balanceRepo.DeductBalance(txCtx, id, tagChangeCost)
+				if err != nil {
+					return err
+				}
+				if bal == nil {
+					return errorz.ErrInsufficientBalance
+				}
+				result, err = s.repo.UpdateSettings(txCtx, id, gender, displayName, tag)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
+	}
+
+	// No cost: tag is nil (not provided), empty (clearing), or unchanged.
+	return s.repo.UpdateSettings(ctx, id, gender, displayName, tag)
 }
 
 func (s *service) GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error) {

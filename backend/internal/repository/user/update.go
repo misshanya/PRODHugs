@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (r *repo) UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error) {
+func (r *repo) UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string, tag *string) (*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 
 	var g pgtype.Text
@@ -23,10 +23,16 @@ func (r *repo) UpdateSettings(ctx context.Context, id uuid.UUID, gender *string,
 		dn = pgtype.Text{String: *displayName, Valid: true}
 	}
 
+	var t pgtype.Text
+	if tag != nil {
+		t = pgtype.Text{String: *tag, Valid: true}
+	}
+
 	u, err := q.UpdateUserSettings(ctx, storage.UpdateUserSettingsParams{
 		ID:          id,
 		Gender:      g,
 		DisplayName: dn,
+		Tag:         t,
 	})
 	if err != nil {
 		return nil, err

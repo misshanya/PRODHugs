@@ -106,9 +106,18 @@ onMounted(() => {
                       </AvatarFallback>
                     </Avatar>
                     <div class="min-w-0">
-                      <span class="block truncate text-xs font-medium sm:text-sm">{{
-                        entry.display_name || entry.username
-                      }}</span>
+                      <div class="flex items-center gap-1.5">
+                        <span class="truncate text-xs font-medium sm:text-sm">{{
+                          entry.display_name || entry.username
+                        }}</span>
+                        <Badge
+                          v-if="entry.tag"
+                          variant="outline"
+                          class="shrink-0 text-[9px] px-1.5 py-0"
+                        >
+                          {{ entry.tag }}
+                        </Badge>
+                      </div>
                       <span
                         v-if="entry.display_name"
                         class="block truncate text-[10px] text-muted-foreground"

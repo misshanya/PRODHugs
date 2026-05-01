@@ -80,6 +80,7 @@ export interface LeaderboardEntry {
   user_id: string
   username: string
   display_name?: string | null
+  tag?: string | null
   total_hugs: number
   hugs_given: number
   hugs_received: number
@@ -90,6 +91,7 @@ export interface UserProfile {
   id: string
   username: string
   display_name?: string | null
+  tag?: string | null
   role: string
   gender?: string | null
   hugs_given: number

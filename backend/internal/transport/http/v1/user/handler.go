@@ -15,7 +15,7 @@ type service interface {
 	Login(ctx context.Context, username string, password string) (*models.User, string, string, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
-	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string) (*models.User, error)
+	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string, tag *string) (*models.User, error)
 	ChangePassword(ctx context.Context, id uuid.UUID, oldPassword, newPassword string) error
 	GenerateLinkToken(ctx context.Context, userID uuid.UUID) (string, string, error)
 	UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models.User, error)
@@ -50,6 +50,7 @@ func toV1User(u *models.User) v1.User {
 		Username:    u.Username,
 		Role:        v1.UserRole(u.Role),
 		DisplayName: u.DisplayName,
+		Tag:         u.Tag,
 		TelegramId:  u.TelegramID,
 	}
 	if u.Gender != nil {

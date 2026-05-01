@@ -12,6 +12,7 @@ import {
   Venus,
   Coins,
   Tag,
+  Hash,
   Trash2,
   Radio,
 } from 'lucide-vue-next'
@@ -258,6 +259,36 @@ async function saveDisplayName() {
   }
 }
 
+// Tag dialog
+const tagDialogOpen = ref(false)
+const newTag = ref('')
+const savingTag = ref(false)
+const tagError = ref('')
+
+function openTagDialog(user: AdminUser) {
+  editingUser.value = user
+  newTag.value = user.tag ?? ''
+  tagError.value = ''
+  tagDialogOpen.value = true
+}
+
+async function saveTag() {
+  if (!editingUser.value) return
+  savingTag.value = true
+  tagError.value = ''
+  try {
+    const value = newTag.value.trim() || null
+    await admin.updateTag(editingUser.value.id, value)
+    toast.success('Тег изменён')
+    tagDialogOpen.value = false
+  } catch (e) {
+    const parsed = parseBackendError(e)
+    tagError.value = parsed.generalError ?? 'Ошибка сохранения'
+  } finally {
+    savingTag.value = false
+  }
+}
+
 // ── Ban / Unban ──
 async function toggleBan(user: AdminUser) {
   try {
@@ -425,6 +456,9 @@ function formatDate(dateStr: string): string {
                 <Badge v-if="user.banned_at" variant="destructive" class="text-[10px] px-1.5 py-0">
                   Бан
                 </Badge>
+                <Badge v-if="user.tag" variant="outline" class="text-[10px] px-1.5 py-0">
+                  {{ user.tag }}
+                </Badge>
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <p v-if="user.display_name" class="text-xs text-muted-foreground">
@@ -476,6 +510,10 @@ function formatDate(dateStr: string): string {
               <DropdownMenuItem @click="openDisplayNameDialog(user)">
                 <Tag class="size-4" />
                 Изменить имя
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="openTagDialog(user)">
+                <Hash class="size-4" />
+                Изменить тег
               </DropdownMenuItem>
               <DropdownMenuItem @click="openGenderDialog(user)">
                 <Venus class="size-4" />
@@ -637,6 +675,37 @@ function formatDate(dateStr: string): string {
             @click="saveDisplayName"
           >
             {{ savingDisplayName ? 'Сохранение...' : 'Сохранить' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Tag dialog -->
+    <Dialog v-model:open="tagDialogOpen">
+      <DialogContent class="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Изменить тег</DialogTitle>
+          <DialogDescription> Пользователь: {{ editingUser?.username }} </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="grid gap-1.5">
+            <Label for="admin-tag">Тег</Label>
+            <Input
+              id="admin-tag"
+              v-model="newTag"
+              maxlength="20"
+              placeholder="Оставьте пустым для сброса"
+              @keydown.enter="saveTag"
+            />
+          </div>
+          <p v-if="tagError" class="text-sm text-destructive">{{ tagError }}</p>
+          <Button
+            variant="yellow"
+            class="w-full rounded-[21px]"
+            :disabled="savingTag"
+            @click="saveTag"
+          >
+            {{ savingTag ? 'Сохранение...' : 'Сохранить' }}
           </Button>
         </div>
       </DialogContent>

@@ -59,6 +59,10 @@ func (s *service) AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, disp
 	return s.repo.AdminUpdateDisplayName(ctx, id, displayName)
 }
 
+func (s *service) AdminUpdateTag(ctx context.Context, id uuid.UUID, tag *string) (*models.User, error) {
+	return s.repo.AdminUpdateTag(ctx, id, tag)
+}
+
 func (s *service) AdminDeleteUser(ctx context.Context, id uuid.UUID) error {
 	return s.repo.AdminDeleteUser(ctx, id)
 }

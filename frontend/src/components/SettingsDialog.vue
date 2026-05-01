@@ -26,9 +26,10 @@ const open = defineModel<boolean>('open', { required: true })
 const auth = useAuthStore()
 const hugsStore = useHugsStore()
 
-// ── Display name + Gender ──
+// ── Display name + Gender + Tag ──
 const displayName = ref(auth.user?.display_name ?? '')
 const gender = ref<Gender | ''>((auth.user?.gender as Gender) ?? '')
+const tag = ref(auth.user?.tag ?? '')
 const savingProfile = ref(false)
 
 // ── Telegram ──
@@ -72,6 +73,7 @@ watch(open, (isOpen) => {
   if (isOpen) {
     displayName.value = auth.user?.display_name ?? ''
     gender.value = (auth.user?.gender as Gender) ?? ''
+    tag.value = auth.user?.tag ?? ''
     telegramLinked.value = auth.user?.telegram_id != null
     telegramError.value = ''
     stopPolling()
@@ -84,9 +86,11 @@ async function saveProfile() {
   savingProfile.value = true
   try {
     const trimmed = displayName.value.trim()
-    const payload: { gender?: string; display_name?: string | null } = {}
+    const trimmedTag = tag.value.trim()
+    const payload: { gender?: string; display_name?: string | null; tag?: string | null } = {}
     if (gender.value) payload.gender = gender.value
     payload.display_name = trimmed || null
+    payload.tag = trimmedTag || null
     const res = await usersApi.updateSettings(payload)
     auth.user = res.data
     localStorage.setItem('user', JSON.stringify(res.data))
@@ -256,6 +260,18 @@ async function savePassword() {
                 <Label for="gender-female" class="font-normal cursor-pointer">Женский</Label>
               </div>
             </RadioGroup>
+          </div>
+          <div class="grid gap-1.5">
+            <Label for="settings-tag" class="text-xs text-muted-foreground">Тег</Label>
+            <Input
+              id="settings-tag"
+              v-model="tag"
+              maxlength="20"
+              placeholder="Мой тег"
+            />
+            <p class="text-[11px] text-muted-foreground">
+              Будет виден в рейтинге и на странице пользователей. Смена тега стоит 5 монет.
+            </p>
           </div>
           <Button
             variant="yellow"

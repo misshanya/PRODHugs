@@ -21,6 +21,7 @@ type User struct {
 	HashedPassword string
 	Gender         *string
 	DisplayName    *string
+	Tag            *string
 	TelegramID     *int64
 	BannedAt       *time.Time
 	CreatedAt      *time.Time
@@ -32,6 +33,7 @@ type AdminUser struct {
 	Role        string
 	Gender      *string
 	DisplayName *string
+	Tag         *string
 	BannedAt    *time.Time
 	CreatedAt   *time.Time
 	Balance     int32
@@ -48,5 +50,6 @@ type BlockedUser struct {
 	Username    string
 	Gender      *string
 	DisplayName *string
+	Tag         *string
 	CreatedAt   time.Time
 }
