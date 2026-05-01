@@ -101,15 +101,15 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID,
 				return errorz.ErrDeclineCooldownActive
 			}
 
-			// Apply intimacy-based cooldown reduction
+			// Apply intimacy-based cooldown reduction (no floor — intimacy can push below 5 min)
 			effectiveCooldownSeconds := cooldown.CooldownSeconds
 			intimacy, _ := s.intimacyRepo.GetPairIntimacy(txCtx, giverID, receiverID)
 			if intimacy != nil {
 				tier := models.ComputeTier(intimacy.RawScore)
 				reduction := float64(effectiveCooldownSeconds) * tier.CooldownReduction
 				effectiveCooldownSeconds -= int32(reduction)
-				if effectiveCooldownSeconds < int32(minCooldownSeconds) {
-					effectiveCooldownSeconds = int32(minCooldownSeconds)
+				if effectiveCooldownSeconds < 0 {
+					effectiveCooldownSeconds = 0
 				}
 			}
 
@@ -357,8 +357,8 @@ func (s *service) GetCooldownInfo(ctx context.Context, userA, userB uuid.UUID) (
 	if cooldown == nil {
 		baseCooldown := int32(defaultCooldownSeconds)
 		effectiveCooldown := baseCooldown - int32(float64(baseCooldown)*float64(reductionPct)/100.0)
-		if effectiveCooldown < int32(minCooldownSeconds) {
-			effectiveCooldown = int32(minCooldownSeconds)
+		if effectiveCooldown < 0 {
+			effectiveCooldown = 0
 		}
 		return &CooldownInfoResult{
 			Cooldown: &models.HugCooldown{
@@ -372,12 +372,12 @@ func (s *service) GetCooldownInfo(ctx context.Context, userA, userB uuid.UUID) (
 		}, nil
 	}
 
-	// Compute effective cooldown with intimacy reduction
+	// Compute effective cooldown with intimacy reduction (no floor — intimacy can push below 5 min)
 	effectiveCooldown := cooldown.CooldownSeconds
 	reduction := float64(effectiveCooldown) * float64(reductionPct) / 100.0
 	effectiveCooldown -= int32(reduction)
-	if effectiveCooldown < int32(minCooldownSeconds) {
-		effectiveCooldown = int32(minCooldownSeconds)
+	if effectiveCooldown < 0 {
+		effectiveCooldown = 0
 	}
 
 	elapsed := time.Since(cooldown.LastHugAt)
