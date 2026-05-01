@@ -145,6 +145,7 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID,
 				ReceiverID:    hugCopy.ReceiverID,
 				GiverUsername: giverUsername,
 				GiverGender:   giverGender,
+				HugType:       hugCopy.HugType,
 				CreatedAt:     hugCopy.CreatedAt,
 			})
 		}()
@@ -156,6 +157,7 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID,
 // AcceptHug accepts a pending hug suggestion.
 func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error) {
 	var acceptedHug *models.Hug
+	var earnedBonusCoins int32
 
 	err := s.tx.RunInTx(ctx, func(txCtx context.Context) error {
 		h, err := s.hugRepo.AcceptHug(txCtx, hugID, receiverID)
@@ -190,6 +192,7 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 			tier := models.ComputeTier(intimacy.RawScore)
 			bonusCoins = int32(tier.BonusCoins)
 		}
+		earnedBonusCoins = bonusCoins
 
 		// +1 base coin + bonus to initiator (giver)
 		_, err = s.balanceRepo.AddBalance(txCtx, h.GiverID, 1+bonusCoins)
@@ -224,6 +227,7 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 	// Fire WebSocket broadcast asynchronously to avoid blocking the HTTP response.
 	if s.onHugCompleted != nil && acceptedHug != nil {
 		hugCopy := *acceptedHug
+		bonus := earnedBonusCoins
 		go func() {
 			bgCtx := context.WithoutCancel(ctx)
 			giver, _ := s.userRepo.GetByID(bgCtx, hugCopy.GiverID)
@@ -247,7 +251,7 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 				GiverGender:      giverGender,
 				HugType:          hugCopy.HugType,
 				CreatedAt:        hugCopy.CreatedAt,
-			})
+			}, bonus)
 		}()
 	}
 

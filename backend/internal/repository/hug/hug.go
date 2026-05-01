@@ -146,6 +146,7 @@ func (r *repo) GetOutgoingPendingHugs(ctx context.Context, userID uuid.UUID) ([]
 			ReceiverUsername:    row.ReceiverUsername,
 			ReceiverGender:      receiverGender,
 			ReceiverDisplayName: receiverDisplayName,
+			HugType:             row.HugType,
 			CreatedAt:           row.CreatedAt.Time,
 		}
 	}

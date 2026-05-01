@@ -286,6 +286,7 @@ func (q *Queries) GetHugByID(ctx context.Context, id uuid.UUID) (GetHugByIDRow, 
 
 const getOutgoingPendingHugs = `-- name: GetOutgoingPendingHugs :many
 SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
+       h.hug_type,
        r.username AS receiver_username, r.gender AS receiver_gender,
        r.display_name AS receiver_display_name
 FROM hugs h
@@ -303,6 +304,7 @@ type GetOutgoingPendingHugsRow struct {
 	Status              string
 	CreatedAt           pgtype.Timestamptz
 	AcceptedAt          pgtype.Timestamptz
+	HugType             string
 	ReceiverUsername    string
 	ReceiverGender      pgtype.Text
 	ReceiverDisplayName pgtype.Text
@@ -324,6 +326,7 @@ func (q *Queries) GetOutgoingPendingHugs(ctx context.Context, giverID uuid.UUID)
 			&i.Status,
 			&i.CreatedAt,
 			&i.AcceptedAt,
+			&i.HugType,
 			&i.ReceiverUsername,
 			&i.ReceiverGender,
 			&i.ReceiverDisplayName,
@@ -340,6 +343,7 @@ func (q *Queries) GetOutgoingPendingHugs(ctx context.Context, giverID uuid.UUID)
 
 const getPendingHugsForUser = `-- name: GetPendingHugsForUser :many
 SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
+       h.hug_type,
        g.username AS giver_username, g.gender AS giver_gender,
        g.display_name AS giver_display_name
 FROM hugs h
@@ -357,6 +361,7 @@ type GetPendingHugsForUserRow struct {
 	Status           string
 	CreatedAt        pgtype.Timestamptz
 	AcceptedAt       pgtype.Timestamptz
+	HugType          string
 	GiverUsername    string
 	GiverGender      pgtype.Text
 	GiverDisplayName pgtype.Text
@@ -378,6 +383,7 @@ func (q *Queries) GetPendingHugsForUser(ctx context.Context, receiverID uuid.UUI
 			&i.Status,
 			&i.CreatedAt,
 			&i.AcceptedAt,
+			&i.HugType,
 			&i.GiverUsername,
 			&i.GiverGender,
 			&i.GiverDisplayName,

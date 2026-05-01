@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type HugFeedItem, type PendingHugInboxItem } from '@/stores/hugs'
 import { useOnlineStore } from '@/stores/online'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { hugTypeTag } from '@/lib/utils'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import AppSidebar from '@/components/AppSidebar.vue'
@@ -65,6 +66,8 @@ function setupGlobalWsListeners() {
         receiver_id: String(data.receiver_id || data.ReceiverID),
         giver_username: String(data.giver_username || data.GiverUsername),
         giver_gender: data.giver_gender || data.GiverGender ? String(data.giver_gender || data.GiverGender) : null,
+        giver_display_name: data.giver_display_name || data.GiverDisplayName ? String(data.giver_display_name || data.GiverDisplayName) : null,
+        hug_type: (String(data.hug_type || data.HugType || 'standard') as PendingHugInboxItem['hug_type']),
         created_at: String(data.created_at || data.CreatedAt),
       }
       
@@ -111,7 +114,8 @@ function setupGlobalWsListeners() {
           (h) => h.receiver_id !== data.receiver_id,
         )
         hugsStore.slotInfo.used_slots = hugsStore.outgoingHugs.length
-        toast.success(`Обнимашка с ${data.receiver_username} принята!`)
+        const typeInfo = data.hug_type && data.hug_type !== 'standard' ? ` (${hugTypeTag(data.hug_type)})` : ''
+        toast.success(`Обнимашка с ${data.receiver_username} принята${typeInfo}!`)
         hugsStore.fetchBalance()
         hugsStore.triggerCooldownRefresh(data.receiver_id)
       } else if (data.receiver_id === auth.user?.id) {

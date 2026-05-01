@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { toast } from 'vue-sonner'
 import { useHugsStore } from '@/stores/hugs'
+import { hugTypeTag } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -128,6 +129,12 @@ function onExplosionDone() {
                 {{ item.giver_display_name || item.giver_username }}
               </RouterLink>
               <span class="text-muted-foreground"> предлагает обняться</span>
+              <span
+                v-if="hugTypeTag(item.hug_type)"
+                class="ml-1 inline-block rounded-full bg-prod-yellow/15 px-1.5 py-0.5 text-[10px] font-medium text-prod-yellow"
+              >
+                {{ hugTypeTag(item.hug_type) }}
+              </span>
             </div>
             <span class="text-[10px] text-muted-foreground">
               {{ relativeTime(item.created_at) }}

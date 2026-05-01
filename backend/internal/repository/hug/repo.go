@@ -183,6 +183,7 @@ func toModelPendingInboxItem(row storage.GetPendingHugsForUserRow) *models.Pendi
 		GiverUsername:    row.GiverUsername,
 		GiverGender:      giverGender,
 		GiverDisplayName: giverDisplayName,
+		HugType:          row.HugType,
 		CreatedAt:        row.CreatedAt.Time,
 	}
 }

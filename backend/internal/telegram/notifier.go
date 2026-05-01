@@ -43,24 +43,29 @@ func (n *Notifier) Enabled() bool {
 }
 
 // NotifyHugSuggestion notifies the receiver with Accept/Decline buttons.
-func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverID uuid.UUID) {
+func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverID uuid.UUID, hugType string) {
 	giver, err := n.repo.GetByID(ctx, giverID)
 	if err != nil {
 		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
 		return
 	}
 	name := displayName(giver)
+	typeLabel := hugTypeDescription(hugType)
 
 	if n.bot != nil {
-		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name)
+		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name, typeLabel)
 		return
 	}
 	// Fallback: plain text without buttons
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", name))
+	if typeLabel != "" {
+		n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять (%s)!", name, typeLabel))
+	} else {
+		n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", name))
+	}
 }
 
 // NotifyHugCompleted notifies both participants that the hug was accepted.
-func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID uuid.UUID) {
+func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID uuid.UUID, hugType string, bonusCoins int32) {
 	giver, err := n.repo.GetByID(ctx, giverID)
 	if err != nil {
 		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
@@ -72,9 +77,21 @@ func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID u
 		return
 	}
 
+	totalCoins := 1 + bonusCoins
+	coinText := fmt.Sprintf("+%d", totalCoins)
+	if bonusCoins > 0 {
+		coinText = fmt.Sprintf("+%d (бонус +%d)", totalCoins, bonusCoins)
+	}
+
+	typeLabel := hugTypeDescription(hugType)
+	hugWord := "объятие"
+	if typeLabel != "" {
+		hugWord = typeLabel + " объятие"
+	}
+
 	receiverVerb := genderVerb(receiver.Gender, "принял", "приняла", "принял(а)")
-	n.sendToUser(ctx, giverID, fmt.Sprintf("🎉 <b>%s</b> %s объятие! +1 монета", displayName(receiver), receiverVerb))
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("🎉 Вы обнялись с <b>%s</b>! +1 монета", displayName(giver)))
+	n.sendToUser(ctx, giverID, fmt.Sprintf("🎉 <b>%s</b> %s %s! %s монет", displayName(receiver), receiverVerb, hugWord, coinText))
+	n.sendToUser(ctx, receiverID, fmt.Sprintf("🎉 Вы обнялись с <b>%s</b>! %s монет", displayName(giver), coinText))
 }
 
 // NotifyHugDeclined notifies the giver that their hug was declined.
@@ -126,6 +143,22 @@ func displayName(u *models.User) string {
 		return *u.DisplayName
 	}
 	return u.Username
+}
+
+// hugTypeDescription returns a Russian label for a hug type, or empty string for standard.
+func hugTypeDescription(hugType string) string {
+	switch hugType {
+	case "bear":
+		return "медвежье"
+	case "group":
+		return "групповое"
+	case "warm":
+		return "тёплое"
+	case "soul":
+		return "душевное"
+	default:
+		return ""
+	}
 }
 
 // genderVerb returns the appropriate Russian verb form based on user gender.

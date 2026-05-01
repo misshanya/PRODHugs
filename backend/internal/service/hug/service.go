@@ -74,7 +74,7 @@ type transactor interface {
 }
 
 // Callback types for WebSocket integration
-type HugCompletedCallback func(item *models.HugFeedItem)
+type HugCompletedCallback func(item *models.HugFeedItem, bonusCoins int32)
 type HugSuggestionCallback func(targetUserID uuid.UUID, item *models.PendingHugInboxItem)
 type HugDeclinedCallback func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID)
 type HugCancelledCallback func(targetUserID uuid.UUID, hugID uuid.UUID)

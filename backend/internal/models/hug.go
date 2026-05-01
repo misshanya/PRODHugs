@@ -74,6 +74,7 @@ type PendingHugInboxItem struct {
 	GiverUsername    string
 	GiverGender      *string
 	GiverDisplayName *string
+	HugType          string
 	CreatedAt        time.Time
 }
 
@@ -84,6 +85,7 @@ type OutgoingPendingHug struct {
 	ReceiverUsername    string
 	ReceiverGender      *string
 	ReceiverDisplayName *string
+	HugType             string
 	CreatedAt           time.Time
 }
 

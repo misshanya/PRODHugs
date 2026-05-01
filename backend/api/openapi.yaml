@@ -331,6 +331,7 @@ components:
         - giver_id
         - receiver_id
         - giver_username
+        - hug_type
         - created_at
       properties:
         id: { type: string, format: uuid }
@@ -342,6 +343,7 @@ components:
         giver_display_name:
           type: string
           nullable: true
+        hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
 
     OutgoingPendingHug:
@@ -351,6 +353,7 @@ components:
         - giver_id
         - receiver_id
         - receiver_username
+        - hug_type
         - created_at
       properties:
         id: { type: string, format: uuid }
@@ -362,6 +365,7 @@ components:
         receiver_display_name:
           type: string
           nullable: true
+        hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
 
     HugSlotInfo:

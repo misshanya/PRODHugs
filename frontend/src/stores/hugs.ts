@@ -55,6 +55,7 @@ export interface PendingHugInboxItem {
   giver_username: string
   giver_gender?: string | null
   giver_display_name?: string | null
+  hug_type: HugType
   created_at: string
 }
 
@@ -65,6 +66,7 @@ export interface OutgoingPendingHug {
   receiver_username: string
   receiver_gender?: string | null
   receiver_display_name?: string | null
+  hug_type: HugType
   created_at: string
 }
 
@@ -183,6 +185,7 @@ export const useHugsStore = defineStore('hugs', () => {
       receiver_id: res.data.receiver_id,
       receiver_username: res.data.receiver_username,
       receiver_gender: res.data.receiver_gender,
+      hug_type: res.data.hug_type || 'standard',
       created_at: res.data.created_at,
     })
     slotInfo.value.used_slots = outgoingHugs.value.length
