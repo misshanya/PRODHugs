@@ -134,15 +134,6 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	})
 	hugService.SetHugCancelledCallback(func(targetUserID uuid.UUID, hugID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_cancelled", map[string]string{"hug_id": hugID.String()})
-		// For cancelled hugs, targetUserID is the receiver, we need to look up the giver.
-		// The hugID is available — look up the hug to find the giver.
-		go func() {
-			hug, err := hugRepo.GetHugByID(context.Background(), hugID)
-			if err != nil || hug == nil {
-				return
-			}
-			tgNotifier.NotifyHugCancelled(context.Background(), targetUserID, hug.GiverID)
-		}()
 	})
 
 	// Handlers
