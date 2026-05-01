@@ -44,6 +44,7 @@ components:
         - INVALID_TELEGRAM_ID
         - TELEGRAM_ID_TAKEN
         - TELEGRAM_LOGIN_FAILED
+        - HUG_TYPE_LOCKED
         - CANNOT_DELETE_ADMIN
 
     Error:
@@ -85,6 +86,80 @@ components:
         token: { type: string }
         user : { $ref: '#/components/schemas/User' }
 
+    HugType:
+      type: string
+      enum:
+        - standard
+        - bear
+        - group
+        - warm
+        - soul
+
+    IntimacyInfo:
+      type: object
+      required:
+        - raw_score
+        - tier
+        - tier_name
+        - cooldown_reduction_pct
+        - available_hug_types
+        - bonus_coins
+      properties:
+        raw_score: { type: integer }
+        tier: { type: integer }
+        tier_name: { type: string }
+        next_tier_at:
+          type: integer
+          nullable: true
+        cooldown_reduction_pct: { type: integer }
+        available_hug_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/HugType'
+        bonus_coins: { type: integer }
+
+    ConnectionItem:
+      type: object
+      required:
+        - user_id
+        - username
+        - intimacy
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        gender:
+          $ref: '#/components/schemas/Gender'
+        display_name:
+          type: string
+          nullable: true
+        intimacy:
+          $ref: '#/components/schemas/IntimacyInfo'
+
+    IntimacyLeaderboardEntry:
+      type: object
+      required:
+        - user_a_id
+        - user_a_username
+        - user_b_id
+        - user_b_username
+        - raw_score
+        - tier
+        - tier_name
+      properties:
+        user_a_id: { type: string, format: uuid }
+        user_a_username: { type: string }
+        user_a_display_name:
+          type: string
+          nullable: true
+        user_b_id: { type: string, format: uuid }
+        user_b_username: { type: string }
+        user_b_display_name:
+          type: string
+          nullable: true
+        raw_score: { type: integer }
+        tier: { type: integer }
+        tier_name: { type: string }
+
     Balance:
       type: object
       required:
@@ -101,6 +176,7 @@ components:
         - giver_id
         - receiver_id
         - status
+        - hug_type
         - created_at
       properties:
         id: { type: string, format: uuid }
@@ -109,6 +185,7 @@ components:
         receiver_username: { type: string }
         receiver_gender: { $ref: '#/components/schemas/Gender' }
         status: { type: string, enum: [pending, completed, declined, expired, cancelled] }
+        hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
         accepted_at: { type: string, format: date-time }
 
@@ -120,6 +197,7 @@ components:
         - receiver_id
         - giver_username
         - receiver_username
+        - hug_type
         - created_at
       properties:
         id: { type: string, format: uuid }
@@ -135,6 +213,7 @@ components:
         receiver_display_name:
           type: string
           nullable: true
+        hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
 
     CooldownInfo:
@@ -145,6 +224,8 @@ components:
         - cooldown_seconds
         - remaining_seconds
         - can_hug
+        - effective_cooldown_seconds
+        - intimacy_reduction_pct
       properties:
         user_a_id: { type: string, format: uuid }
         user_b_id: { type: string, format: uuid }
@@ -152,6 +233,8 @@ components:
         remaining_seconds: { type: integer }
         can_hug: { type: boolean }
         decline_cooldown_remaining: { type: integer }
+        effective_cooldown_seconds: { type: integer }
+        intimacy_reduction_pct: { type: integer }
 
     UserProfile:
       type: object
@@ -181,6 +264,8 @@ components:
         mutual_given: { type: integer }
         mutual_received: { type: integer }
         is_blocked: { type: boolean }
+        intimacy:
+          $ref: '#/components/schemas/IntimacyInfo'
 
     LeaderboardEntry:
       type: object
@@ -992,6 +1077,16 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hug_type:
+                  $ref: '#/components/schemas/HugType'
+              additionalProperties: false
       responses:
         '201':
           description: Hug suggestion created (pending)
@@ -1283,6 +1378,87 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/HugActivityItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /intimacy/{userId}:
+    get:
+      summary: Get intimacy info between current user and target
+      operationId: getPairIntimacy
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Intimacy info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntimacyInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /intimacy/connections:
+    get:
+      summary: Get current user's connections sorted by intimacy
+      operationId: getConnections
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Connections list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectionItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /intimacy/leaderboard:
+    get:
+      summary: Get public intimacy leaderboard (top pairs)
+      operationId: getIntimacyLeaderboard
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Top pairs by intimacy
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntimacyLeaderboardEntry'
         '401':
           $ref: '#/components/responses/Unauthorized'
 

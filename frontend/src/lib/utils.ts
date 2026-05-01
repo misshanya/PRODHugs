@@ -30,6 +30,38 @@ export function suggestVerb(gender?: string | null): string {
   return 'предложил(а)'
 }
 
+/** Map hug type to a Russian label. */
+export function hugTypeLabel(hugType: string): string {
+  switch (hugType) {
+    case 'bear':
+      return 'Медвежьи'
+    case 'group':
+      return 'Групповые'
+    case 'warm':
+      return 'Тёплые'
+    case 'soul':
+      return 'Душевные'
+    default:
+      return 'Обычные'
+  }
+}
+
+/** Map hug type to a short tag for feed display. */
+export function hugTypeTag(hugType: string): string | null {
+  switch (hugType) {
+    case 'bear':
+      return 'медвежьи'
+    case 'group':
+      return 'групповые'
+    case 'warm':
+      return 'теплые'
+    case 'soul':
+      return 'душевные'
+    default:
+      return null
+  }
+}
+
 export function plural(n: number, one: string, few: string, many: string): string {
   const abs = Math.abs(n)
   const mod10 = abs % 10

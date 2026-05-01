@@ -12,13 +12,14 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (r *repo) InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status string) (*models.Hug, error) {
+func (r *repo) InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string) (*models.Hug, error) {
 	q := repository.Queries(ctx, r.q)
 
 	h, err := q.InsertHug(ctx, storage.InsertHugParams{
 		GiverID:    giverID,
 		ReceiverID: receiverID,
 		Status:     status,
+		HugType:    hugType,
 	})
 	if err != nil {
 		return nil, err

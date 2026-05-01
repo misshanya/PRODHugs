@@ -15,6 +15,7 @@ type HugFeedItemDTO struct {
 	GiverGender         *string `json:"giver_gender,omitempty"`
 	GiverDisplayName    *string `json:"giver_display_name,omitempty"`
 	ReceiverDisplayName *string `json:"receiver_display_name,omitempty"`
+	HugType             string  `json:"hug_type"`
 	CreatedAt           string  `json:"created_at"`
 }
 
@@ -28,6 +29,7 @@ func ToFeedItemDTO(item *models.HugFeedItem) HugFeedItemDTO {
 		GiverGender:         item.GiverGender,
 		GiverDisplayName:    item.GiverDisplayName,
 		ReceiverDisplayName: item.ReceiverDisplayName,
+		HugType:             item.HugType,
 		CreatedAt:           item.CreatedAt.Format(time.RFC3339),
 	}
 }

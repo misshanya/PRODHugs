@@ -57,13 +57,14 @@ func (s *service) GetUserStats(ctx context.Context, userID uuid.UUID) (*models.U
 	return s.hugRepo.GetUserStats(ctx, userID)
 }
 
-func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, bool, error) {
+func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, bool, *models.IntimacyInfo, error) {
 	var (
 		user      *models.User
 		stats     *models.UserStats
 		balance   *models.Balance
 		mutual    *models.MutualHugStats
 		isBlocked bool
+		intimacy  *models.IntimacyInfo
 	)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -98,13 +99,26 @@ func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID
 			isBlocked, err = s.blockRepo.IsBlockedByEither(gCtx, vid, userID)
 			return err
 		})
+		g.Go(func() error {
+			pair, err := s.intimacyRepo.GetPairIntimacy(gCtx, vid, userID)
+			if err != nil {
+				return err
+			}
+			rawScore := 0
+			if pair != nil {
+				rawScore = pair.RawScore
+			}
+			info := models.ComputeIntimacyInfo(rawScore)
+			intimacy = &info
+			return nil
+		})
 	}
 
 	if err := g.Wait(); err != nil {
-		return nil, nil, nil, nil, false, err
+		return nil, nil, nil, nil, false, nil, err
 	}
 
-	return user, stats, balance, mutual, isBlocked, nil
+	return user, stats, balance, mutual, isBlocked, intimacy, nil
 }
 
 func (s *service) SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error) {
@@ -284,4 +298,35 @@ func (s *service) ClaimDailyReward(ctx context.Context, userID uuid.UUID) (int32
 	}
 
 	return amount, streakDays, balAmount, alreadyClaimed, nil
+}
+
+// GetPairIntimacy returns the intimacy info for a user pair.
+func (s *service) GetPairIntimacy(ctx context.Context, userA, userB uuid.UUID) (*models.IntimacyInfo, error) {
+	pair, err := s.intimacyRepo.GetPairIntimacy(ctx, userA, userB)
+	if err != nil {
+		return nil, err
+	}
+
+	rawScore := 0
+	if pair != nil {
+		rawScore = pair.RawScore
+	}
+
+	info := models.ComputeIntimacyInfo(rawScore)
+	return &info, nil
+}
+
+// GetUserConnections returns a user's connections sorted by intimacy.
+func (s *service) GetUserConnections(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.ConnectionItem, error) {
+	return s.intimacyRepo.GetUserConnections(ctx, userID, limit, offset)
+}
+
+// GetIntimacyLeaderboard returns the top pairs by intimacy score.
+func (s *service) GetIntimacyLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardPairEntry, error) {
+	return s.intimacyRepo.GetLeaderboard(ctx, limit, offset)
+}
+
+// ApplyIntimacyDecay runs the decay job for stale pairs.
+func (s *service) ApplyIntimacyDecay(ctx context.Context) error {
+	return s.intimacyRepo.ApplyDecay(ctx)
 }

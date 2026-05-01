@@ -314,6 +314,7 @@ SELECT
     h.giver_id,
     h.receiver_id,
     h.created_at,
+    h.hug_type,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,
@@ -332,6 +333,7 @@ type GetRecentHugsFeedRow struct {
 	GiverID             uuid.UUID
 	ReceiverID          uuid.UUID
 	CreatedAt           pgtype.Timestamptz
+	HugType             string
 	GiverUsername       string
 	ReceiverUsername    string
 	GiverGender         pgtype.Text
@@ -353,6 +355,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecent
 			&i.GiverID,
 			&i.ReceiverID,
 			&i.CreatedAt,
+			&i.HugType,
 			&i.GiverUsername,
 			&i.ReceiverUsername,
 			&i.GiverGender,

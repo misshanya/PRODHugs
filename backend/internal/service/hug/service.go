@@ -11,7 +11,7 @@ import (
 )
 
 type hugRepo interface {
-	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status string) (*models.Hug, error)
+	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string) (*models.Hug, error)
 	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	CancelHug(ctx context.Context, hugID, giverID uuid.UUID) (*models.Hug, error)
@@ -61,6 +61,14 @@ type blockRepo interface {
 	GetBlockedUsers(ctx context.Context, userID uuid.UUID) ([]*models.BlockedUser, error)
 }
 
+type intimacyRepo interface {
+	GetPairIntimacy(ctx context.Context, userA, userB uuid.UUID) (*models.PairIntimacy, error)
+	UpsertPairIntimacy(ctx context.Context, userA, userB uuid.UUID) (*models.PairIntimacy, error)
+	ApplyDecay(ctx context.Context) error
+	GetUserConnections(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.ConnectionItem, error)
+	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardPairEntry, error)
+}
+
 type transactor interface {
 	RunInTx(ctx context.Context, fn func(context.Context) error) error
 }
@@ -72,12 +80,13 @@ type HugDeclinedCallback func(targetUserID uuid.UUID, hugID uuid.UUID, receiverI
 type HugCancelledCallback func(targetUserID uuid.UUID, hugID uuid.UUID)
 
 type service struct {
-	hugRepo     hugRepo
-	balanceRepo balanceRepo
-	dailyRepo   dailyRewardRepo
-	userRepo    userRepo
-	blockRepo   blockRepo
-	tx          transactor
+	hugRepo      hugRepo
+	balanceRepo  balanceRepo
+	dailyRepo    dailyRewardRepo
+	userRepo     userRepo
+	blockRepo    blockRepo
+	intimacyRepo intimacyRepo
+	tx           transactor
 
 	onHugCompleted  HugCompletedCallback
 	onHugSuggestion HugSuggestionCallback
@@ -89,13 +98,14 @@ type service struct {
 	activityCache    *cache.TTL[string, []*models.HugActivityItem]
 }
 
-func New(hugRepo hugRepo, balanceRepo balanceRepo, dailyRepo dailyRewardRepo, userRepo userRepo, blockRepo blockRepo, tx transactor) *service {
+func New(hugRepo hugRepo, balanceRepo balanceRepo, dailyRepo dailyRewardRepo, userRepo userRepo, blockRepo blockRepo, intimacyRepo intimacyRepo, tx transactor) *service {
 	return &service{
 		hugRepo:          hugRepo,
 		balanceRepo:      balanceRepo,
 		dailyRepo:        dailyRepo,
 		userRepo:         userRepo,
 		blockRepo:        blockRepo,
+		intimacyRepo:     intimacyRepo,
 		tx:               tx,
 		leaderboardCache: cache.New[string, []*models.LeaderboardEntry](30 * time.Second),
 		activityCache:    cache.New[string, []*models.HugActivityItem](2 * time.Minute),

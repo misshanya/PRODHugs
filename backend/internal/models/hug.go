@@ -15,25 +15,36 @@ const (
 	HugStatusCancelled = "cancelled"
 )
 
+// Hug type constants
+const (
+	HugTypeStandard = "standard"
+	HugTypeBear     = "bear"
+	HugTypeGroup    = "group"
+	HugTypeWarm     = "warm"
+	HugTypeSoul     = "soul"
+)
+
 type Hug struct {
 	ID         uuid.UUID
 	GiverID    uuid.UUID
 	ReceiverID uuid.UUID
 	Status     string
+	HugType    string
 	CreatedAt  time.Time
 	AcceptedAt *time.Time
 }
 
 type HugFeedItem struct {
-	ID                   uuid.UUID
-	GiverID              uuid.UUID
-	ReceiverID           uuid.UUID
-	GiverUsername        string
-	ReceiverUsername     string
-	GiverGender          *string
-	GiverDisplayName     *string
-	ReceiverDisplayName  *string
-	CreatedAt            time.Time
+	ID                  uuid.UUID
+	GiverID             uuid.UUID
+	ReceiverID          uuid.UUID
+	GiverUsername       string
+	ReceiverUsername    string
+	GiverGender         *string
+	GiverDisplayName    *string
+	ReceiverDisplayName *string
+	HugType             string
+	CreatedAt           time.Time
 }
 
 type HugActivityItem struct {

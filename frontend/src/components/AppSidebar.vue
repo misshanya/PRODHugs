@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
-import { LayoutDashboard, Users, Newspaper, Trophy, Shield } from 'lucide-vue-next'
+import { LayoutDashboard, Users, Newspaper, Trophy, Shield, Heart } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore } from '@/stores/hugs'
 import {
@@ -25,6 +25,7 @@ const items = [
   { title: 'Главная', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Пользователи', url: '/users', icon: Users },
   { title: 'Лента', url: '/feed', icon: Newspaper },
+  { title: 'Связи', url: '/connections', icon: Heart },
   { title: 'Рейтинг', url: '/leaderboard', icon: Trophy },
 ]
 

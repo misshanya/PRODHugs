@@ -20,9 +20,17 @@ const (
 
 // SuggestHug creates a pending hug suggestion (replaces old SendHug).
 // Returns the created hug and the receiver's user data (for the response).
-func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID) (*models.Hug, *models.User, error) {
+func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID, hugType string) (*models.Hug, *models.User, error) {
 	if giverID == receiverID {
 		return nil, nil, errorz.ErrCannotHugSelf
+	}
+
+	// Default to standard if empty
+	if hugType == "" {
+		hugType = models.HugTypeStandard
+	}
+	if !models.ValidHugType(hugType) {
+		return nil, nil, errorz.ErrHugTypeLocked
 	}
 
 	// Check if either user has blocked the other
@@ -38,6 +46,21 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 	receiver, err := s.userRepo.GetByID(ctx, receiverID)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// Check intimacy-gated hug type
+	if hugType != models.HugTypeStandard {
+		intimacy, err := s.intimacyRepo.GetPairIntimacy(ctx, giverID, receiverID)
+		if err != nil {
+			return nil, nil, err
+		}
+		rawScore := 0
+		if intimacy != nil {
+			rawScore = intimacy.RawScore
+		}
+		if !models.IsHugTypeUnlocked(rawScore, hugType) {
+			return nil, nil, errorz.ErrHugTypeLocked
+		}
 	}
 
 	var h *models.Hug
@@ -66,7 +89,7 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 			return errorz.ErrReversePendingHugExists
 		}
 
-		// Check shared cooldown
+		// Check shared cooldown (with intimacy-based reduction)
 		cooldown, err := s.hugRepo.GetCooldown(txCtx, giverID, receiverID)
 		if err != nil {
 			return err
@@ -78,15 +101,27 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID)
 				return errorz.ErrDeclineCooldownActive
 			}
 
-			// Check regular cooldown
+			// Apply intimacy-based cooldown reduction
+			effectiveCooldownSeconds := cooldown.CooldownSeconds
+			intimacy, _ := s.intimacyRepo.GetPairIntimacy(txCtx, giverID, receiverID)
+			if intimacy != nil {
+				tier := models.ComputeTier(intimacy.RawScore)
+				reduction := float64(effectiveCooldownSeconds) * tier.CooldownReduction
+				effectiveCooldownSeconds -= int32(reduction)
+				if effectiveCooldownSeconds < int32(minCooldownSeconds) {
+					effectiveCooldownSeconds = int32(minCooldownSeconds)
+				}
+			}
+
+			// Check regular cooldown with effective seconds
 			elapsed := time.Since(cooldown.LastHugAt)
-			if elapsed < time.Duration(cooldown.CooldownSeconds)*time.Second {
+			if elapsed < time.Duration(effectiveCooldownSeconds)*time.Second {
 				return errorz.ErrHugCooldownActive
 			}
 		}
 
 		// Insert the pending hug
-		h, err = s.hugRepo.InsertHug(txCtx, giverID, receiverID, models.HugStatusPending)
+		h, err = s.hugRepo.InsertHug(txCtx, giverID, receiverID, models.HugStatusPending, hugType)
 		return err
 	})
 	if err != nil {
@@ -143,14 +178,27 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 			return errorz.ErrHugExpired
 		}
 
-		// +1 coin to initiator (giver)
-		_, err = s.balanceRepo.AddBalance(txCtx, h.GiverID, 1)
+		// Increment pair intimacy (before computing bonus coins)
+		intimacy, err := s.intimacyRepo.UpsertPairIntimacy(txCtx, h.GiverID, h.ReceiverID)
 		if err != nil {
 			return err
 		}
 
-		// +1 coin to acceptor (receiver)
-		_, err = s.balanceRepo.AddBalance(txCtx, h.ReceiverID, 1)
+		// Compute bonus coins from intimacy tier
+		bonusCoins := int32(0)
+		if intimacy != nil {
+			tier := models.ComputeTier(intimacy.RawScore)
+			bonusCoins = int32(tier.BonusCoins)
+		}
+
+		// +1 base coin + bonus to initiator (giver)
+		_, err = s.balanceRepo.AddBalance(txCtx, h.GiverID, 1+bonusCoins)
+		if err != nil {
+			return err
+		}
+
+		// +1 base coin + bonus to acceptor (receiver)
+		_, err = s.balanceRepo.AddBalance(txCtx, h.ReceiverID, 1+bonusCoins)
 		if err != nil {
 			return err
 		}
@@ -197,6 +245,7 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 				GiverUsername:    giverName,
 				ReceiverUsername: receiverName,
 				GiverGender:      giverGender,
+				HugType:          hugCopy.HugType,
 				CreatedAt:        hugCopy.CreatedAt,
 			})
 		}()
@@ -276,30 +325,64 @@ func (s *service) CancelHug(ctx context.Context, hugID, giverID uuid.UUID) error
 	return nil
 }
 
-// GetCooldownInfo returns cooldown details for a pair of users.
-func (s *service) GetCooldownInfo(ctx context.Context, userA, userB uuid.UUID) (*models.HugCooldown, int32, bool, int32, error) {
+// CooldownInfoResult bundles cooldown data with intimacy reduction info.
+type CooldownInfoResult struct {
+	Cooldown              *models.HugCooldown
+	RemainingSeconds      int32
+	CanHug                bool
+	DeclineRemaining      int32
+	EffectiveCooldown     int32
+	IntimacyReductionPct  int
+}
+
+// GetCooldownInfo returns cooldown details for a pair of users, including intimacy reduction.
+func (s *service) GetCooldownInfo(ctx context.Context, userA, userB uuid.UUID) (*CooldownInfoResult, error) {
 	cooldown, err := s.hugRepo.GetCooldown(ctx, userA, userB)
 	if err != nil {
-		return nil, 0, true, 0, err
+		return nil, err
+	}
+
+	// Get intimacy for reduction computation
+	reductionPct := 0
+	intimacy, _ := s.intimacyRepo.GetPairIntimacy(ctx, userA, userB)
+	if intimacy != nil {
+		tier := models.ComputeTier(intimacy.RawScore)
+		reductionPct = int(tier.CooldownReduction * 100)
 	}
 
 	if cooldown == nil {
-		// No cooldown exists yet = can hug
-		return &models.HugCooldown{
-			UserAID:         userA,
-			UserBID:         userB,
-			CooldownSeconds: defaultCooldownSeconds,
-		}, 0, true, 0, nil
+		baseCooldown := int32(defaultCooldownSeconds)
+		effectiveCooldown := baseCooldown - int32(float64(baseCooldown)*float64(reductionPct)/100.0)
+		if effectiveCooldown < int32(minCooldownSeconds) {
+			effectiveCooldown = int32(minCooldownSeconds)
+		}
+		return &CooldownInfoResult{
+			Cooldown: &models.HugCooldown{
+				UserAID:         userA,
+				UserBID:         userB,
+				CooldownSeconds: baseCooldown,
+			},
+			CanHug:               true,
+			EffectiveCooldown:    effectiveCooldown,
+			IntimacyReductionPct: reductionPct,
+		}, nil
+	}
+
+	// Compute effective cooldown with intimacy reduction
+	effectiveCooldown := cooldown.CooldownSeconds
+	reduction := float64(effectiveCooldown) * float64(reductionPct) / 100.0
+	effectiveCooldown -= int32(reduction)
+	if effectiveCooldown < int32(minCooldownSeconds) {
+		effectiveCooldown = int32(minCooldownSeconds)
 	}
 
 	elapsed := time.Since(cooldown.LastHugAt)
-	remaining := time.Duration(cooldown.CooldownSeconds)*time.Second - elapsed
+	remaining := time.Duration(effectiveCooldown)*time.Second - elapsed
 	if remaining < 0 {
 		remaining = 0
 	}
 	canHug := remaining <= 0
 
-	// Calculate decline cooldown remaining
 	var declineRemaining int32
 	if cooldown.DeclineCooldownUntil != nil {
 		dr := time.Until(*cooldown.DeclineCooldownUntil)
@@ -309,7 +392,14 @@ func (s *service) GetCooldownInfo(ctx context.Context, userA, userB uuid.UUID) (
 		}
 	}
 
-	return cooldown, int32(remaining.Seconds()), canHug, declineRemaining, nil
+	return &CooldownInfoResult{
+		Cooldown:              cooldown,
+		RemainingSeconds:      int32(remaining.Seconds()),
+		CanHug:                canHug,
+		DeclineRemaining:      declineRemaining,
+		EffectiveCooldown:     effectiveCooldown,
+		IntimacyReductionPct:  reductionPct,
+	}, nil
 }
 
 // UpgradeCooldown allows either user in a pair to pay to reduce the shared cooldown.

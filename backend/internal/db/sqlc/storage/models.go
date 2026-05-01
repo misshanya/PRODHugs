@@ -28,6 +28,7 @@ type Hug struct {
 	CreatedAt  pgtype.Timestamptz
 	Status     string
 	AcceptedAt pgtype.Timestamptz
+	HugType    string
 }
 
 type HugCooldown struct {
@@ -36,6 +37,14 @@ type HugCooldown struct {
 	LastHugAt            pgtype.Timestamptz
 	CooldownSeconds      int32
 	DeclineCooldownUntil pgtype.Timestamptz
+}
+
+type PairIntimacy struct {
+	UserAID     uuid.UUID
+	UserBID     uuid.UUID
+	RawScore    int32
+	LastHugAt   pgtype.Timestamptz
+	LastDecayAt pgtype.Timestamptz
 }
 
 type RefreshToken struct {

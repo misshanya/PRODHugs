@@ -86,6 +86,7 @@ SELECT
     h.giver_id,
     h.receiver_id,
     h.created_at,
+    h.hug_type,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,

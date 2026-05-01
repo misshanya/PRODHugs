@@ -1,6 +1,6 @@
 -- name: InsertHug :one
-INSERT INTO hugs (giver_id, receiver_id, status)
-VALUES ($1, $2, $3)
+INSERT INTO hugs (giver_id, receiver_id, status, hug_type)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetHugByID :one
@@ -101,6 +101,7 @@ SELECT
     h.giver_id,
     h.receiver_id,
     h.created_at,
+    h.hug_type,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,

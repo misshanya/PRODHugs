@@ -46,6 +46,16 @@ const router = createRouter({
       meta: { auth: true },
     },
     {
+      path: '/connections',
+      name: 'connections',
+      component: () => import('@/views/ConnectionsView.vue'),
+      meta: { auth: true },
+    },
+    {
+      path: '/intimacy-leaderboard',
+      redirect: '/leaderboard',
+    },
+    {
       path: '/profile',
       redirect: '/dashboard',
     },

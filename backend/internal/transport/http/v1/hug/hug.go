@@ -25,8 +25,18 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		}, nil
 	}
 
-	hug, receiver, err := h.svc.SuggestHug(ctx, giverID, receiverID)
+	hugType := "standard"
+	if req.Body != nil && req.Body.HugType != nil {
+		hugType = string(*req.Body.HugType)
+	}
+
+	hugResult, receiver, err := h.svc.SuggestHug(ctx, giverID, receiverID, hugType)
 	if err != nil {
+		if errors.Is(err, errorz.ErrHugTypeLocked) {
+			return v1.SuggestHug409JSONResponse{
+				ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.HUGTYPELOCKED, Message: "Hug type not unlocked for this pair's intimacy level"},
+			}, nil
+		}
 		if errors.Is(err, errorz.ErrAlreadyHasPendingHug) {
 			return v1.SuggestHug409JSONResponse{
 				ConflictJSONResponse: v1.ConflictJSONResponse{Code: v1.ALREADYHASPENDINGHUG, Message: "You already have a pending outgoing hug"},
@@ -57,13 +67,15 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		return nil, err
 	}
 
+	ht := v1.HugType(hugResult.HugType)
 	resp := v1.SuggestHug201JSONResponse{
-		Id:         hug.ID,
-		GiverId:    hug.GiverID,
-		ReceiverId: hug.ReceiverID,
-		CreatedAt:  hug.CreatedAt,
-		Status:     v1.HugStatus(hug.Status),
-		AcceptedAt: hug.AcceptedAt,
+		Id:         hugResult.ID,
+		GiverId:    hugResult.GiverID,
+		ReceiverId: hugResult.ReceiverID,
+		CreatedAt:  hugResult.CreatedAt,
+		Status:     v1.HugStatus(hugResult.Status),
+		HugType:    ht,
+		AcceptedAt: hugResult.AcceptedAt,
 	}
 	if receiver != nil {
 		resp.ReceiverUsername = &receiver.Username
@@ -93,7 +105,8 @@ func (h *HugHandler) AcceptHug(ctx context.Context, req v1.AcceptHugRequestObjec
 		return nil, err
 	}
 
-	return v1.AcceptHug200JSONResponse{Id: hug.ID, GiverId: hug.GiverID, ReceiverId: hug.ReceiverID, CreatedAt: hug.CreatedAt, Status: v1.HugStatus(hug.Status), AcceptedAt: hug.AcceptedAt}, nil
+	ht := v1.HugType(hug.HugType)
+	return v1.AcceptHug200JSONResponse{Id: hug.ID, GiverId: hug.GiverID, ReceiverId: hug.ReceiverID, CreatedAt: hug.CreatedAt, Status: v1.HugStatus(hug.Status), HugType: ht, AcceptedAt: hug.AcceptedAt}, nil
 }
 
 func (h *HugHandler) DeclineHug(ctx context.Context, req v1.DeclineHugRequestObject) (v1.DeclineHugResponseObject, error) {
@@ -254,22 +267,24 @@ func (h *HugHandler) GetCooldown(ctx context.Context, req v1.GetCooldownRequestO
 	userA := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
 	userB := req.UserId
 
-	cd, remaining, canHug, declineRemaining, err := h.svc.GetCooldownInfo(ctx, userA, userB)
+	info, err := h.svc.GetCooldownInfo(ctx, userA, userB)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := v1.GetCooldown200JSONResponse{
-		UserAId:          cd.UserAID,
-		UserBId:          cd.UserBID,
-		CooldownSeconds:  int(cd.CooldownSeconds),
-		RemainingSeconds: int(remaining),
-		CanHug:           canHug,
+		UserAId:                info.Cooldown.UserAID,
+		UserBId:                info.Cooldown.UserBID,
+		CooldownSeconds:        int(info.Cooldown.CooldownSeconds),
+		RemainingSeconds:       int(info.RemainingSeconds),
+		CanHug:                 info.CanHug,
+		EffectiveCooldownSeconds: int(info.EffectiveCooldown),
+		IntimacyReductionPct:   info.IntimacyReductionPct,
 	}
-	if declineRemaining > 0 {
-		dr := int(declineRemaining)
+	if info.DeclineRemaining > 0 {
+		dr := int(info.DeclineRemaining)
 		resp.DeclineCooldownRemaining = &dr
-		if dr > int(remaining) {
+		if dr > int(info.RemainingSeconds) {
 			resp.RemainingSeconds = dr
 		}
 	}

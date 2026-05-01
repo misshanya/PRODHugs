@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -56,6 +58,7 @@ const (
 	HUGEXPIRED            ErrorCode = "HUG_EXPIRED"
 	HUGNOTFOUND           ErrorCode = "HUG_NOT_FOUND"
 	HUGNOTPENDING         ErrorCode = "HUG_NOT_PENDING"
+	HUGTYPELOCKED         ErrorCode = "HUG_TYPE_LOCKED"
 	INSUFFICIENTBALANCE   ErrorCode = "INSUFFICIENT_BALANCE"
 	INVALIDCREDENTIALS    ErrorCode = "INVALID_CREDENTIALS"
 	INVALIDTELEGRAMID     ErrorCode = "INVALID_TELEGRAM_ID"
@@ -91,6 +94,8 @@ func (e ErrorCode) Valid() bool {
 	case HUGNOTFOUND:
 		return true
 	case HUGNOTPENDING:
+		return true
+	case HUGTYPELOCKED:
 		return true
 	case INSUFFICIENTBALANCE:
 		return true
@@ -168,6 +173,33 @@ func (e HugStatus) Valid() bool {
 	}
 }
 
+// Defines values for HugType.
+const (
+	Bear     HugType = "bear"
+	Group    HugType = "group"
+	Soul     HugType = "soul"
+	Standard HugType = "standard"
+	Warm     HugType = "warm"
+)
+
+// Valid indicates whether the value is a known member of the HugType enum.
+func (e HugType) Valid() bool {
+	switch e {
+	case Bear:
+		return true
+	case Group:
+		return true
+	case Soul:
+		return true
+	case Standard:
+		return true
+	case Warm:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UserRole.
 const (
 	UserRoleAdmin UserRole = "admin"
@@ -235,11 +267,22 @@ type BuySlotResponse struct {
 	Slots      HugSlotInfo `json:"slots"`
 }
 
+// ConnectionItem defines model for ConnectionItem.
+type ConnectionItem struct {
+	DisplayName *string            `json:"display_name,omitempty"`
+	Gender      *Gender            `json:"gender,omitempty"`
+	Intimacy    IntimacyInfo       `json:"intimacy"`
+	UserId      openapi_types.UUID `json:"user_id"`
+	Username    string             `json:"username"`
+}
+
 // CooldownInfo defines model for CooldownInfo.
 type CooldownInfo struct {
 	CanHug                   bool               `json:"can_hug"`
 	CooldownSeconds          int                `json:"cooldown_seconds"`
 	DeclineCooldownRemaining *int               `json:"decline_cooldown_remaining,omitempty"`
+	EffectiveCooldownSeconds int                `json:"effective_cooldown_seconds"`
+	IntimacyReductionPct     int                `json:"intimacy_reduction_pct"`
 	RemainingSeconds         int                `json:"remaining_seconds"`
 	UserAId                  openapi_types.UUID `json:"user_a_id"`
 	UserBId                  openapi_types.UUID `json:"user_b_id"`
@@ -270,6 +313,7 @@ type Hug struct {
 	AcceptedAt       *time.Time         `json:"accepted_at,omitempty"`
 	CreatedAt        time.Time          `json:"created_at"`
 	GiverId          openapi_types.UUID `json:"giver_id"`
+	HugType          HugType            `json:"hug_type"`
 	Id               openapi_types.UUID `json:"id"`
 	ReceiverGender   *Gender            `json:"receiver_gender,omitempty"`
 	ReceiverId       openapi_types.UUID `json:"receiver_id"`
@@ -293,6 +337,7 @@ type HugFeedItem struct {
 	GiverGender         *Gender            `json:"giver_gender,omitempty"`
 	GiverId             openapi_types.UUID `json:"giver_id"`
 	GiverUsername       string             `json:"giver_username"`
+	HugType             HugType            `json:"hug_type"`
 	Id                  openapi_types.UUID `json:"id"`
 	ReceiverDisplayName *string            `json:"receiver_display_name,omitempty"`
 	ReceiverId          openapi_types.UUID `json:"receiver_id"`
@@ -307,9 +352,36 @@ type HugSlotInfo struct {
 	UsedSlots    int  `json:"used_slots"`
 }
 
+// HugType defines model for HugType.
+type HugType string
+
 // InboxCount defines model for InboxCount.
 type InboxCount struct {
 	Count int `json:"count"`
+}
+
+// IntimacyInfo defines model for IntimacyInfo.
+type IntimacyInfo struct {
+	AvailableHugTypes    []HugType `json:"available_hug_types"`
+	BonusCoins           int       `json:"bonus_coins"`
+	CooldownReductionPct int       `json:"cooldown_reduction_pct"`
+	NextTierAt           *int      `json:"next_tier_at,omitempty"`
+	RawScore             int       `json:"raw_score"`
+	Tier                 int       `json:"tier"`
+	TierName             string    `json:"tier_name"`
+}
+
+// IntimacyLeaderboardEntry defines model for IntimacyLeaderboardEntry.
+type IntimacyLeaderboardEntry struct {
+	RawScore         int                `json:"raw_score"`
+	Tier             int                `json:"tier"`
+	TierName         string             `json:"tier_name"`
+	UserADisplayName *string            `json:"user_a_display_name,omitempty"`
+	UserAId          openapi_types.UUID `json:"user_a_id"`
+	UserAUsername    string             `json:"user_a_username"`
+	UserBDisplayName *string            `json:"user_b_display_name,omitempty"`
+	UserBId          openapi_types.UUID `json:"user_b_id"`
+	UserBUsername    string             `json:"user_b_username"`
 }
 
 // LeaderboardEntry defines model for LeaderboardEntry.
@@ -381,6 +453,7 @@ type UserProfile struct {
 	HugsGiven      int                `json:"hugs_given"`
 	HugsReceived   int                `json:"hugs_received"`
 	Id             openapi_types.UUID `json:"id"`
+	Intimacy       *IntimacyInfo      `json:"intimacy,omitempty"`
 	IsBlocked      *bool              `json:"is_blocked,omitempty"`
 	MutualGiven    *int               `json:"mutual_given,omitempty"`
 	MutualReceived *int               `json:"mutual_received,omitempty"`
@@ -480,6 +553,23 @@ type GetHugsFeedParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// SuggestHugJSONBody defines parameters for SuggestHug.
+type SuggestHugJSONBody struct {
+	HugType *HugType `json:"hug_type,omitempty"`
+}
+
+// GetConnectionsParams defines parameters for GetConnections.
+type GetConnectionsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetIntimacyLeaderboardParams defines parameters for GetIntimacyLeaderboard.
+type GetIntimacyLeaderboardParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // GetLeaderboardParams defines parameters for GetLeaderboard.
 type GetLeaderboardParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -529,6 +619,9 @@ type RegisterUserJSONRequestBody RegisterUserJSONBody
 
 // PollTelegramLoginJSONRequestBody defines body for PollTelegramLogin for application/json ContentType.
 type PollTelegramLoginJSONRequestBody PollTelegramLoginJSONBody
+
+// SuggestHugJSONRequestBody defines body for SuggestHug for application/json ContentType.
+type SuggestHugJSONRequestBody SuggestHugJSONBody
 
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody ChangePasswordJSONBody
@@ -637,6 +730,15 @@ type ServerInterface interface {
 	// Suggest a hug to a user
 	// (POST /hugs/{userId})
 	SuggestHug(ctx echo.Context, userId openapi_types.UUID) error
+	// Get current user's connections sorted by intimacy
+	// (GET /intimacy/connections)
+	GetConnections(ctx echo.Context, params GetConnectionsParams) error
+	// Get public intimacy leaderboard (top pairs)
+	// (GET /intimacy/leaderboard)
+	GetIntimacyLeaderboard(ctx echo.Context, params GetIntimacyLeaderboardParams) error
+	// Get intimacy info between current user and target
+	// (GET /intimacy/{userId})
+	GetPairIntimacy(ctx echo.Context, userId openapi_types.UUID) error
 	// Get leaderboard
 	// (GET /leaderboard)
 	GetLeaderboard(ctx echo.Context, params GetLeaderboardParams) error
@@ -1177,6 +1279,78 @@ func (w *ServerInterfaceWrapper) SuggestHug(ctx echo.Context) error {
 	return err
 }
 
+// GetConnections converts echo context to params.
+func (w *ServerInterfaceWrapper) GetConnections(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetConnectionsParams
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", ctx.QueryParams(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter limit: %s", err))
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", ctx.QueryParams(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter offset: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetConnections(ctx, params)
+	return err
+}
+
+// GetIntimacyLeaderboard converts echo context to params.
+func (w *ServerInterfaceWrapper) GetIntimacyLeaderboard(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetIntimacyLeaderboardParams
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", ctx.QueryParams(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter limit: %s", err))
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", ctx.QueryParams(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter offset: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetIntimacyLeaderboard(ctx, params)
+	return err
+}
+
+// GetPairIntimacy converts echo context to params.
+func (w *ServerInterfaceWrapper) GetPairIntimacy(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", ctx.Param("userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter userId: %s", err))
+	}
+
+	ctx.Set(BearerAuthScopes, []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetPairIntimacy(ctx, userId)
+	return err
+}
+
 // GetLeaderboard converts echo context to params.
 func (w *ServerInterfaceWrapper) GetLeaderboard(ctx echo.Context) error {
 	var err error
@@ -1428,6 +1602,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/hugs/:hugId/cancel", wrapper.CancelHug)
 	router.POST(baseURL+"/hugs/:hugId/decline", wrapper.DeclineHug)
 	router.POST(baseURL+"/hugs/:userId", wrapper.SuggestHug)
+	router.GET(baseURL+"/intimacy/connections", wrapper.GetConnections)
+	router.GET(baseURL+"/intimacy/leaderboard", wrapper.GetIntimacyLeaderboard)
+	router.GET(baseURL+"/intimacy/:userId", wrapper.GetPairIntimacy)
 	router.GET(baseURL+"/leaderboard", wrapper.GetLeaderboard)
 	router.GET(baseURL+"/ping", wrapper.GetPing)
 	router.GET(baseURL+"/users/me", wrapper.GetCurrentUser)
@@ -2708,6 +2885,7 @@ func (response DeclineHug410JSONResponse) VisitDeclineHugResponse(w http.Respons
 
 type SuggestHugRequestObject struct {
 	UserId openapi_types.UUID `json:"userId"`
+	Body   *SuggestHugJSONRequestBody
 }
 
 type SuggestHugResponseObject interface {
@@ -2764,6 +2942,84 @@ type SuggestHug429JSONResponse struct{ TooManyRequestsJSONResponse }
 func (response SuggestHug429JSONResponse) VisitSuggestHugResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(429)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetConnectionsRequestObject struct {
+	Params GetConnectionsParams
+}
+
+type GetConnectionsResponseObject interface {
+	VisitGetConnectionsResponse(w http.ResponseWriter) error
+}
+
+type GetConnections200JSONResponse []ConnectionItem
+
+func (response GetConnections200JSONResponse) VisitGetConnectionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetConnections401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetConnections401JSONResponse) VisitGetConnectionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetIntimacyLeaderboardRequestObject struct {
+	Params GetIntimacyLeaderboardParams
+}
+
+type GetIntimacyLeaderboardResponseObject interface {
+	VisitGetIntimacyLeaderboardResponse(w http.ResponseWriter) error
+}
+
+type GetIntimacyLeaderboard200JSONResponse []IntimacyLeaderboardEntry
+
+func (response GetIntimacyLeaderboard200JSONResponse) VisitGetIntimacyLeaderboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetIntimacyLeaderboard401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetIntimacyLeaderboard401JSONResponse) VisitGetIntimacyLeaderboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPairIntimacyRequestObject struct {
+	UserId openapi_types.UUID `json:"userId"`
+}
+
+type GetPairIntimacyResponseObject interface {
+	VisitGetPairIntimacyResponse(w http.ResponseWriter) error
+}
+
+type GetPairIntimacy200JSONResponse IntimacyInfo
+
+func (response GetPairIntimacy200JSONResponse) VisitGetPairIntimacyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPairIntimacy401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetPairIntimacy401JSONResponse) VisitGetPairIntimacyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -3232,6 +3488,15 @@ type StrictServerInterface interface {
 	// Suggest a hug to a user
 	// (POST /hugs/{userId})
 	SuggestHug(ctx context.Context, request SuggestHugRequestObject) (SuggestHugResponseObject, error)
+	// Get current user's connections sorted by intimacy
+	// (GET /intimacy/connections)
+	GetConnections(ctx context.Context, request GetConnectionsRequestObject) (GetConnectionsResponseObject, error)
+	// Get public intimacy leaderboard (top pairs)
+	// (GET /intimacy/leaderboard)
+	GetIntimacyLeaderboard(ctx context.Context, request GetIntimacyLeaderboardRequestObject) (GetIntimacyLeaderboardResponseObject, error)
+	// Get intimacy info between current user and target
+	// (GET /intimacy/{userId})
+	GetPairIntimacy(ctx context.Context, request GetPairIntimacyRequestObject) (GetPairIntimacyResponseObject, error)
 	// Get leaderboard
 	// (GET /leaderboard)
 	GetLeaderboard(ctx context.Context, request GetLeaderboardRequestObject) (GetLeaderboardResponseObject, error)
@@ -4106,6 +4371,15 @@ func (sh *strictHandler) SuggestHug(ctx echo.Context, userId openapi_types.UUID)
 
 	request.UserId = userId
 
+	var body SuggestHugJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			return err
+		}
+	} else {
+		request.Body = &body
+	}
+
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.SuggestHug(ctx.Request().Context(), request.(SuggestHugRequestObject))
 	}
@@ -4119,6 +4393,81 @@ func (sh *strictHandler) SuggestHug(ctx echo.Context, userId openapi_types.UUID)
 		return err
 	} else if validResponse, ok := response.(SuggestHugResponseObject); ok {
 		return validResponse.VisitSuggestHugResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetConnections operation middleware
+func (sh *strictHandler) GetConnections(ctx echo.Context, params GetConnectionsParams) error {
+	var request GetConnectionsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetConnections(ctx.Request().Context(), request.(GetConnectionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetConnections")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetConnectionsResponseObject); ok {
+		return validResponse.VisitGetConnectionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetIntimacyLeaderboard operation middleware
+func (sh *strictHandler) GetIntimacyLeaderboard(ctx echo.Context, params GetIntimacyLeaderboardParams) error {
+	var request GetIntimacyLeaderboardRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetIntimacyLeaderboard(ctx.Request().Context(), request.(GetIntimacyLeaderboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetIntimacyLeaderboard")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetIntimacyLeaderboardResponseObject); ok {
+		return validResponse.VisitGetIntimacyLeaderboardResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetPairIntimacy operation middleware
+func (sh *strictHandler) GetPairIntimacy(ctx echo.Context, userId openapi_types.UUID) error {
+	var request GetPairIntimacyRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPairIntimacy(ctx.Request().Context(), request.(GetPairIntimacyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPairIntimacy")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetPairIntimacyResponseObject); ok {
+		return validResponse.VisitGetPairIntimacyResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -4426,80 +4775,87 @@ func (sh *strictHandler) GetUserProfile(ctx echo.Context, userId openapi_types.U
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"H4sIAAAAAAAC/+xde3PbOJL/KijeVu3MFR3ZTnZr1v/JsmzrRiO7LHsze7kcCyIhChsK4ABgHE1K330L",
+	"D74kkCIlS3ac/GVLBIFG9w/9ABqtr45P5zEliAjunH11GOIxJRypD+cwuEN/JIgL+cmnRCCi/oVxHGEf",
+	"CkxJ59+cEvkd92doDuV/f2Fo6pw5/9XJu+7op7zTZ4wyZ7lcuk6AuM9wLDtxzuRYIB1s6To9SqYR9g8w",
+	"sJ+OtHSdS8omOAgQ2f+w02yopetcUYL2P+Qd4jRhPgLoS4wZCuTIIyouaUKC/Y8+ogLooZauc0/pb5As",
+	"jMD5AeYOBQIRnmMBOsCnNAroIwHQF/gzkgQ9EJiIGWX4T3QAXpRGk4/NG7LDbjDHZCyg5krMaIyYwHpB",
+	"TiAhKPASjpj6LBYxcs4cTAQKEZPzEFTAqLrB0nUY+iNR0j/7UGrtlnv/6KYv08m/kV4eirQHjpiNsggS",
+	"H9mJMh1Dxc4pZXP5nxNAgY4EniPHdUgSRXASIedMsARlQ3PBMAllFz5DUOzYR4B5HMGFR+BcEbrxhRCR",
+	"QE+2TspXutXSdXBQIi5JcOBYuo0gF95nzLHYaTqMRmoaiCRzKUwpN8d1oBRSQXz5C7JBOveVhyu4UHRn",
+	"zc1QbiZkKzYSMbszxmMdHoJ+0krVStQmDivIrWNXdmk6sFF0nkOyTAyc00Qv7XWoyt68RnJcISd90U27",
+	"t5IUUf8TCuxLqAHEXyykt4dWYdZWjiWLcURFNbIIevRqlQ+PqFaldRO+TkI5zIBM6RrFugO3NJKN1B4l",
+	"BPlSww8Emq9Tun9ZEYHn0F9semNg2unZtsF8G0HnC6Ig7YxEOwO1WVZ0rS8PSLxZEhYGnlAaIagcqNSi",
+	"exz5lAQVxjFAfoQJ8rLWDM0hJpJ6a3s0nSLlIXjN+k9n5zEUJAoJXuxXKJps6PouFRdhG+l4k+31F8wF",
+	"pruxcNZGuptJp5ZplRyyoeEC4mhxhx4hC6pXP4wYgsHC8yOI59pzWwdHnb7frD4EQ/CTF8BFE4fKDFV+",
+	"bbPq0I7iOuRpgBr5mD3ZcOk6c8Q5DBssTtVz3r6Spp6hIPUx3ve7v3q33fH4/c3dheM6D+P+ndcd3vW7",
+	"F//y+r8Pxvdjx3UGo392h4MLr3fXv+iP7gfd4ThtO7q59y5vHkby5V53JD9eP1x54/7wUn5zczO8uHk/",
+	"8rq9+8E/+6qr8cPl5aA36I/uvfPusDvqya/f392MrtYIOe+ORv1Cz+fdkde9+G0wclwnJfK6O/Zu+6OL",
+	"wehKjuy4jhy/SFb62bQy3/R/vx3cqc4v+r3hYNT31okt9Jsz47fu7954eHM/9u763d51P6d2eNP7VX1M",
+	"+XXfH/av7rq/eQP5beGTd9/9tT8qfje8uRqMvMvuYNhPab7/123fy/o0LLjoD/v3fcMFm1N4lRmZVMZz",
+	"qJy9KVL/2N651mp4ZSn6Porb+i/b+Dwh/tzcXs2S0NNfbnQA7mWz5i4PQz5SlLQ109mLbQeqsb1S4UCR",
+	"8KIcY0QC+dBVWzwREkh2b2yg/DfdBlDa20dRhAKLuG3+WyaC8mwyKgp83+jhXSdhV9oLLBZ2v8mv1t4S",
+	"IlzAedwUPasxRPa+a4apoPASoaCCuq0R3N4f3ApurZZLuBloB1hRrTmzjyXVCvcrfLON0HJNZOGIJeL5",
+	"IjwZlHg+1Tuz5c2lHuUC0CkQMwRkWyDbAkyATzHhLpDcBHgKoABz+KV6p2FtVymLpKxualD93LrrlIZV",
+	"hVcrWHFv0JYqNi4gCSCTfJ8gyCT7GU3kGn6EbC61EE0iq+EakAn90kv1SUM1s+Y6VemJUly1bh8/Q6zY",
+	"7KU4UF9jgea8xVoyo0LG4ELtrVGScE+J1i6aQrCzMShR0BJYRgKiZuEVwxj46HGfMlSloLWqsj/xmi29",
+	"fAzTYfHtygm6Vo6XGVYnxSGCAWITClnQJ4It1iW6l7lnIV9rJbhFqAjrVb2JA7ejZNIyaG25s1AMVWFR",
+	"yxaD19Wu3Xos2eCwGQat2TNLQu5Ji0Hs8FDPjQEJKnYPIPlkFZnWrbKHXfc3d97rKZBSmvPqBM1sbMy/",
+	"SURIMQmvk5BXbwKks22kStMub7V3LEMZi1bdedPQTLvarlnoeELfsqGED+eYvYQgqZVHZ3PgNnhtuSiV",
+	"n/EjXtgKY9tsXrZ0zjfI0X48s8r+OfwyRCQUM+fs7an7bCcvrU8BBYpQyOB8ldGYiL+/axQN7HiOWMXy",
+	"IebiuU5O2vH6qU9Wqzhyy+gUR6jlafveufUE/ktT+7TliRbm3kQftdpPBOaJSGBUNwfTon4WppFydFr6",
+	"aZVQauLA7XSIX+uJlXy2CrdMukfITxgWi7Hkv8kVQ5Ah1k2kPvyq4nLELlP5/s/7e8ckuShJqKe5wGdC",
+	"xDpNBpvQubyjcRtBIbECppSBWRKGmISAihliQCWrgEcsZoBlKT7cBWaFuACSAMiJcOXpC8l1R7qTAHIA",
+	"wRixz9hHoHs7cFznM2Jcj3jy5vjNsWQ3jRGBMXbOnLdvjt+8dVwnhmKmZtxROrYTm+PDECmLLpepyhUa",
+	"BM6Zc4WESpq51Ruxpey60+PjVplGZRXAkc+Q2IwC084ixrWsJMkMxADmAEYmLerd8UnV2svm0ilnM8mX",
+	"3m5+KU+1KwLKOftQhtKH1JItP7oOT+ZzKEMw/SWQrAc/CcSF/EcS8bPqzUiGp0lUtaLRqVY7yqZOORVG",
+	"sTBdPQWa1BfM8CskgGZ6APlMhcMp0TnDs7SzWoY/mHSzGDI4R0K98uGrgyU3/kgQW0gnRGk4R63mVHNA",
+	"rRimMImEc3Z67EoXDM+l23NyLD9hYj65lj08+wB0OuWoYoRil8eWLj/uiJlG4WqecrcWpa5j6RaGmEjP",
+	"FkRY7wFribxgXEmnD8AoMopcKniztiFB0Rq4Ol/ln0Gw1JKKkEDrQFM8u1APH7Q3bIOa1OM5EHS3TlF3",
+	"am8pl9emkGQdD+/WTZkkCGjCDYuPN7O4kId9KFHKN95tfiNLH95G9reIzaHsMVoYlgCocKCMtgQF5Jz6",
+	"WCE6gAJWw6FT8IjjRFRg4iGWYXaaF3hIWCjhndNg0UpDwCDA8hGMbgu2fwojjtzKnMZanWXNVrH7BuUZ",
+	"L5/UeXmuDEzbtQMFBpAoaASvan2Npc1WC+qvXB3+pV5x7Toidar1gUwgeV6l+sSOmcktXk/Rl3ooITp1",
+	"/VXBQsnQAEOOaNWX59+TmItC/n7N8XkBFZX6wWwuHaVbEJuM7YVuP9JbEK/I4O62Hbw8gMndek0YmQE5",
+	"tbJhfJmLYwus92aQhCi3jkFhyjXoz3dKN+He7Ja+Ksi32yd+0RDXRH4n4A5zidhhHUPOHykLmgD7Nm37",
+	"qqBd5EBBk5+c/qI2gdLPv2yKQbJ+Dh9TNc79r076t+0o6fl8JyslE1/1Wimev2xaKw/54csrWitFDqx4",
+	"PYWl8ladlAjE5Ez//wM8+rN79L8fzd/jo394H//7L41C+orMrBdkTFIxfwuLRL7xj81vZOUXnmJVZVLU",
+	"qyoRs44/Q/6noyKSrEcGPdlswypa2dEv5WBXLaRa2D51bFqRBmw7mV7dn8vaNtHVGQzNazjCYgEY4kkk",
+	"toLksixU5H9SaeOZPNVJYUZiLtyIhljxIDb56WWhDtXjl2TWTzYkP1bD5aSxBnMP6xvUKrPiVX0LkJSA",
+	"AE98H3E+TSLHdWYqC1ZRMkbiqEfpJ4zWTzfu0JQhPgPqbj7wdaviwltl1vKF+xP5OZUCbQnjVFv/2H4J",
+	"I0KQcXUH41qI+IZEcikq7nhF7rxx3PXlIXt++b7hkIYhCgBNRAEr0aI5WhSPUq60wcyqZCQJkATAr+4w",
+	"l5x5XC26B44aCA4ICjDnibRzBD0CqDigB30DRhR0DfiUhIBmCUh5/eb/yJrgzeK5N3UtbLYu444xdiXC",
+	"ai3efo1aVXkPa8mOJtgarXBUszpooYmoUMeGbDuNdGj1kirO0pwTjkm4Gc4h5sJsSlnt7Z1pYfbzX9xG",
+	"kVsy0xXx5zzhAkwQ+OXo5PQX4M8gg75cGy6QE4CYAChAhCAXgBIEIiRDD1f9H+AQC50IJj/yGPkYRnkf",
+	"jtsu5C/7BhU+WErv26O3pyVyuYBM6IQ1mJGplJeZB5UaRz9Ql/XmE/WPbJJIhqnbK7xM9F5jr509l5OD",
+	"eS7qNCddESjY0i4dzotpHYkVFIaepLE+hVMbqRTSHO8OJrjOSVF58Nz0cW9eApH2/xDnmJI34A6JhBHZ",
+	"akIFCBCKjyJMPoGHu6FO1AAxjaLU8t3PEPAjjIgAfEaTKAA0RkTZU/l6+pJ6ZYVY+Z3NMA4IFilxefDw",
+	"ZMZrQoWXsGidPRlD1uctqJqWLWdZzsLLDOJKjwpRU8rU/KV2l3zR/DaB2qZlmVJbGqihu5ZLFZgrEJLg",
+	"v2nDtd+KdyVeEiqkupviMGFpAbw8a0EpSFgBRxvIJSOqQX5Lo0j7c7o4AaDTyt5zsJ8en4LHGY4QMGUU",
+	"XHB6fGz0diJmIAUgoFmo5IJ3x29liKzPk+XHd/KjqbPQkdOe0oRYvT9J5jrI9x8hl9C6YXN7E+C+2xD2",
+	"9Ph0l1TurHTHhlRu3a79YucCR1EK5IOlH+R5flLXS6W3sujSrSm5ogv5e1XJw3ne3t5gdZ7lR1Ulipjn",
+	"W8UI9Vup5Ytb69nXfsKYtKpJiRDJuwDiaHHEVKms6jCgF0E8LxTV2icfbbW7bIkGshnQhIO0hNfW8ddp",
+	"A29qte7sDjJR/ARBYQpaGrMk5B1oKtrU4blQ+MY5RCr5aqGdBgnl1zRh0QLMkhCoshc6QVv5LDLSOn0H",
+	"ZjTZOsF8t/UgiUrZbCcLqLIgKACThfqiIJ+0ZkQpn7xKUGldwteQDFeqsWiRePocYHOV7qBy1YcMWXlm",
+	"47CpSwFa78UQ14qxk8Qhg7pmnV0NPugG36VMDXMOeEC5PRSMnMBPqqoL+jlHxWQBuPFlynZQQWKK9G3N",
+	"Gq3LLxEKdr6A9Ld2F5A+HkjFZ5XKGqj3O+RLj0LyDSi+PYceZ2tEZLKcYS4o22REr02rF8jg6yQE6SSe",
+	"y0aa8ZUWLfqQBT5jMqFfNnBZlbQ4CI9tZTSaXH4zKkHOmSdhiLh88Dy+SaqeMPHp3EpUmfedrPjYJgn0",
+	"TH3ZvRmTwigWJqun2hd8niBIjgzodJ3Ddu5SU2WnjrXFIkP75Ky1mJGFx2m7bI5KNaqdJ1PJ7xk8s9UI",
+	"9K8cUCudkARFMjNJqEpInUmyqHbNzpOFKam01xh/paK87SK8pD9OmD+D/NDpXE+YnFUnz/NkASAB+U7h",
+	"iopSMiyI7+ssCaV/rav8Vsuwq55fq0rgmx1r1emL9atVbTC7UU+LHe8g6Fb7aa2R4TrvThpAVv3w0A4w",
+	"0uIGsKgDCiiyAEiXGq7ZplLPvx0AHSDRRgIur9D8nSNO4wMsaMKAjAZtVsgCO1P2uhp3F7rBD+CtAC+r",
+	"F/6d487go5GqK+wp2sE21q81Bds3czWgdW1w2yWxfSaQ1Jj0gu9jDsfBT0bUPx/WBdz7ejnwSYlBO4Bq",
+	"yQhaumWclnjr+NnPJ/H6zfi82VPUEHqiSkHPs9+38pNTDXZJCuxTRYJeQiBZkDzglAl9YpPV/ivDJMrr",
+	"MdfBxFLF+wdcKkubNwDOPY3V6Qsvy+Y5NteSSYT9jAZQQAT4SaRk/ryCmyYHfbcQs5RHr+FgqFwW07ab",
+	"Z1j4bFtKuEgBmCDxiBAppzpAEgABmZSZkmhDBfDUC/87qDW3jVoovAMQEUw6gs8BpCIqFExWynKuHnyl",
+	"Ka0cz+MI5dl8ggI/vemmcgZXamK6Fq3x9LU9nz4hbK22ZzlDS8YziAQxxcQsM33teV6bkdXT6zS7WLAn",
+	"NVZ177ZXVBM7qLAnLq7TKpEr3yVPGd4pVC6uTIXLf0eWH+RMrvjDtU20gik/aaayUxnKHfWCnZISwzeW",
+	"v9AXmguVLw4QShP06H1r92JoFHhbX7ld0W2lvtwyO15bcQ1f4eubSMsxd/tLOqxcNSNbVhwJgYmuY25d",
+	"VnmRjHHa9CWU7iqj9Imr5z93VaQqW5pK4PA1LHZJEZOklrGYga6MxfSuSH1tywiTT2mO+nM4NFl+fKJI",
+	"eYaELM2DPFEf+ibXw8rNjmx8lN0eqTjQU5up2dUWyeLstvI+7nBZflGhxeVkN+uq0TULySxzUyS/UHVg",
+	"J4cg9csHsHBFTWT3zFYlCeTzdPpGohxB5s8q/c2xetyiavsfTkWtlb+/s1j9H9F4tZLIfhKnhc89h8Kf",
+	"yXjueZxujRZTzn2yWCn+s1ptWHrlG+oNyybfUinaAziOaW1iEyge3kiokYslhO35XD9EV3GNrCi4F3mq",
+	"uENiWQkaljUf5z9qVbW9Ufztq1ewDV+cThUkDFdMmueOvwZzwM2spIp43S/7nIpNeWdOB8a48/nEWX5c",
+	"/icAAP//mbT8rXqQAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

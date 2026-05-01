@@ -52,6 +52,7 @@ func (h *HugHandler) GetHugHistory(ctx context.Context, req v1.GetHugHistoryRequ
 
 	result := make(v1.GetHugHistory200JSONResponse, len(hugs))
 	for i, hg := range hugs {
+		ht := v1.HugType(hg.HugType)
 		item := v1.HugFeedItem{
 			Id:                  hg.ID,
 			GiverId:             hg.GiverID,
@@ -60,6 +61,7 @@ func (h *HugHandler) GetHugHistory(ctx context.Context, req v1.GetHugHistoryRequ
 			ReceiverUsername:    hg.ReceiverUsername,
 			GiverDisplayName:    hg.GiverDisplayName,
 			ReceiverDisplayName: hg.ReceiverDisplayName,
+			HugType:             ht,
 			CreatedAt:           hg.CreatedAt,
 		}
 		if hg.GiverGender != nil {
@@ -85,6 +87,7 @@ func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestO
 
 	result := make(v1.GetHugsFeed200JSONResponse, len(items))
 	for i, it := range items {
+		ht := v1.HugType(it.HugType)
 		fi := v1.HugFeedItem{
 			Id:                  it.ID,
 			GiverId:             it.GiverID,
@@ -93,6 +96,7 @@ func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestO
 			ReceiverUsername:    it.ReceiverUsername,
 			GiverDisplayName:    it.GiverDisplayName,
 			ReceiverDisplayName: it.ReceiverDisplayName,
+			HugType:             ht,
 			CreatedAt:           it.CreatedAt,
 		}
 		if it.GiverGender != nil {
@@ -160,7 +164,7 @@ func (h *HugHandler) GetUserProfile(ctx context.Context, req v1.GetUserProfileRe
 		viewerPtr = &viewerID
 	}
 
-	user, stats, bal, mutual, isBlocked, err := h.svc.GetUserProfile(ctx, req.UserId, viewerPtr)
+	user, stats, bal, mutual, isBlocked, intimacy, err := h.svc.GetUserProfile(ctx, req.UserId, viewerPtr)
 	if err != nil {
 		if errors.Is(err, errorz.ErrUserNotFound) {
 			return v1.GetUserProfile404JSONResponse{
@@ -199,6 +203,25 @@ func (h *HugHandler) GetUserProfile(ctx context.Context, req v1.GetUserProfileRe
 	}
 	if isBlocked {
 		resp.IsBlocked = &isBlocked
+	}
+	if intimacy != nil {
+		hugTypes := make([]v1.HugType, len(intimacy.AvailableHugTypes))
+		for i, ht := range intimacy.AvailableHugTypes {
+			hugTypes[i] = v1.HugType(ht)
+		}
+		var nextTierAt *int
+		if intimacy.NextTierAt != nil {
+			nextTierAt = intimacy.NextTierAt
+		}
+		resp.Intimacy = &v1.IntimacyInfo{
+			RawScore:             intimacy.RawScore,
+			Tier:                 intimacy.Tier,
+			TierName:             intimacy.TierName,
+			NextTierAt:           nextTierAt,
+			CooldownReductionPct: intimacy.CooldownReductionPct,
+			AvailableHugTypes:    hugTypes,
+			BonusCoins:           intimacy.BonusCoins,
+		}
 	}
 	return resp, nil
 }

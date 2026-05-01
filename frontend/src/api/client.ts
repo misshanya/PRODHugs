@@ -136,7 +136,8 @@ export const authApi = {
 
 // Hugs
 export const hugsApi = {
-  suggest: (userId: string) => api.post(`/hugs/${userId}`),
+  suggest: (userId: string, hugType?: string) =>
+    api.post(`/hugs/${userId}`, hugType ? { hug_type: hugType } : undefined),
   accept: (hugId: string) => api.post(`/hugs/${hugId}/accept`),
   decline: (hugId: string) => api.post(`/hugs/${hugId}/decline`),
   cancel: (hugId: string) => api.post(`/hugs/${hugId}/cancel`),
@@ -149,6 +150,15 @@ export const hugsApi = {
   getFeed: (limit = 50) => api.get('/hugs/feed', { params: { limit } }),
   getActivity: () => api.get('/hugs/activity'),
   buySlot: () => api.post('/hugs/slots/buy'),
+}
+
+// Intimacy
+export const intimacyApi = {
+  getPairIntimacy: (userId: string) => api.get(`/intimacy/${userId}`),
+  getConnections: (limit = 20, offset = 0) =>
+    api.get('/intimacy/connections', { params: { limit, offset } }),
+  getLeaderboard: (limit = 20, offset = 0) =>
+    api.get('/intimacy/leaderboard', { params: { limit, offset } }),
 }
 
 // Balance

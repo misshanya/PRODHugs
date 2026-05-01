@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { Heart, Clock, Loader2, Hourglass } from 'lucide-vue-next'
+import { Heart, Clock, Loader2, Hourglass, ChevronDown } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
-import { useHugsStore, type CooldownInfo } from '@/stores/hugs'
-import { suggestVerb } from '@/lib/utils'
+import { useHugsStore, type CooldownInfo, type IntimacyInfo, type HugType } from '@/stores/hugs'
+import { suggestVerb, hugTypeLabel } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const props = defineProps<{
   userId: string
@@ -23,7 +29,14 @@ const loading = ref(false)
 const cooldown = ref<CooldownInfo | null>(null)
 const remaining = ref(0)
 const btnRef = ref<HTMLButtonElement | null>(null)
+const intimacy = ref<IntimacyInfo | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
+
+const availableHugTypes = computed<HugType[]>(() => {
+  if (!intimacy.value) return ['standard']
+  return intimacy.value.available_hug_types
+})
+const hasMultipleTypes = computed(() => availableHugTypes.value.length > 1)
 
 // Pending state computeds
 const allSlotsFull = computed(
@@ -51,6 +64,11 @@ async function loadCooldown() {
   } catch {
     // Ignore
   }
+  try {
+    intimacy.value = await hugsStore.getPairIntimacy(props.userId)
+  } catch {
+    // Ignore — defaults to standard only
+  }
 }
 
 function startTimer() {
@@ -68,12 +86,12 @@ function startTimer() {
 
 let suggesting = false
 
-async function suggest() {
+async function suggest(hugType?: string) {
   if (suggesting || loading.value || remaining.value > 0 || allSlotsFull.value) return
   suggesting = true
   loading.value = true
   try {
-    await hugsStore.suggestHug(props.userId)
+    await hugsStore.suggestHug(props.userId, hugType)
     toast.success(`Ты ${suggestVerb(auth.user?.gender)} обнимашку ${props.username}!`)
     emit('hugged')
   } catch (e: unknown) {
@@ -105,8 +123,10 @@ watch(() => hugsStore.cooldownRefreshes[props.userId], (newVal, oldVal) => {
 
 <template>
   <div ref="btnRef" class="relative inline-flex">
+    <!-- Single button when only standard type or disabled state -->
     <Button
-      @click="suggest"
+      v-if="!hasMultipleTypes || isDisabled"
+      @click="suggest()"
       :disabled="isDisabled"
       :size="size ?? 'default'"
       :variant="buttonVariant"
@@ -120,7 +140,43 @@ watch(() => hugsStore.cooldownRefreshes[props.userId], (newVal, oldVal) => {
       <span v-else-if="isPendingWithThisUser">Ожидание...</span>
       <span v-else-if="hasIncomingPending">Ждет твоего ответа</span>
       <span v-else-if="allSlotsFull">Все слоты заняты</span>
-      <span v-else>Предложить обняться</span>
+      <span v-else>Обняться</span>
     </Button>
+
+    <!-- Split button with dropdown when multiple types are unlocked -->
+    <div v-else class="inline-flex">
+      <Button
+        @click="suggest()"
+        :disabled="isDisabled"
+        :size="size ?? 'default'"
+        :variant="buttonVariant"
+        class="rounded-l-[21px] rounded-r-none"
+      >
+        <Loader2 v-if="loading" class="size-4 animate-spin" />
+        <Heart v-else class="size-4" />
+        <span>Обняться</span>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            :disabled="isDisabled"
+            :size="size ?? 'default'"
+            :variant="buttonVariant"
+            class="rounded-l-none rounded-r-[21px] border-l border-background/20 px-1.5"
+          >
+            <ChevronDown class="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-40">
+          <DropdownMenuItem
+            v-for="ht in availableHugTypes"
+            :key="ht"
+            @click="suggest(ht)"
+          >
+            {{ hugTypeLabel(ht) }}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   </div>
 </template>

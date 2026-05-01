@@ -218,6 +218,51 @@ watch(userId, () => {
         </div>
       </div>
 
+      <!-- Intimacy section -->
+      <Card v-if="!isMe && !isBlocked && profile.intimacy">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-base">
+            Близость
+          </CardTitle>
+          <CardDescription>
+            {{ profile.intimacy.tier_name }} (уровень {{ profile.intimacy.tier }})
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <!-- Progress bar to next tier -->
+          <div v-if="profile.intimacy.next_tier_at != null">
+            <div class="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>{{ profile.intimacy.raw_score }} очков</span>
+              <span>{{ profile.intimacy.next_tier_at }}</span>
+            </div>
+            <div class="h-2 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                class="h-full rounded-full bg-prod-yellow transition-all"
+                :style="{
+                  width:
+                    Math.min(
+                      (profile.intimacy.raw_score / profile.intimacy.next_tier_at!) * 100,
+                      100,
+                    ) + '%',
+                }"
+              />
+            </div>
+          </div>
+          <div v-else class="text-xs text-muted-foreground">
+            {{ profile.intimacy.raw_score }} очков (максимальный уровень)
+          </div>
+          <!-- Bonuses summary -->
+          <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span v-if="profile.intimacy.cooldown_reduction_pct > 0">
+              Кулдаун -{{ profile.intimacy.cooldown_reduction_pct }}%
+            </span>
+            <span v-if="profile.intimacy.bonus_coins > 0">
+              +{{ profile.intimacy.bonus_coins }} бонусных монет за обнимашку
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       <!-- Blocked notice -->
       <div
         v-if="isBlocked"
@@ -234,7 +279,14 @@ watch(userId, () => {
             Кулдаун
           </CardTitle>
           <CardDescription>
-            Текущий кулдаун: {{ Math.floor(cooldown.cooldown_seconds / 60) }} мин.
+            <template v-if="cooldown.intimacy_reduction_pct > 0">
+              Эффективный: {{ Math.floor(cooldown.effective_cooldown_seconds / 60) }} мин.
+              (базовый {{ Math.floor(cooldown.cooldown_seconds / 60) }} мин.,
+              -{{ cooldown.intimacy_reduction_pct }}% от близости)
+            </template>
+            <template v-else>
+              Текущий кулдаун: {{ Math.floor(cooldown.cooldown_seconds / 60) }} мин.
+            </template>
           </CardDescription>
         </CardHeader>
         <CardContent>

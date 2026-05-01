@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { hugsApi, balanceApi, leaderboardApi, usersApi } from '@/api/client'
+import { hugsApi, balanceApi, leaderboardApi, usersApi, intimacyApi } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+
+export type HugType = 'standard' | 'bear' | 'group' | 'warm' | 'soul'
 
 export interface HugFeedItem {
   id: string
@@ -12,7 +14,38 @@ export interface HugFeedItem {
   giver_gender?: string | null
   giver_display_name?: string | null
   receiver_display_name?: string | null
+  hug_type: HugType
   created_at: string
+}
+
+export interface IntimacyInfo {
+  raw_score: number
+  tier: number
+  tier_name: string
+  next_tier_at?: number | null
+  cooldown_reduction_pct: number
+  available_hug_types: HugType[]
+  bonus_coins: number
+}
+
+export interface ConnectionItem {
+  user_id: string
+  username: string
+  gender?: string | null
+  display_name?: string | null
+  intimacy: IntimacyInfo
+}
+
+export interface IntimacyLeaderboardEntry {
+  user_a_id: string
+  user_a_username: string
+  user_a_display_name?: string | null
+  user_b_id: string
+  user_b_username: string
+  user_b_display_name?: string | null
+  raw_score: number
+  tier: number
+  tier_name: string
 }
 
 export interface PendingHugInboxItem {
@@ -66,6 +99,7 @@ export interface UserProfile {
   mutual_given?: number
   mutual_received?: number
   is_blocked?: boolean
+  intimacy?: IntimacyInfo | null
 }
 
 export interface BlockedUser {
@@ -82,6 +116,8 @@ export interface CooldownInfo {
   cooldown_seconds: number
   remaining_seconds: number
   can_hug: boolean
+  effective_cooldown_seconds: number
+  intimacy_reduction_pct: number
 }
 
 export interface Balance {
@@ -138,8 +174,8 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data
   }
 
-  async function suggestHug(userId: string) {
-    const res = await hugsApi.suggest(userId)
+  async function suggestHug(userId: string, hugType?: string) {
+    const res = await hugsApi.suggest(userId, hugType)
     // The suggest endpoint returns receiver_username/receiver_gender directly.
     outgoingHugs.value.unshift({
       id: res.data.id,
@@ -172,6 +208,7 @@ export const useHugsStore = defineStore('hugs', () => {
         giver_gender: inboxItem.giver_gender,
         giver_display_name: inboxItem.giver_display_name,
         receiver_display_name: auth.user?.display_name ?? null,
+        hug_type: (res.data.hug_type as HugType) || 'standard',
         created_at: new Date().toISOString(),
       }
       history.value.unshift(historyItem)
@@ -292,6 +329,24 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data || []
   }
 
+  async function getPairIntimacy(userId: string): Promise<IntimacyInfo> {
+    const res = await intimacyApi.getPairIntimacy(userId)
+    return res.data
+  }
+
+  async function getConnections(limit = 20, offset = 0): Promise<ConnectionItem[]> {
+    const res = await intimacyApi.getConnections(limit, offset)
+    return res.data || []
+  }
+
+  async function getIntimacyLeaderboard(
+    limit = 20,
+    offset = 0,
+  ): Promise<IntimacyLeaderboardEntry[]> {
+    const res = await intimacyApi.getLeaderboard(limit, offset)
+    return res.data || []
+  }
+
   return {
     balance,
     feed,
@@ -327,5 +382,8 @@ export const useHugsStore = defineStore('hugs', () => {
     blockUser,
     unblockUser,
     getBlockedUsers,
+    getPairIntimacy,
+    getConnections,
+    getIntimacyLeaderboard,
   }
 })

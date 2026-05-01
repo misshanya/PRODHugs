@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
-import { LayoutDashboard, Users, Newspaper, Trophy, Shield } from 'lucide-vue-next'
+import { LayoutDashboard, Users, Newspaper, Trophy, Shield, Heart } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore } from '@/stores/hugs'
 
@@ -15,6 +15,7 @@ const baseItems = [
   { title: 'Главная', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Люди', url: '/users', icon: Users },
   { title: 'Лента', url: '/feed', icon: Newspaper },
+  { title: 'Связи', url: '/connections', icon: Heart },
   { title: 'Рейтинг', url: '/leaderboard', icon: Trophy },
 ]
 
@@ -35,7 +36,14 @@ function isActive(url: string) {
     class="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-sm md:hidden"
     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
   >
-    <div class="grid h-14" :class="items.length === 5 ? 'grid-cols-5' : 'grid-cols-4'">
+    <div
+      class="grid h-14"
+      :class="{
+        'grid-cols-4': items.length === 4,
+        'grid-cols-5': items.length === 5,
+        'grid-cols-6': items.length >= 6,
+      }"
+    >
       <RouterLink
         v-for="item in items"
         :key="item.url"

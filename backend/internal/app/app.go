@@ -34,6 +34,7 @@ import (
 	blockrepo "go-service-template/internal/repository/block"
 	dailyrewardrepo "go-service-template/internal/repository/daily_reward"
 	hugrepo "go-service-template/internal/repository/hug"
+	intimacyrepo "go-service-template/internal/repository/intimacy"
 	tokenrepo "go-service-template/internal/repository/token"
 	userrepo "go-service-template/internal/repository/user"
 
@@ -89,6 +90,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	dailyRewardRepo := dailyrewardrepo.New(a.dbPool)
 	blockRepoInst := blockrepo.New(a.dbPool)
 	refreshTokenRepo := tokenrepo.New(a.dbPool)
+	intimacyRepoInst := intimacyrepo.New(a.dbPool)
 
 	// Transactor for database transactions
 	transactor := repository.NewTransactor(a.dbPool)
@@ -100,7 +102,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 		userservice.WithBalanceRepo(balanceRepo),
 		userservice.WithRefreshTokenRepo(refreshTokenRepo),
 	)
-	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, transactor)
+	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, intimacyRepoInst, transactor)
 
 	// Telegram: client, bot, notifier, link store & login store
 	tgClient := telegram.New(a.cfg.Telegram.BotToken)
@@ -191,6 +193,22 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 			case <-ticker.C:
 				if err := hugService.ExpirePendingHugs(jobCtx); err != nil {
 					a.l.Error("failed to expire pending hugs", "error", err)
+				}
+			}
+		}
+	}()
+
+	// Apply intimacy decay every hour.
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-jobCtx.Done():
+				return
+			case <-ticker.C:
+				if err := hugService.ApplyIntimacyDecay(jobCtx); err != nil {
+					a.l.Error("failed to apply intimacy decay", "error", err)
 				}
 			}
 		}

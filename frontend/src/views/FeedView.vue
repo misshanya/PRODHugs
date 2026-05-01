@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Wifi, WifiOff, ChevronUp } from 'lucide-vue-next'
 import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
 import { useWebSocket } from '@/composables/useWebSocket'
-import { hugVerb } from '@/lib/utils'
+import { hugVerb, hugTypeTag } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
@@ -274,6 +274,12 @@ onUnmounted(() => {
               <RouterLink :to="`/user/${item.receiver_id}`" class="font-medium hover:underline">{{
                 item.receiver_display_name || item.receiver_username
               }}</RouterLink>
+              <span
+                v-if="hugTypeTag(item.hug_type)"
+                class="ml-1.5 inline-block rounded-full bg-prod-yellow/15 px-1.5 py-0.5 text-[10px] font-medium text-prod-yellow"
+              >
+                {{ hugTypeTag(item.hug_type) }}
+              </span>
             </div>
             <span class="shrink-0 text-xs text-muted-foreground tabular-nums">
               {{ timeAgo(item.created_at) }}

@@ -16,4 +16,5 @@ var (
 	ErrHugExpired              = errors.New("hug suggestion has expired")
 	ErrDeclineCooldownActive   = errors.New("decline cooldown is active")
 	ErrMaxSlotsReached         = errors.New("maximum hug slots reached")
+	ErrHugTypeLocked           = errors.New("hug type not unlocked for this pair")
 )
