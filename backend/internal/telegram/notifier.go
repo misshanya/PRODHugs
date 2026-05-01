@@ -50,18 +50,14 @@ func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID
 		return
 	}
 	name := displayName(giver)
-	typeLabel := hugTypeDescription(hugType)
+	phrase := hugTypeSuggestionPhrase(hugType)
 
 	if n.bot != nil {
-		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name, typeLabel)
+		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name, phrase)
 		return
 	}
 	// Fallback: plain text without buttons
-	if typeLabel != "" {
-		n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять (%s)!", name, typeLabel))
-	} else {
-		n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", name))
-	}
+	n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> %s!", name, phrase))
 }
 
 // NotifyHugCompleted notifies both participants that the hug was accepted.
@@ -83,11 +79,7 @@ func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID u
 		coinText = fmt.Sprintf("+%d (бонус +%d)", totalCoins, bonusCoins)
 	}
 
-	typeLabel := hugTypeDescription(hugType)
-	hugWord := "объятие"
-	if typeLabel != "" {
-		hugWord = typeLabel + " объятие"
-	}
+	hugWord := hugTypeCompletedNoun(hugType)
 
 	receiverVerb := genderVerb(receiver.Gender, "принял", "приняла", "принял(а)")
 	n.sendToUser(ctx, giverID, fmt.Sprintf("🎉 <b>%s</b> %s %s! %s монет", displayName(receiver), receiverVerb, hugWord, coinText))
@@ -145,19 +137,36 @@ func displayName(u *models.User) string {
 	return u.Username
 }
 
-// hugTypeDescription returns a Russian label for a hug type, or empty string for standard.
-func hugTypeDescription(hugType string) string {
+// hugTypeSuggestionPhrase returns the full "хочет ... обнять" phrase for hug suggestions.
+func hugTypeSuggestionPhrase(hugType string) string {
 	switch hugType {
 	case "bear":
-		return "медвежье"
+		return "хочет обнять тебя по-медвежьи"
 	case "group":
-		return "групповое"
+		return "хочет обнять тебя вместе со всеми"
 	case "warm":
-		return "тёплое"
+		return "хочет тепло тебя обнять"
 	case "soul":
-		return "душевное"
+		return "хочет обнять тебя по-душевному"
 	default:
-		return ""
+		return "хочет тебя обнять"
+	}
+}
+
+// hugTypeCompletedPhrase returns a phrase for completed hug messages to the giver.
+// e.g. "принял(а) медвежьи обнимашки"
+func hugTypeCompletedNoun(hugType string) string {
+	switch hugType {
+	case "bear":
+		return "медвежьи обнимашки"
+	case "group":
+		return "групповые обнимашки"
+	case "warm":
+		return "тёплые обнимашки"
+	case "soul":
+		return "душевные обнимашки"
+	default:
+		return "обнимашки"
 	}
 }
 

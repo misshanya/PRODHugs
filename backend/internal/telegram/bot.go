@@ -93,18 +93,13 @@ func (b *Bot) Run(ctx context.Context) {
 }
 
 // SendHugSuggestion sends a hug suggestion notification with Accept/Decline buttons.
-func (b *Bot) SendHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverName string, typeLabel string) {
+func (b *Bot) SendHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverName string, phrase string) {
 	telegramID, err := b.userRepo.GetTelegramID(ctx, receiverID)
 	if err != nil || telegramID == nil {
 		return
 	}
 
-	var text string
-	if typeLabel != "" {
-		text = fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять (%s)!", tgbot.EscapeMarkdownUnescaped(giverName), typeLabel)
-	} else {
-		text = fmt.Sprintf("🤗 <b>%s</b> хочет тебя обнять!", tgbot.EscapeMarkdownUnescaped(giverName))
-	}
+	text := fmt.Sprintf("🤗 <b>%s</b> %s!", tgbot.EscapeMarkdownUnescaped(giverName), phrase)
 
 	if !b.enabled {
 		// Fallback to plain message via raw client
