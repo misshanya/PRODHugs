@@ -8,7 +8,7 @@ type LeaderboardEntry struct {
 	DisplayName  *string
 	Role         string
 	TotalHugs    int32
-	HugsGiven   int64
+	HugsGiven    int64
 	HugsReceived int64
 	Rank         string
 }
@@ -24,16 +24,16 @@ type UserStats struct {
 func GetRank(totalHugs int32) string {
 	switch {
 	case totalHugs >= 1000:
-		return "Бог объятий"
+		return "Милашка"
 	case totalHugs >= 500:
 		return "Легенда"
 	case totalHugs >= 200:
-		return "Мастер объятий"
+		return "Обнимастер"
 	case totalHugs >= 50:
-		return "Дружелюбный"
+		return "Тактильный"
 	case totalHugs >= 10:
-		return "Обнимашка"
+		return "Неопытный"
 	default:
-		return "Новичок"
+		return "Нетактильный"
 	}
 }
