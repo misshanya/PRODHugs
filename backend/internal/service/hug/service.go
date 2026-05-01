@@ -30,7 +30,7 @@ type hugRepo interface {
 	GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error)
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
-	GetUserStats(ctx context.Context, userID uuid.UUID) (*models.UserStats, error)
+	GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error)
 	CountMutualHugs(ctx context.Context, userA, userB uuid.UUID) (*models.MutualHugStats, error)
 	SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error)
 	ExpirePendingHugs(ctx context.Context) error

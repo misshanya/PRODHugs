@@ -60,7 +60,7 @@ func (r *repo) GetLeaderboard(ctx context.Context, limit, offset int32) ([]*mode
 	return result, nil
 }
 
-func (r *repo) GetUserStats(ctx context.Context, userID uuid.UUID) (*models.UserStats, error) {
+func (r *repo) GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error) {
 	q := repository.Queries(ctx, r.q)
 
 	row, err := q.GetUserStats(ctx, userID)
@@ -68,7 +68,7 @@ func (r *repo) GetUserStats(ctx context.Context, userID uuid.UUID) (*models.User
 		return nil, err
 	}
 
-	return toModelUserStats(row), nil
+	return toModelUserStats(row, gender), nil
 }
 
 func (r *repo) SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error) {

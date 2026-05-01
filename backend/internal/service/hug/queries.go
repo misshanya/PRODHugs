@@ -53,8 +53,8 @@ func (s *service) GetLeaderboard(ctx context.Context, limit, offset int32) ([]*m
 	return entries, nil
 }
 
-func (s *service) GetUserStats(ctx context.Context, userID uuid.UUID) (*models.UserStats, error) {
-	return s.hugRepo.GetUserStats(ctx, userID)
+func (s *service) GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error) {
+	return s.hugRepo.GetUserStats(ctx, userID, gender)
 }
 
 func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID *uuid.UUID) (*models.User, *models.UserStats, *models.Balance, *models.MutualHugStats, bool, *models.IntimacyInfo, error) {
@@ -77,7 +77,8 @@ func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID
 
 	g.Go(func() error {
 		var err error
-		stats, err = s.hugRepo.GetUserStats(gCtx, userID)
+		// Gender not yet available (user fetched in parallel); pass nil and fix rank after g.Wait().
+		stats, err = s.hugRepo.GetUserStats(gCtx, userID, nil)
 		return err
 	})
 
@@ -116,6 +117,11 @@ func (s *service) GetUserProfile(ctx context.Context, userID uuid.UUID, viewerID
 
 	if err := g.Wait(); err != nil {
 		return nil, nil, nil, nil, false, nil, err
+	}
+
+	// Recompute rank with the user's gender now that both are available.
+	if stats != nil && user != nil {
+		stats.Rank = models.GetRank(stats.TotalHugs, user.Gender)
 	}
 
 	return user, stats, balance, mutual, isBlocked, intimacy, nil

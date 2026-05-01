@@ -20,20 +20,45 @@ type UserStats struct {
 	Rank         string
 }
 
-// Rank thresholds
-func GetRank(totalHugs int32) string {
-	switch {
-	case totalHugs >= 1000:
-		return "Милашка"
-	case totalHugs >= 500:
-		return "Легенда"
-	case totalHugs >= 200:
-		return "Обнимастер"
-	case totalHugs >= 50:
-		return "Тактильный"
-	case totalHugs >= 10:
-		return "Неопытный"
+// rankDef holds the gender-aware forms for a rank.
+type rankDef struct {
+	male    string
+	female  string
+	unknown string
+}
+
+var ranks = []struct {
+	minHugs int32
+	def     rankDef
+}{
+	{1000, rankDef{"Милашка", "Милашка", "Милашка"}},
+	{500, rankDef{"Легенда", "Легенда", "Легенда"}},
+	{200, rankDef{"Обнимастер", "Обнимастер", "Обнимастер"}},
+	{50, rankDef{"Тактильный", "Тактильная", "Тактильный(ая)"}},
+	{10, rankDef{"Неопытный", "Неопытная", "Неопытный(ая)"}},
+	{0, rankDef{"Нетактильный", "Нетактильная", "Нетактильный(ая)"}},
+}
+
+// GetRank returns a gender-adapted rank name for the given hug count.
+func GetRank(totalHugs int32, gender *string) string {
+	for _, r := range ranks {
+		if totalHugs >= r.minHugs {
+			return pickGender(gender, r.def)
+		}
+	}
+	return pickGender(gender, ranks[len(ranks)-1].def)
+}
+
+func pickGender(gender *string, def rankDef) string {
+	if gender == nil {
+		return def.unknown
+	}
+	switch *gender {
+	case "male":
+		return def.male
+	case "female":
+		return def.female
 	default:
-		return "Нетактильный"
+		return def.unknown
 	}
 }

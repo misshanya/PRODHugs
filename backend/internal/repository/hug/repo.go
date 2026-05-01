@@ -110,6 +110,10 @@ func toModelLeaderboardEntry(row storage.GetLeaderboardRow) *models.LeaderboardE
 	if row.DisplayName.Valid {
 		displayName = &row.DisplayName.String
 	}
+	var gender *string
+	if row.Gender.Valid {
+		gender = &row.Gender.String
+	}
 	return &models.LeaderboardEntry{
 		UserID:       row.ID,
 		Username:     row.Username,
@@ -118,16 +122,16 @@ func toModelLeaderboardEntry(row storage.GetLeaderboardRow) *models.LeaderboardE
 		TotalHugs:    row.TotalHugs,
 		HugsGiven:    row.HugsGiven,
 		HugsReceived: row.HugsReceived,
-		Rank:         models.GetRank(int32(row.TotalHugs)),
+		Rank:         models.GetRank(int32(row.TotalHugs), gender),
 	}
 }
 
-func toModelUserStats(row storage.GetUserStatsRow) *models.UserStats {
+func toModelUserStats(row storage.GetUserStatsRow, gender *string) *models.UserStats {
 	return &models.UserStats{
 		HugsGiven:    row.HugsGiven,
 		HugsReceived: row.HugsReceived,
 		TotalHugs:    int32(row.TotalHugs),
-		Rank:         models.GetRank(int32(row.TotalHugs)),
+		Rank:         models.GetRank(int32(row.TotalHugs), gender),
 	}
 }
 
