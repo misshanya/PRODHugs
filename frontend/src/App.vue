@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type HugFeedItem, type PendingHugInboxItem } from '@/stores/hugs'
 import { useOnlineStore } from '@/stores/online'
 import { useWebSocket } from '@/composables/useWebSocket'
-import { hugTypeTag } from '@/lib/utils'
+import { hugCompletedToast } from '@/lib/utils'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import AppSidebar from '@/components/AppSidebar.vue'
@@ -114,8 +114,7 @@ function setupGlobalWsListeners() {
           (h) => h.receiver_id !== data.receiver_id,
         )
         hugsStore.slotInfo.used_slots = hugsStore.outgoingHugs.length
-        const typeInfo = data.hug_type && data.hug_type !== 'standard' ? ` (${hugTypeTag(data.hug_type)})` : ''
-        toast.success(`Обнимашка с ${data.receiver_username} принята${typeInfo}!`)
+        toast.success(hugCompletedToast(data.receiver_username, data.hug_type))
         hugsStore.fetchBalance()
         hugsStore.triggerCooldownRefresh(data.receiver_id)
       } else if (data.receiver_id === auth.user?.id) {

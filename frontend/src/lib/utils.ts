@@ -24,10 +24,68 @@ export function hugVerb(gender?: string | null): string {
   return 'обнял(а)'
 }
 
+/**
+ * Returns the full feed phrase with hug type integrated naturally.
+ * e.g. "тепло обнял(а)", "обнял(а) по-медвежьи"
+ */
+export function hugFeedPhrase(gender?: string | null, hugType?: string): string {
+  const verb = hugVerb(gender)
+  switch (hugType) {
+    case 'bear':
+      return `${verb} по-медвежьи`
+    case 'warm':
+      return `тепло ${verb}`
+    case 'group':
+      return `${verb} вместе со всеми`
+    case 'soul':
+      return `по-душевному ${verb}`
+    default:
+      return verb
+  }
+}
+
 export function suggestVerb(gender?: string | null): string {
   if (gender === 'male') return 'предложил'
   if (gender === 'female') return 'предложила'
   return 'предложил(а)'
+}
+
+/**
+ * Returns a natural suggestion phrase for the inbox.
+ * e.g. "хочет обнять тебя по-медвежьи", "хочет тепло тебя обнять"
+ */
+export function hugSuggestionPhrase(hugType?: string): string {
+  switch (hugType) {
+    case 'bear':
+      return 'хочет обнять тебя по-медвежьи'
+    case 'warm':
+      return 'хочет тепло тебя обнять'
+    case 'group':
+      return 'хочет обнять тебя вместе со всеми'
+    case 'soul':
+      return 'хочет обнять тебя по-душевному'
+    default:
+      return 'предлагает обняться'
+  }
+}
+
+/**
+ * Returns a toast message for a completed hug.
+ * e.g. "Медвежьи обнимашки с X приняты!", "Обнимашки с X приняты!"
+ */
+export function hugCompletedToast(username: string, hugType?: string): string {
+  switch (hugType) {
+    case 'bear':
+      return `Медвежьи обнимашки с ${username} приняты!`
+    case 'warm':
+      return `Тёплые обнимашки с ${username} приняты!`
+    case 'group':
+      return `Групповые обнимашки с ${username} приняты!`
+    case 'soul':
+      return `Душевные обнимашки с ${username} приняты!`
+    default:
+      return `Обнимашки с ${username} приняты!`
+  }
 }
 
 /** Map hug type to a Russian label. */
@@ -43,22 +101,6 @@ export function hugTypeLabel(hugType: string): string {
       return 'Душевные'
     default:
       return 'Обычные'
-  }
-}
-
-/** Map hug type to a short tag for feed display. */
-export function hugTypeTag(hugType: string): string | null {
-  switch (hugType) {
-    case 'bear':
-      return 'медвежьи'
-    case 'group':
-      return 'групповые'
-    case 'warm':
-      return 'теплые'
-    case 'soul':
-      return 'душевные'
-    default:
-      return null
   }
 }
 
