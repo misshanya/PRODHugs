@@ -37,7 +37,7 @@ const router = createRouter({
       path: '/user/:id',
       name: 'user-profile',
       component: () => import('@/views/UserProfileView.vue'),
-      meta: { auth: true },
+      meta: { auth: true, back: true },
     },
     {
       path: '/leaderboard',
@@ -69,7 +69,7 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminView.vue'),
-      meta: { auth: true, admin: true },
+      meta: { auth: true, admin: true, back: true },
     },
   ],
 })

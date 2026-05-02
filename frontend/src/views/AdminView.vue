@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   Users,
   ShieldBan,
-  ArrowLeft,
   MoreHorizontal,
   Ban,
   ShieldCheck,
@@ -347,16 +346,9 @@ function formatDate(dateStr: string): string {
 <template>
   <div class="mx-auto max-w-3xl space-y-6">
     <!-- Header -->
-    <div class="flex items-center gap-3">
-      <RouterLink to="/dashboard">
-        <Button variant="ghost" size="icon-sm">
-          <ArrowLeft class="size-4" />
-        </Button>
-      </RouterLink>
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Панель администратора</h1>
-        <p class="text-muted-foreground">Управление пользователями</p>
-      </div>
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Панель администратора</h1>
+      <p class="text-muted-foreground">Управление пользователями</p>
     </div>
 
     <!-- Stats cards -->
