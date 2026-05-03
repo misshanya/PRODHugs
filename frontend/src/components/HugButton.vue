@@ -48,11 +48,22 @@ const isPendingWithThisUser = computed(
 const hasIncomingPending = computed(() => hugsStore.inbox.some((h) => h.giver_id === props.userId))
 
 const isDisabled = computed(
-  () => loading.value || remaining.value > 0 || allSlotsFull.value || hasIncomingPending.value,
+  () =>
+    loading.value ||
+    remaining.value > 0 ||
+    allSlotsFull.value ||
+    hasIncomingPending.value ||
+    isPendingWithThisUser.value,
 )
 
 const buttonVariant = computed(() => {
-  if (remaining.value > 0 || allSlotsFull.value || hasIncomingPending.value) return 'secondary'
+  if (
+    remaining.value > 0 ||
+    allSlotsFull.value ||
+    hasIncomingPending.value ||
+    isPendingWithThisUser.value
+  )
+    return 'secondary'
   return 'yellow'
 })
 
@@ -87,7 +98,7 @@ function startTimer() {
 let suggesting = false
 
 async function suggest(hugType?: string) {
-  if (suggesting || loading.value || remaining.value > 0 || allSlotsFull.value) return
+  if (suggesting || isDisabled.value) return
   suggesting = true
   loading.value = true
   try {
