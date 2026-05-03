@@ -242,6 +242,10 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 			if receiver != nil {
 				receiverName = receiver.Username
 			}
+			completedAt := hugCopy.CreatedAt
+			if hugCopy.AcceptedAt != nil {
+				completedAt = *hugCopy.AcceptedAt
+			}
 			s.onHugCompleted(&models.HugFeedItem{
 				ID:               hugCopy.ID,
 				GiverID:          hugCopy.GiverID,
@@ -250,7 +254,7 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 				ReceiverUsername: receiverName,
 				GiverGender:      giverGender,
 				HugType:          hugCopy.HugType,
-				CreatedAt:        hugCopy.CreatedAt,
+				CreatedAt:        completedAt,
 			}, bonus)
 		}()
 	}

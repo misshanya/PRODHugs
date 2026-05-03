@@ -474,7 +474,7 @@ SELECT
     h.id,
     h.giver_id,
     h.receiver_id,
-    h.created_at,
+    COALESCE(h.accepted_at, h.created_at) AS created_at,
     h.hug_type,
     g.username AS giver_username,
     r.username AS receiver_username,
@@ -486,7 +486,7 @@ JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
 WHERE (h.giver_id = $1::uuid OR h.receiver_id = $1::uuid)
   AND h.status = 'completed'
-ORDER BY h.created_at DESC
+ORDER BY COALESCE(h.accepted_at, h.created_at) DESC
 LIMIT $3::int OFFSET $2::int
 `
 
