@@ -1,5 +1,10 @@
 // Grafana Alloy configuration
 // Scrapes Prometheus metrics from the backend and ships them to Grafana Cloud.
+// Collects backend container logs and ships them to Grafana Cloud Loki.
+
+// ────────────────────────────────────────────
+// Metrics: Prometheus scrape → Grafana Cloud
+// ────────────────────────────────────────────
 
 prometheus.scrape "backend" {
   targets = [
@@ -16,6 +21,74 @@ prometheus.remote_write "grafana_cloud" {
 
     basic_auth {
       username = env("GRAFANA_CLOUD_PROMETHEUS_USERNAME")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+
+  external_labels = {
+    "environment" = "production",
+    "service"     = "hugs-backend",
+  }
+}
+
+// ────────────────────────────────────────────
+// Logs: backend container → Grafana Cloud Loki
+// ────────────────────────────────────────────
+
+// Discover Docker containers via the mounted socket.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Keep only the backend container.
+discovery.relabel "backend_only" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/backend"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+    regex         = "/(.*)"
+  }
+}
+
+// Tail logs from the backend container.
+loki.source.docker "backend" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.backend_only.output
+  forward_to = [loki.process.json.receiver]
+}
+
+// Parse JSON-structured slog output; extract level as a Loki label.
+loki.process "json" {
+  stage.json {
+    expressions = {
+      level = "level",
+      msg   = "msg",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// Ship logs to Grafana Cloud Loki.
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_LOKI_URL")
+
+    basic_auth {
+      username = env("GRAFANA_CLOUD_LOKI_USERNAME")
       password = env("GRAFANA_CLOUD_API_KEY")
     }
   }
