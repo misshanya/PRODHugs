@@ -72,3 +72,4 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+      - nginx

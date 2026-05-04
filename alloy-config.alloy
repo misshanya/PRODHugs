@@ -32,6 +32,20 @@ prometheus.remote_write "grafana_cloud" {
 }
 
 // ────────────────────────────────────────────
+// Metrics: nginx stub_status → Grafana Cloud
+// ────────────────────────────────────────────
+
+prometheus.exporter.nginx "nginx" {
+  nginx_addr = "http://nginx:80/nginx_status"
+}
+
+prometheus.scrape "nginx" {
+  targets         = prometheus.exporter.nginx.nginx.targets
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "15s"
+}
+
+// ────────────────────────────────────────────
 // Logs: backend container → Grafana Cloud Loki
 // ────────────────────────────────────────────
 
