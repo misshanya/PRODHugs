@@ -56,6 +56,14 @@ services:
       retries: 5
       start_period: 10s
 
+  nginx-exporter:
+    container_name: nginx-exporter
+    image: nginx/nginx-prometheus-exporter:latest
+    command: ["--nginx.scrape-uri=http://nginx:80/nginx_status"]
+    restart: unless-stopped
+    depends_on:
+      - nginx
+
   alloy:
     container_name: alloy
     image: grafana/alloy:latest
@@ -73,3 +81,4 @@ services:
     depends_on:
       - backend
       - nginx
+      - nginx-exporter

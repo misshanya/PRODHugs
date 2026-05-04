@@ -32,17 +32,16 @@ prometheus.remote_write "grafana_cloud" {
 }
 
 // ────────────────────────────────────────────
-// Metrics: nginx stub_status → Grafana Cloud
+// Metrics: nginx (via exporter sidecar) → Grafana Cloud
 // ────────────────────────────────────────────
 
-prometheus.exporter.nginx "nginx" {
-  nginx_addr = "http://nginx:80/nginx_status"
-}
-
 prometheus.scrape "nginx" {
-  targets         = prometheus.exporter.nginx.nginx.targets
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  targets = [
+    {"__address__" = "nginx-exporter:9113", "job" = "nginx"},
+  ]
+  metrics_path    = "/metrics"
   scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
 
 // ────────────────────────────────────────────
