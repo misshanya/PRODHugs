@@ -1582,6 +1582,12 @@ paths:
       security:
         - BearerAuth: ["admin"]
       parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by username or display name
         - name: limit
           in: query
           required: false

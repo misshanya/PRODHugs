@@ -96,3 +96,42 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 		LastVisitAt: lastVisitAt,
 	}
 }
+
+func toAdminUserFromSearch(u storage.SearchUsersAdminRow) *models.AdminUser {
+	var gender *string
+	if u.Gender.Valid {
+		gender = &u.Gender.String
+	}
+	var bannedAt *time.Time
+	if u.BannedAt.Valid {
+		bannedAt = &u.BannedAt.Time
+	}
+	var createdAt *time.Time
+	if u.CreatedAt.Valid {
+		createdAt = &u.CreatedAt.Time
+	}
+	var displayName *string
+	if u.DisplayName.Valid {
+		displayName = &u.DisplayName.String
+	}
+	var lastVisitAt *time.Time
+	if u.LastVisitAt.Valid {
+		lastVisitAt = &u.LastVisitAt.Time
+	}
+	var tag *string
+	if u.Tag.Valid {
+		tag = &u.Tag.String
+	}
+	return &models.AdminUser{
+		ID:          u.ID,
+		Username:    u.Username,
+		Role:        u.Role,
+		Gender:      gender,
+		DisplayName: displayName,
+		Tag:         tag,
+		BannedAt:    bannedAt,
+		CreatedAt:   createdAt,
+		Balance:     u.Balance,
+		LastVisitAt: lastVisitAt,
+	}
+}

@@ -28,6 +28,7 @@ type repo interface {
 	AdminUpdateGender(ctx context.Context, id uuid.UUID, gender *string) (*models.User, error)
 	AdminUpdatePassword(ctx context.Context, id uuid.UUID, hashedPassword string) error
 	AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, displayName *string) (*models.User, error)
+	SearchUsersAdmin(ctx context.Context, query string, limit, offset int32) ([]*models.AdminUser, error)
 	AdminDeleteUser(ctx context.Context, id uuid.UUID) error
 }
 

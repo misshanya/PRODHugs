@@ -70,6 +70,25 @@ func (r *repo) ListUsersAdmin(ctx context.Context, limit, offset int32) ([]*mode
 	return users, nil
 }
 
+func (r *repo) SearchUsersAdmin(ctx context.Context, query string, limit, offset int32) ([]*models.AdminUser, error) {
+	q := repository.Queries(ctx, r.q)
+
+	rows, err := q.SearchUsersAdmin(ctx, storage.SearchUsersAdminParams{
+		Query: query,
+		Lim:   limit,
+		Off:   offset,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]*models.AdminUser, 0, len(rows))
+	for _, row := range rows {
+		users = append(users, toAdminUserFromSearch(row))
+	}
+	return users, nil
+}
+
 func (r *repo) AdminUpdateUsername(ctx context.Context, id uuid.UUID, username string) (*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 

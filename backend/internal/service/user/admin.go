@@ -30,6 +30,10 @@ func (s *service) ListUsersAdmin(ctx context.Context, limit, offset int32) ([]*m
 	return s.repo.ListUsersAdmin(ctx, limit, offset)
 }
 
+func (s *service) SearchUsersAdmin(ctx context.Context, query string, limit, offset int32) ([]*models.AdminUser, error) {
+	return s.repo.SearchUsersAdmin(ctx, query, limit, offset)
+}
+
 func (s *service) BanUser(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	return s.repo.BanUser(ctx, id)
 }

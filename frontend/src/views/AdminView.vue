@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import {
   Users,
   ShieldBan,
+  Search,
   MoreHorizontal,
   Ban,
   ShieldCheck,
@@ -84,9 +85,23 @@ onMounted(async () => {
   if (sentinel.value) observer.observe(sentinel.value)
 })
 
+// ── Search ──
+const adminSearchQuery = ref('')
+let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+watch(adminSearchQuery, (q) => {
+  if (searchDebounce) clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(async () => {
+    loading.value = true
+    await admin.fetchUsers(q)
+    loading.value = false
+  }, 300)
+})
+
 onUnmounted(() => {
   observer?.disconnect()
   unsubOnline()
+  if (searchDebounce) clearTimeout(searchDebounce)
 })
 
 // ── Dialogs ──
@@ -409,6 +424,17 @@ function formatDate(dateStr: string): string {
     <!-- Users list -->
     <div>
       <h2 class="mb-3 text-lg font-medium">Пользователи</h2>
+
+      <div class="relative mb-3">
+        <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          v-model="adminSearchQuery"
+          type="text"
+          class="pl-9"
+          placeholder="Поиск по имени..."
+          maxlength="64"
+        />
+      </div>
 
       <div v-if="loading" class="space-y-3">
         <Skeleton v-for="i in 8" :key="i" class="h-16 w-full rounded-lg" />

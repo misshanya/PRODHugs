@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"go-service-template/internal/models"
 	v1 "go-service-template/internal/transport/http/v1"
 )
 
@@ -15,7 +16,14 @@ func (h *AdminHandler) GetAdminUsers(ctx context.Context, req v1.GetAdminUsersRe
 		offset = int32(*req.Params.Offset)
 	}
 
-	users, err := h.svc.ListUsersAdmin(ctx, limit, offset)
+	var users []*models.AdminUser
+	var err error
+
+	if req.Params.Q != nil && *req.Params.Q != "" {
+		users, err = h.svc.SearchUsersAdmin(ctx, *req.Params.Q, limit, offset)
+	} else {
+		users, err = h.svc.ListUsersAdmin(ctx, limit, offset)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import (
 type service interface {
 	GetAdminStats(ctx context.Context) (*models.AdminStats, error)
 	ListUsersAdmin(ctx context.Context, limit, offset int32) ([]*models.AdminUser, error)
+	SearchUsersAdmin(ctx context.Context, query string, limit, offset int32) ([]*models.AdminUser, error)
 	BanUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 	UnbanUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 	AdminUpdateUsername(ctx context.Context, id uuid.UUID, username string) (*models.User, error)

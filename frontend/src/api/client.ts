@@ -192,7 +192,8 @@ export const leaderboardApi = {
 // Admin
 export const adminApi = {
   getStats: () => api.get('/admin/stats'),
-  getUsers: (limit = 20, offset = 0) => api.get('/admin/users', { params: { limit, offset } }),
+  getUsers: (limit = 20, offset = 0, q?: string) =>
+    api.get('/admin/users', { params: { limit, offset, ...(q ? { q } : {}) } }),
   banUser: (userId: string) => api.put(`/admin/users/${userId}/ban`),
   unbanUser: (userId: string) => api.delete(`/admin/users/${userId}/ban`),
   updateUsername: (userId: string, username: string) =>

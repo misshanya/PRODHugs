@@ -694,7 +694,7 @@ LEFT JOIN LATERAL (
     FROM refresh_tokens
     WHERE user_id = u.id
 ) rt ON true
-WHERE u.username ILIKE '%' || $1::text || '%'
+WHERE (u.username ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1::text || '%')
   AND u.banned_at IS NULL
   AND u.id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = $2::uuid
@@ -742,6 +742,72 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.Gender,
 			&i.DisplayName,
 			&i.Tag,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsersAdmin = `-- name: SearchUsersAdmin :many
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.banned_at, u.created_at,
+       COALESCE(b.amount, 0)::int AS balance,
+       COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
+FROM users u
+LEFT JOIN balances b ON b.user_id = u.id
+LEFT JOIN LATERAL (
+    SELECT MAX(created_at) AS last_visit
+    FROM refresh_tokens
+    WHERE user_id = u.id
+) rt ON true
+WHERE (u.username ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1::text || '%')
+ORDER BY last_visit_at DESC NULLS LAST
+LIMIT $3::int OFFSET $2::int
+`
+
+type SearchUsersAdminParams struct {
+	Query string
+	Off   int32
+	Lim   int32
+}
+
+type SearchUsersAdminRow struct {
+	ID          uuid.UUID
+	Username    string
+	Role        string
+	Gender      pgtype.Text
+	DisplayName pgtype.Text
+	Tag         pgtype.Text
+	BannedAt    pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	Balance     int32
+	LastVisitAt pgtype.Timestamptz
+}
+
+func (q *Queries) SearchUsersAdmin(ctx context.Context, arg SearchUsersAdminParams) ([]SearchUsersAdminRow, error) {
+	rows, err := q.db.Query(ctx, searchUsersAdmin, arg.Query, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchUsersAdminRow
+	for rows.Next() {
+		var i SearchUsersAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Role,
+			&i.Gender,
+			&i.DisplayName,
+			&i.Tag,
+			&i.BannedAt,
+			&i.CreatedAt,
+			&i.Balance,
+			&i.LastVisitAt,
 		); err != nil {
 			return nil, err
 		}

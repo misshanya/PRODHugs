@@ -30,17 +30,19 @@ export const useAdminStore = defineStore('admin', () => {
   const loadingMore = ref(false)
   const hasMore = ref(true)
   const offset = ref(0)
+  const searchQuery = ref('')
 
   async function fetchStats() {
     const res = await adminApi.getStats()
     stats.value = res.data
   }
 
-  async function fetchUsers() {
+  async function fetchUsers(query?: string) {
+    if (query !== undefined) searchQuery.value = query
     loading.value = true
     offset.value = 0
     try {
-      const res = await adminApi.getUsers(PAGE_SIZE, 0)
+      const res = await adminApi.getUsers(PAGE_SIZE, 0, searchQuery.value || undefined)
       users.value = res.data
       hasMore.value = res.data.length === PAGE_SIZE
       offset.value = res.data.length
@@ -53,7 +55,7 @@ export const useAdminStore = defineStore('admin', () => {
     if (loadingMore.value || loading.value || !hasMore.value) return
     loadingMore.value = true
     try {
-      const res = await adminApi.getUsers(PAGE_SIZE, offset.value)
+      const res = await adminApi.getUsers(PAGE_SIZE, offset.value, searchQuery.value || undefined)
       users.value.push(...res.data)
       hasMore.value = res.data.length === PAGE_SIZE
       offset.value += res.data.length
@@ -135,6 +137,7 @@ export const useAdminStore = defineStore('admin', () => {
     loading,
     loadingMore,
     hasMore,
+    searchQuery,
     fetchStats,
     fetchUsers,
     loadMore,

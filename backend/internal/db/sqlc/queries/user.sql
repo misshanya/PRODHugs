@@ -23,7 +23,7 @@ LEFT JOIN LATERAL (
     FROM refresh_tokens
     WHERE user_id = u.id
 ) rt ON true
-WHERE u.username ILIKE '%' || @query::text || '%'
+WHERE (u.username ILIKE '%' || @query::text || '%' OR u.display_name ILIKE '%' || @query::text || '%')
   AND u.banned_at IS NULL
   AND u.id NOT IN (
     SELECT blocked_id FROM user_blocks WHERE blocker_id = @viewer_id::uuid
@@ -163,6 +163,21 @@ LEFT JOIN LATERAL (
     FROM refresh_tokens
     WHERE user_id = u.id
 ) rt ON true
+ORDER BY last_visit_at DESC NULLS LAST
+LIMIT @lim::int OFFSET @off::int;
+
+-- name: SearchUsersAdmin :many
+SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.banned_at, u.created_at,
+       COALESCE(b.amount, 0)::int AS balance,
+       COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
+FROM users u
+LEFT JOIN balances b ON b.user_id = u.id
+LEFT JOIN LATERAL (
+    SELECT MAX(created_at) AS last_visit
+    FROM refresh_tokens
+    WHERE user_id = u.id
+) rt ON true
+WHERE (u.username ILIKE '%' || @query::text || '%' OR u.display_name ILIKE '%' || @query::text || '%')
 ORDER BY last_visit_at DESC NULLS LAST
 LIMIT @lim::int OFFSET @off::int;
 
