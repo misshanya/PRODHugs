@@ -35,9 +35,10 @@ function openHugDetail(hugId: string) {
   showDetail.value = true
 }
 
-function isParticipant(item: HugFeedItem): boolean {
-  const userId = auth.user?.id
-  return !!userId && (item.giver_id === userId || item.receiver_id === userId)
+function canViewComment(item: HugFeedItem): boolean {
+  if (!auth.user) return false
+  if (auth.user.role === 'admin') return true
+  return item.giver_id === auth.user.id || item.receiver_id === auth.user.id
 }
 
 /** IDs of items that arrived via WebSocket (for highlight effect) */
@@ -282,10 +283,10 @@ onUnmounted(() => {
             class="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"
             :class="{
               'feed-new': newItemIds.has(item.id),
-              'cursor-pointer transition-colors hover:bg-muted/50': item.has_comment && isParticipant(item),
+              'cursor-pointer transition-colors hover:bg-muted/50': item.has_comment && canViewComment(item),
             }"
             @animationend="newItemIds.delete(item.id)"
-            @click="item.has_comment && isParticipant(item) ? openHugDetail(item.id) : undefined"
+            @click="item.has_comment && canViewComment(item) ? openHugDetail(item.id) : undefined"
           >
             <div class="min-w-0 flex-1 text-sm">
               <RouterLink
@@ -302,7 +303,7 @@ onUnmounted(() => {
                 @click.stop
               >{{ item.receiver_display_name || item.receiver_username }}</RouterLink>
               <MessageSquare
-                v-if="item.has_comment && isParticipant(item)"
+                v-if="item.has_comment && canViewComment(item)"
                 class="ml-1 inline size-3 text-prod-yellow"
               />
             </div>
