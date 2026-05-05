@@ -15,6 +15,7 @@ export interface HugFeedItem {
   giver_display_name?: string | null
   receiver_display_name?: string | null
   hug_type: HugType
+  has_comment?: boolean
   created_at: string
 }
 
@@ -56,6 +57,7 @@ export interface PendingHugInboxItem {
   giver_gender?: string | null
   giver_display_name?: string | null
   hug_type: HugType
+  comment?: string | null
   created_at: string
 }
 
@@ -67,7 +69,24 @@ export interface OutgoingPendingHug {
   receiver_gender?: string | null
   receiver_display_name?: string | null
   hug_type: HugType
+  comment?: string | null
   created_at: string
+}
+
+export interface HugDetail {
+  id: string
+  giver_id: string
+  receiver_id: string
+  giver_username: string
+  receiver_username: string
+  giver_gender?: string | null
+  giver_display_name?: string | null
+  receiver_display_name?: string | null
+  status: string
+  hug_type: HugType
+  comment?: string | null
+  created_at: string
+  accepted_at?: string | null
 }
 
 export interface SlotInfo {
@@ -178,8 +197,8 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data
   }
 
-  async function suggestHug(userId: string, hugType?: string) {
-    const res = await hugsApi.suggest(userId, hugType)
+  async function suggestHug(userId: string, hugType?: string, comment?: string) {
+    const res = await hugsApi.suggest(userId, hugType, comment)
     // The suggest endpoint returns receiver_username/receiver_gender directly.
     outgoingHugs.value.unshift({
       id: res.data.id,
@@ -188,6 +207,7 @@ export const useHugsStore = defineStore('hugs', () => {
       receiver_username: res.data.receiver_username,
       receiver_gender: res.data.receiver_gender,
       hug_type: res.data.hug_type || 'standard',
+      comment: res.data.comment || null,
       created_at: res.data.created_at,
     })
     slotInfo.value.used_slots = outgoingHugs.value.length
@@ -214,6 +234,7 @@ export const useHugsStore = defineStore('hugs', () => {
         giver_display_name: inboxItem.giver_display_name,
         receiver_display_name: auth.user?.display_name ?? null,
         hug_type: (res.data.hug_type as HugType) || 'standard',
+        has_comment: !!inboxItem.comment,
         created_at: new Date().toISOString(),
       }
       history.value.unshift(historyItem)
@@ -300,6 +321,11 @@ export const useHugsStore = defineStore('hugs', () => {
     }
   }
 
+  async function getHugDetail(hugId: string): Promise<HugDetail> {
+    const res = await hugsApi.getDetail(hugId)
+    return res.data
+  }
+
   async function getHugHistory() {
     const res = await hugsApi.getHistory()
     history.value = res.data || []
@@ -369,6 +395,7 @@ export const useHugsStore = defineStore('hugs', () => {
     fetchBalance,
     claimDailyReward,
     suggestHug,
+    getHugDetail,
     acceptHug,
     declineHug,
     cancelOutgoing,

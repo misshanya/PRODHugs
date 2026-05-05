@@ -20,7 +20,7 @@ const (
 
 // SuggestHug creates a pending hug suggestion (replaces old SendHug).
 // Returns the created hug and the receiver's user data (for the response).
-func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID, hugType string) (*models.Hug, *models.User, error) {
+func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID, hugType string, comment *string) (*models.Hug, *models.User, error) {
 	if giverID == receiverID {
 		return nil, nil, errorz.ErrCannotHugSelf
 	}
@@ -121,7 +121,7 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID,
 		}
 
 		// Insert the pending hug
-		h, err = s.hugRepo.InsertHug(txCtx, giverID, receiverID, models.HugStatusPending, hugType)
+		h, err = s.hugRepo.InsertHug(txCtx, giverID, receiverID, models.HugStatusPending, hugType, comment)
 		return err
 	})
 	if err != nil {
@@ -139,15 +139,16 @@ func (s *service) SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID,
 				giverUsername = giver.Username
 				giverGender = giver.Gender
 			}
-			s.onHugSuggestion(receiverID, &models.PendingHugInboxItem{
-				ID:            hugCopy.ID,
-				GiverID:       hugCopy.GiverID,
-				ReceiverID:    hugCopy.ReceiverID,
-				GiverUsername: giverUsername,
-				GiverGender:   giverGender,
-				HugType:       hugCopy.HugType,
-				CreatedAt:     hugCopy.CreatedAt,
-			})
+		s.onHugSuggestion(receiverID, &models.PendingHugInboxItem{
+			ID:            hugCopy.ID,
+			GiverID:       hugCopy.GiverID,
+			ReceiverID:    hugCopy.ReceiverID,
+			GiverUsername: giverUsername,
+			GiverGender:   giverGender,
+			HugType:       hugCopy.HugType,
+			Comment:       hugCopy.Comment,
+			CreatedAt:     hugCopy.CreatedAt,
+		}, hugCopy.Comment)
 		}()
 	}
 
@@ -194,13 +195,18 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 		}
 		earnedBonusCoins = bonusCoins
 
-		// +1 base coin + bonus to initiator (giver)
-		_, err = s.balanceRepo.AddBalance(txCtx, h.GiverID, 1+bonusCoins)
-		if err != nil {
-			return err
+		// +1 base coin + bonus to initiator (giver).
+		// If the giver attached a comment, the comment costs the same as the earned amount,
+		// so the giver nets 0 coins.
+		if h.Comment == nil {
+			_, err = s.balanceRepo.AddBalance(txCtx, h.GiverID, 1+bonusCoins)
+			if err != nil {
+				return err
+			}
 		}
+		// Giver with comment gets nothing — cost equals earnings.
 
-		// +1 base coin + bonus to acceptor (receiver)
+		// +1 base coin + bonus to acceptor (receiver) — always full amount
 		_, err = s.balanceRepo.AddBalance(txCtx, h.ReceiverID, 1+bonusCoins)
 		if err != nil {
 			return err
@@ -254,8 +260,9 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 				ReceiverUsername: receiverName,
 				GiverGender:      giverGender,
 				HugType:          hugCopy.HugType,
+				HasComment:       hugCopy.Comment != nil,
 				CreatedAt:        completedAt,
-			}, bonus)
+			}, bonus, hugCopy.Comment)
 		}()
 	}
 

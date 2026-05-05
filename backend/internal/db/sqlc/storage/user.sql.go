@@ -355,6 +355,7 @@ SELECT
     h.receiver_id,
     COALESCE(h.accepted_at, h.created_at) AS created_at,
     h.hug_type,
+    (h.comment IS NOT NULL)::bool AS has_comment,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,
@@ -374,6 +375,7 @@ type GetRecentHugsFeedRow struct {
 	ReceiverID          uuid.UUID
 	CreatedAt           pgtype.Timestamptz
 	HugType             string
+	HasComment          bool
 	GiverUsername       string
 	ReceiverUsername    string
 	GiverGender         pgtype.Text
@@ -396,6 +398,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecent
 			&i.ReceiverID,
 			&i.CreatedAt,
 			&i.HugType,
+			&i.HasComment,
 			&i.GiverUsername,
 			&i.ReceiverUsername,
 			&i.GiverGender,

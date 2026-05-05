@@ -10,17 +10,23 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (r *repo) InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string) (*models.Hug, error) {
+func (r *repo) InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string, comment *string) (*models.Hug, error) {
 	q := repository.Queries(ctx, r.q)
 
-	h, err := q.InsertHug(ctx, storage.InsertHugParams{
+	params := storage.InsertHugParams{
 		GiverID:    giverID,
 		ReceiverID: receiverID,
 		Status:     status,
 		HugType:    hugType,
-	})
+	}
+	if comment != nil {
+		params.Comment = pgtype.Text{String: *comment, Valid: true}
+	}
+
+	h, err := q.InsertHug(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +101,18 @@ func (r *repo) GetHugByID(ctx context.Context, hugID uuid.UUID) (*models.Hug, er
 		t := row.AcceptedAt.Time
 		acceptedAt = &t
 	}
+	var comment *string
+	if row.Comment.Valid {
+		comment = &row.Comment.String
+	}
 
 	return &models.Hug{
 		ID:         row.ID,
 		GiverID:    row.GiverID,
 		ReceiverID: row.ReceiverID,
 		Status:     row.Status,
+		HugType:    row.HugType,
+		Comment:    comment,
 		CreatedAt:  row.CreatedAt.Time,
 		AcceptedAt: acceptedAt,
 	}, nil
@@ -139,6 +151,10 @@ func (r *repo) GetOutgoingPendingHugs(ctx context.Context, userID uuid.UUID) ([]
 		if row.ReceiverDisplayName.Valid {
 			receiverDisplayName = &row.ReceiverDisplayName.String
 		}
+		var comment *string
+		if row.Comment.Valid {
+			comment = &row.Comment.String
+		}
 		result[i] = &models.OutgoingPendingHug{
 			ID:                  row.ID,
 			GiverID:             row.GiverID,
@@ -147,6 +163,7 @@ func (r *repo) GetOutgoingPendingHugs(ctx context.Context, userID uuid.UUID) ([]
 			ReceiverGender:      receiverGender,
 			ReceiverDisplayName: receiverDisplayName,
 			HugType:             row.HugType,
+			Comment:             comment,
 			CreatedAt:           row.CreatedAt.Time,
 		}
 	}
@@ -220,6 +237,56 @@ func (r *repo) CheckSuggestEligibility(ctx context.Context, giverID, receiverID 
 	}
 
 	return row.OutgoingCount, row.PairPending, row.ReversePending, nil
+}
+
+func (r *repo) GetHugDetail(ctx context.Context, hugID uuid.UUID) (*models.HugDetail, error) {
+	q := repository.Queries(ctx, r.q)
+
+	row, err := q.GetHugDetail(ctx, hugID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var acceptedAt *time.Time
+	if row.AcceptedAt.Valid {
+		t := row.AcceptedAt.Time
+		acceptedAt = &t
+	}
+	var comment *string
+	if row.Comment.Valid {
+		comment = &row.Comment.String
+	}
+	var giverGender *string
+	if row.GiverGender.Valid {
+		giverGender = &row.GiverGender.String
+	}
+	var giverDisplayName *string
+	if row.GiverDisplayName.Valid {
+		giverDisplayName = &row.GiverDisplayName.String
+	}
+	var receiverDisplayName *string
+	if row.ReceiverDisplayName.Valid {
+		receiverDisplayName = &row.ReceiverDisplayName.String
+	}
+
+	return &models.HugDetail{
+		ID:                  row.ID,
+		GiverID:             row.GiverID,
+		ReceiverID:          row.ReceiverID,
+		GiverUsername:       row.GiverUsername,
+		ReceiverUsername:    row.ReceiverUsername,
+		GiverGender:         giverGender,
+		GiverDisplayName:    giverDisplayName,
+		ReceiverDisplayName: receiverDisplayName,
+		Status:              row.Status,
+		HugType:             row.HugType,
+		Comment:             comment,
+		CreatedAt:           row.CreatedAt.Time,
+		AcceptedAt:          acceptedAt,
+	}, nil
 }
 
 func (r *repo) ExpirePendingHugs(ctx context.Context) error {

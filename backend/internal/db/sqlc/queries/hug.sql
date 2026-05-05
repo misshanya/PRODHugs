@@ -1,10 +1,10 @@
 -- name: InsertHug :one
-INSERT INTO hugs (giver_id, receiver_id, status, hug_type)
-VALUES ($1, $2, $3, $4)
+INSERT INTO hugs (giver_id, receiver_id, status, hug_type, comment)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: GetHugByID :one
-SELECT id, giver_id, receiver_id, status, created_at, accepted_at
+SELECT id, giver_id, receiver_id, status, hug_type, created_at, accepted_at, comment
 FROM hugs
 WHERE id = $1;
 
@@ -25,7 +25,7 @@ RETURNING *;
 
 -- name: GetPendingHugsForUser :many
 SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
-       h.hug_type,
+       h.hug_type, h.comment,
        g.username AS giver_username, g.gender AS giver_gender,
        g.display_name AS giver_display_name
 FROM hugs h
@@ -37,7 +37,7 @@ ORDER BY h.created_at DESC;
 
 -- name: GetOutgoingPendingHugs :many
 SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
-       h.hug_type,
+       h.hug_type, h.comment,
        r.username AS receiver_username, r.gender AS receiver_gender,
        r.display_name AS receiver_display_name
 FROM hugs h
@@ -104,6 +104,7 @@ SELECT
     h.receiver_id,
     COALESCE(h.accepted_at, h.created_at) AS created_at,
     h.hug_type,
+    (h.comment IS NOT NULL)::bool AS has_comment,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,
@@ -138,6 +139,27 @@ FROM hugs
 WHERE ((giver_id = @user_a AND receiver_id = @user_b)
    OR (giver_id = @user_b AND receiver_id = @user_a))
   AND status = 'completed';
+
+-- name: GetHugDetail :one
+SELECT
+    h.id,
+    h.giver_id,
+    h.receiver_id,
+    h.status,
+    h.hug_type,
+    h.comment,
+    h.created_at,
+    h.accepted_at,
+    g.username AS giver_username,
+    g.gender AS giver_gender,
+    g.display_name AS giver_display_name,
+    r.username AS receiver_username,
+    r.gender AS receiver_gender,
+    r.display_name AS receiver_display_name
+FROM hugs h
+JOIN users g ON g.id = h.giver_id
+JOIN users r ON r.id = h.receiver_id
+WHERE h.id = $1;
 
 -- name: GetHugActivity :many
 SELECT

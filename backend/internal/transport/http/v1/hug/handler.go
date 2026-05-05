@@ -9,13 +9,14 @@ import (
 )
 
 type service interface {
-	SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID, hugType string) (*models.Hug, *models.User, error)
+	SuggestHug(ctx context.Context, giverID, receiverID uuid.UUID, hugType string, comment *string) (*models.Hug, *models.User, error)
 	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) error
 	CancelHug(ctx context.Context, hugID, giverID uuid.UUID) error
 	GetCooldownInfo(ctx context.Context, userA, userB uuid.UUID) (*hug.CooldownInfoResult, error)
 	UpgradeCooldown(ctx context.Context, payerID, otherUserID uuid.UUID) (*models.HugCooldown, error)
 	GetBalance(ctx context.Context, userID uuid.UUID) (*models.Balance, error)
+	GetHugDetail(ctx context.Context, hugID, requesterID uuid.UUID, isAdmin bool) (*models.HugDetail, error)
 	GetOutgoingHugs(ctx context.Context, userID uuid.UUID) ([]*models.OutgoingPendingHug, *models.SlotInfo, error)
 	BuyHugSlot(ctx context.Context, userID uuid.UUID) (*models.SlotInfo, int32, error)
 	GetHugHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.HugFeedItem, error)

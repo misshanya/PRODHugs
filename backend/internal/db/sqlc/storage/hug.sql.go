@@ -15,7 +15,7 @@ import (
 const acceptHug = `-- name: AcceptHug :one
 UPDATE hugs SET status = 'completed', accepted_at = now()
 WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
-RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type, comment
 `
 
 type AcceptHugParams struct {
@@ -34,6 +34,7 @@ func (q *Queries) AcceptHug(ctx context.Context, arg AcceptHugParams) (Hug, erro
 		&i.Status,
 		&i.AcceptedAt,
 		&i.HugType,
+		&i.Comment,
 	)
 	return i, err
 }
@@ -41,7 +42,7 @@ func (q *Queries) AcceptHug(ctx context.Context, arg AcceptHugParams) (Hug, erro
 const cancelHug = `-- name: CancelHug :one
 UPDATE hugs SET status = 'cancelled'
 WHERE id = $1 AND giver_id = $2 AND status = 'pending'
-RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type, comment
 `
 
 type CancelHugParams struct {
@@ -60,6 +61,7 @@ func (q *Queries) CancelHug(ctx context.Context, arg CancelHugParams) (Hug, erro
 		&i.Status,
 		&i.AcceptedAt,
 		&i.HugType,
+		&i.Comment,
 	)
 	return i, err
 }
@@ -179,7 +181,7 @@ func (q *Queries) CountPendingHugsForUser(ctx context.Context, receiverID uuid.U
 const declineHug = `-- name: DeclineHug :one
 UPDATE hugs SET status = 'declined'
 WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
-RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type, comment
 `
 
 type DeclineHugParams struct {
@@ -198,6 +200,7 @@ func (q *Queries) DeclineHug(ctx context.Context, arg DeclineHugParams) (Hug, er
 		&i.Status,
 		&i.AcceptedAt,
 		&i.HugType,
+		&i.Comment,
 	)
 	return i, err
 }
@@ -256,7 +259,7 @@ func (q *Queries) GetHugActivity(ctx context.Context) ([]GetHugActivityRow, erro
 }
 
 const getHugByID = `-- name: GetHugByID :one
-SELECT id, giver_id, receiver_id, status, created_at, accepted_at
+SELECT id, giver_id, receiver_id, status, hug_type, created_at, accepted_at, comment
 FROM hugs
 WHERE id = $1
 `
@@ -266,8 +269,10 @@ type GetHugByIDRow struct {
 	GiverID    uuid.UUID
 	ReceiverID uuid.UUID
 	Status     string
+	HugType    string
 	CreatedAt  pgtype.Timestamptz
 	AcceptedAt pgtype.Timestamptz
+	Comment    pgtype.Text
 }
 
 func (q *Queries) GetHugByID(ctx context.Context, id uuid.UUID) (GetHugByIDRow, error) {
@@ -278,15 +283,78 @@ func (q *Queries) GetHugByID(ctx context.Context, id uuid.UUID) (GetHugByIDRow, 
 		&i.GiverID,
 		&i.ReceiverID,
 		&i.Status,
+		&i.HugType,
 		&i.CreatedAt,
 		&i.AcceptedAt,
+		&i.Comment,
+	)
+	return i, err
+}
+
+const getHugDetail = `-- name: GetHugDetail :one
+SELECT
+    h.id,
+    h.giver_id,
+    h.receiver_id,
+    h.status,
+    h.hug_type,
+    h.comment,
+    h.created_at,
+    h.accepted_at,
+    g.username AS giver_username,
+    g.gender AS giver_gender,
+    g.display_name AS giver_display_name,
+    r.username AS receiver_username,
+    r.gender AS receiver_gender,
+    r.display_name AS receiver_display_name
+FROM hugs h
+JOIN users g ON g.id = h.giver_id
+JOIN users r ON r.id = h.receiver_id
+WHERE h.id = $1
+`
+
+type GetHugDetailRow struct {
+	ID                  uuid.UUID
+	GiverID             uuid.UUID
+	ReceiverID          uuid.UUID
+	Status              string
+	HugType             string
+	Comment             pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	AcceptedAt          pgtype.Timestamptz
+	GiverUsername       string
+	GiverGender         pgtype.Text
+	GiverDisplayName    pgtype.Text
+	ReceiverUsername    string
+	ReceiverGender      pgtype.Text
+	ReceiverDisplayName pgtype.Text
+}
+
+func (q *Queries) GetHugDetail(ctx context.Context, id uuid.UUID) (GetHugDetailRow, error) {
+	row := q.db.QueryRow(ctx, getHugDetail, id)
+	var i GetHugDetailRow
+	err := row.Scan(
+		&i.ID,
+		&i.GiverID,
+		&i.ReceiverID,
+		&i.Status,
+		&i.HugType,
+		&i.Comment,
+		&i.CreatedAt,
+		&i.AcceptedAt,
+		&i.GiverUsername,
+		&i.GiverGender,
+		&i.GiverDisplayName,
+		&i.ReceiverUsername,
+		&i.ReceiverGender,
+		&i.ReceiverDisplayName,
 	)
 	return i, err
 }
 
 const getOutgoingPendingHugs = `-- name: GetOutgoingPendingHugs :many
 SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
-       h.hug_type,
+       h.hug_type, h.comment,
        r.username AS receiver_username, r.gender AS receiver_gender,
        r.display_name AS receiver_display_name
 FROM hugs h
@@ -305,6 +373,7 @@ type GetOutgoingPendingHugsRow struct {
 	CreatedAt           pgtype.Timestamptz
 	AcceptedAt          pgtype.Timestamptz
 	HugType             string
+	Comment             pgtype.Text
 	ReceiverUsername    string
 	ReceiverGender      pgtype.Text
 	ReceiverDisplayName pgtype.Text
@@ -327,6 +396,7 @@ func (q *Queries) GetOutgoingPendingHugs(ctx context.Context, giverID uuid.UUID)
 			&i.CreatedAt,
 			&i.AcceptedAt,
 			&i.HugType,
+			&i.Comment,
 			&i.ReceiverUsername,
 			&i.ReceiverGender,
 			&i.ReceiverDisplayName,
@@ -343,7 +413,7 @@ func (q *Queries) GetOutgoingPendingHugs(ctx context.Context, giverID uuid.UUID)
 
 const getPendingHugsForUser = `-- name: GetPendingHugsForUser :many
 SELECT h.id, h.giver_id, h.receiver_id, h.status, h.created_at, h.accepted_at,
-       h.hug_type,
+       h.hug_type, h.comment,
        g.username AS giver_username, g.gender AS giver_gender,
        g.display_name AS giver_display_name
 FROM hugs h
@@ -362,6 +432,7 @@ type GetPendingHugsForUserRow struct {
 	CreatedAt        pgtype.Timestamptz
 	AcceptedAt       pgtype.Timestamptz
 	HugType          string
+	Comment          pgtype.Text
 	GiverUsername    string
 	GiverGender      pgtype.Text
 	GiverDisplayName pgtype.Text
@@ -384,6 +455,7 @@ func (q *Queries) GetPendingHugsForUser(ctx context.Context, receiverID uuid.UUI
 			&i.CreatedAt,
 			&i.AcceptedAt,
 			&i.HugType,
+			&i.Comment,
 			&i.GiverUsername,
 			&i.GiverGender,
 			&i.GiverDisplayName,
@@ -437,9 +509,9 @@ func (q *Queries) HasPendingHugForPair(ctx context.Context, arg HasPendingHugFor
 }
 
 const insertHug = `-- name: InsertHug :one
-INSERT INTO hugs (giver_id, receiver_id, status, hug_type)
-VALUES ($1, $2, $3, $4)
-RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type
+INSERT INTO hugs (giver_id, receiver_id, status, hug_type, comment)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, giver_id, receiver_id, created_at, status, accepted_at, hug_type, comment
 `
 
 type InsertHugParams struct {
@@ -447,6 +519,7 @@ type InsertHugParams struct {
 	ReceiverID uuid.UUID
 	Status     string
 	HugType    string
+	Comment    pgtype.Text
 }
 
 func (q *Queries) InsertHug(ctx context.Context, arg InsertHugParams) (Hug, error) {
@@ -455,6 +528,7 @@ func (q *Queries) InsertHug(ctx context.Context, arg InsertHugParams) (Hug, erro
 		arg.ReceiverID,
 		arg.Status,
 		arg.HugType,
+		arg.Comment,
 	)
 	var i Hug
 	err := row.Scan(
@@ -465,6 +539,7 @@ func (q *Queries) InsertHug(ctx context.Context, arg InsertHugParams) (Hug, erro
 		&i.Status,
 		&i.AcceptedAt,
 		&i.HugType,
+		&i.Comment,
 	)
 	return i, err
 }
@@ -476,6 +551,7 @@ SELECT
     h.receiver_id,
     COALESCE(h.accepted_at, h.created_at) AS created_at,
     h.hug_type,
+    (h.comment IS NOT NULL)::bool AS has_comment,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,
@@ -502,6 +578,7 @@ type ListHugsByUserRow struct {
 	ReceiverID          uuid.UUID
 	CreatedAt           pgtype.Timestamptz
 	HugType             string
+	HasComment          bool
 	GiverUsername       string
 	ReceiverUsername    string
 	GiverGender         pgtype.Text
@@ -524,6 +601,7 @@ func (q *Queries) ListHugsByUser(ctx context.Context, arg ListHugsByUserParams) 
 			&i.ReceiverID,
 			&i.CreatedAt,
 			&i.HugType,
+			&i.HasComment,
 			&i.GiverUsername,
 			&i.ReceiverUsername,
 			&i.GiverGender,

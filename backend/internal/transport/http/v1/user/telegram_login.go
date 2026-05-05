@@ -79,6 +79,7 @@ func (h *UserHandler) PollTelegramLogin(ctx context.Context, req v1.PollTelegram
 		}
 
 		cookie := makeRefreshCookie(refreshToken, h.jwtManager.RefreshTokenDuration(), h.cookieSecure)
+		cookieStr := cookie.String()
 
 		return v1.PollTelegramLogin200JSONResponse{
 			Body: v1.AuthResponse{
@@ -86,7 +87,7 @@ func (h *UserHandler) PollTelegramLogin(ctx context.Context, req v1.PollTelegram
 				Token: accessToken,
 			},
 			Headers: v1.PollTelegramLogin200ResponseHeaders{
-				SetCookie: cookie.String(),
+				SetCookie: &cookieStr,
 			},
 		}, nil
 

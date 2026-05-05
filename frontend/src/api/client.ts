@@ -136,11 +136,15 @@ export const authApi = {
 
 // Hugs
 export const hugsApi = {
-  suggest: (userId: string, hugType?: string) =>
-    api.post(`/hugs/${userId}`, hugType ? { hug_type: hugType } : undefined),
+  suggest: (userId: string, hugType?: string, comment?: string) =>
+    api.post(
+      `/hugs/${userId}`,
+      hugType || comment ? { ...(hugType ? { hug_type: hugType } : {}), ...(comment ? { comment } : {}) } : undefined,
+    ),
   accept: (hugId: string) => api.post(`/hugs/${hugId}/accept`),
   decline: (hugId: string) => api.post(`/hugs/${hugId}/decline`),
   cancel: (hugId: string) => api.post(`/hugs/${hugId}/cancel`),
+  getDetail: (hugId: string) => api.get(`/hugs/${hugId}`),
   getInbox: () => api.get('/hugs/inbox'),
   getOutgoing: () => api.get('/hugs/outgoing'),
   getInboxCount: () => api.get('/hugs/inbox/count'),

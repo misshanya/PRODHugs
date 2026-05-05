@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Heart, ArrowUp, ArrowDown, Gift, Coins, Users, Trophy, Newspaper } from 'lucide-vue-next'
+import {
+  Heart,
+  ArrowUp,
+  ArrowDown,
+  Gift,
+  Coins,
+  Users,
+  Trophy,
+  Newspaper,
+  MessageSquare,
+} from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type DailyRewardResponse, type UserProfile } from '@/stores/hugs'
@@ -12,6 +22,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { plural, hugVerb } from '@/lib/utils'
 import InboxSection from '@/components/InboxSection.vue'
+import HugDetailModal from '@/components/HugDetailModal.vue'
 
 const auth = useAuthStore()
 const hugs = useHugsStore()
@@ -21,6 +32,15 @@ const dailyResult = ref<DailyRewardResponse | null>(null)
 const claimingDaily = ref(false)
 const loading = ref(true)
 let unmounted = false
+
+// Hug detail modal
+const detailHugId = ref<string | null>(null)
+const showDetail = ref(false)
+
+function openHugDetail(hugId: string) {
+  detailHugId.value = hugId
+  showDetail.value = true
+}
 
 const rankThresholds = [
   { name: 'Новичок', min: 0 },
@@ -238,7 +258,11 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
         <div v-else class="max-h-96 space-y-1 overflow-y-auto">
           <div v-for="(hug, i) in hugs.history" :key="hug.id">
             <Separator v-if="i > 0" class="my-1" />
-            <div class="flex items-center justify-between py-2">
+            <div
+              class="flex items-center justify-between py-2"
+              :class="{ 'cursor-pointer rounded-md transition-colors hover:bg-muted/50': hug.has_comment }"
+              @click="hug.has_comment ? openHugDetail(hug.id) : undefined"
+            >
               <div class="flex items-center gap-2 text-sm">
                 <ArrowUp
                   v-if="hug.giver_id === auth.user?.id"
@@ -250,6 +274,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
                   <RouterLink
                     :to="`/user/${hug.receiver_id}`"
                     class="font-medium text-foreground hover:underline"
+                    @click.stop
                     >{{ hug.receiver_display_name || hug.receiver_username }}</RouterLink
                   >
                 </span>
@@ -257,10 +282,12 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
                   <RouterLink
                     :to="`/user/${hug.giver_id}`"
                     class="font-medium text-foreground hover:underline"
+                    @click.stop
                     >{{ hug.giver_display_name || hug.giver_username }}</RouterLink
                   >
                   {{ hugVerb(hug.giver_gender) }} тебя
                 </span>
+                <MessageSquare v-if="hug.has_comment" class="size-3 text-prod-yellow" />
               </div>
               <span class="text-xs text-muted-foreground tabular-nums">
                 {{ formatDate(hug.created_at) }}
@@ -307,5 +334,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
         </Card>
       </RouterLink>
     </div>
+
+    <HugDetailModal v-model:open="showDetail" :hug-id="detailHugId" />
   </div>
 </template>

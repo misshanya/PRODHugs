@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { Wifi, WifiOff, ChevronUp } from 'lucide-vue-next'
+import { Wifi, WifiOff, ChevronUp, MessageSquare } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { hugFeedPhrase } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import HugDetailModal from '@/components/HugDetailModal.vue'
 import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
 import type { ChartConfig } from '@/components/ui/chart'
 import {
@@ -16,12 +18,27 @@ import {
   componentToString,
 } from '@/components/ui/chart'
 
+const auth = useAuthStore()
 const hugsStore = useHugsStore()
 const ws = useWebSocket()
 const feed = ref<HugFeedItem[]>([])
 const initialLoading = ref(true)
 const now = ref(Date.now())
 let tick: ReturnType<typeof setInterval> | null = null
+
+// Hug detail modal
+const detailHugId = ref<string | null>(null)
+const showDetail = ref(false)
+
+function openHugDetail(hugId: string) {
+  detailHugId.value = hugId
+  showDetail.value = true
+}
+
+function isParticipant(item: HugFeedItem): boolean {
+  const userId = auth.user?.id
+  return !!userId && (item.giver_id === userId || item.receiver_id === userId)
+}
 
 /** IDs of items that arrived via WebSocket (for highlight effect) */
 const newItemIds = ref(new Set<string>())
@@ -263,19 +280,31 @@ onUnmounted(() => {
             v-for="item in feed"
             :key="item.id"
             class="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"
-            :class="{ 'feed-new': newItemIds.has(item.id) }"
+            :class="{
+              'feed-new': newItemIds.has(item.id),
+              'cursor-pointer transition-colors hover:bg-muted/50': item.has_comment && isParticipant(item),
+            }"
             @animationend="newItemIds.delete(item.id)"
+            @click="item.has_comment && isParticipant(item) ? openHugDetail(item.id) : undefined"
           >
             <div class="min-w-0 flex-1 text-sm">
-              <RouterLink :to="`/user/${item.giver_id}`" class="font-medium hover:underline">{{
-                item.giver_display_name || item.giver_username
-              }}</RouterLink>
+              <RouterLink
+                :to="`/user/${item.giver_id}`"
+                class="font-medium hover:underline"
+                @click.stop
+              >{{ item.giver_display_name || item.giver_username }}</RouterLink>
               <span class="mx-1 text-muted-foreground">{{
                 hugFeedPhrase(item.giver_gender, item.hug_type)
               }}</span>
-              <RouterLink :to="`/user/${item.receiver_id}`" class="font-medium hover:underline">{{
-                item.receiver_display_name || item.receiver_username
-              }}</RouterLink>
+              <RouterLink
+                :to="`/user/${item.receiver_id}`"
+                class="font-medium hover:underline"
+                @click.stop
+              >{{ item.receiver_display_name || item.receiver_username }}</RouterLink>
+              <MessageSquare
+                v-if="item.has_comment && isParticipant(item)"
+                class="ml-1 inline size-3 text-prod-yellow"
+              />
             </div>
             <span class="shrink-0 text-xs text-muted-foreground tabular-nums">
               {{ timeAgo(item.created_at) }}
@@ -284,6 +313,8 @@ onUnmounted(() => {
         </TransitionGroup>
       </div>
     </div>
+
+    <HugDetailModal v-model:open="showDetail" :hug-id="detailHugId" />
   </div>
 </template>
 

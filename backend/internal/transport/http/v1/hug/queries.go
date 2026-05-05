@@ -53,6 +53,7 @@ func (h *HugHandler) GetHugHistory(ctx context.Context, req v1.GetHugHistoryRequ
 	result := make(v1.GetHugHistory200JSONResponse, len(hugs))
 	for i, hg := range hugs {
 		ht := v1.HugType(hg.HugType)
+		hasComment := hg.HasComment
 		item := v1.HugFeedItem{
 			Id:                  hg.ID,
 			GiverId:             hg.GiverID,
@@ -62,6 +63,7 @@ func (h *HugHandler) GetHugHistory(ctx context.Context, req v1.GetHugHistoryRequ
 			GiverDisplayName:    hg.GiverDisplayName,
 			ReceiverDisplayName: hg.ReceiverDisplayName,
 			HugType:             ht,
+			HasComment:          &hasComment,
 			CreatedAt:           hg.CreatedAt,
 		}
 		if hg.GiverGender != nil {
@@ -88,6 +90,7 @@ func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestO
 	result := make(v1.GetHugsFeed200JSONResponse, len(items))
 	for i, it := range items {
 		ht := v1.HugType(it.HugType)
+		hasComment := it.HasComment
 		fi := v1.HugFeedItem{
 			Id:                  it.ID,
 			GiverId:             it.GiverID,
@@ -97,6 +100,7 @@ func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestO
 			GiverDisplayName:    it.GiverDisplayName,
 			ReceiverDisplayName: it.ReceiverDisplayName,
 			HugType:             ht,
+			HasComment:          &hasComment,
 			CreatedAt:           it.CreatedAt,
 		}
 		if it.GiverGender != nil {

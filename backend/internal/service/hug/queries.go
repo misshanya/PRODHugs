@@ -15,6 +15,21 @@ func (s *service) GetBalance(ctx context.Context, userID uuid.UUID) (*models.Bal
 	return s.balanceRepo.GetBalance(ctx, userID)
 }
 
+func (s *service) GetHugDetail(ctx context.Context, hugID, requesterID uuid.UUID, isAdmin bool) (*models.HugDetail, error) {
+	detail, err := s.hugRepo.GetHugDetail(ctx, hugID)
+	if err != nil {
+		return nil, err
+	}
+	if detail == nil {
+		return nil, errorz.ErrHugNotFound
+	}
+	// Only sender, receiver, or admin can see details
+	if !isAdmin && detail.GiverID != requesterID && detail.ReceiverID != requesterID {
+		return nil, errorz.ErrHugNotFound // treat as not found for privacy
+	}
+	return detail, nil
+}
+
 func (s *service) GetHugHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.HugFeedItem, error) {
 	return s.hugRepo.ListHugsByUser(ctx, userID, limit, offset)
 }

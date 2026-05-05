@@ -30,7 +30,21 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		hugType = string(*req.Body.HugType)
 	}
 
-	hugResult, receiver, err := h.svc.SuggestHug(ctx, giverID, receiverID, hugType)
+	var comment *string
+	if req.Body != nil && req.Body.Comment != nil && *req.Body.Comment != "" {
+		c := *req.Body.Comment
+		if len([]rune(c)) > 140 {
+			return v1.SuggestHug400JSONResponse{
+				BadRequestJSONResponse: v1.BadRequestJSONResponse{
+					Code:    v1.COMMENTTOOLONG,
+					Message: "Comment must be at most 140 characters",
+				},
+			}, nil
+		}
+		comment = &c
+	}
+
+	hugResult, receiver, err := h.svc.SuggestHug(ctx, giverID, receiverID, hugType, comment)
 	if err != nil {
 		if errors.Is(err, errorz.ErrHugTypeLocked) {
 			return v1.SuggestHug409JSONResponse{
@@ -76,6 +90,7 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 		Status:     v1.HugStatus(hugResult.Status),
 		HugType:    ht,
 		AcceptedAt: hugResult.AcceptedAt,
+		Comment:    hugResult.Comment,
 	}
 	if receiver != nil {
 		resp.ReceiverUsername = &receiver.Username
@@ -84,6 +99,42 @@ func (h *HugHandler) SuggestHug(ctx context.Context, req v1.SuggestHugRequestObj
 			resp.ReceiverGender = &g
 		}
 	}
+	return resp, nil
+}
+
+func (h *HugHandler) GetHugDetail(ctx context.Context, req v1.GetHugDetailRequestObject) (v1.GetHugDetailResponseObject, error) {
+	requesterID := ctx.Value(middleware.UserIDContextKey).(uuid.UUID)
+	role, _ := ctx.Value(middleware.UserRoleContextKey).(string)
+	isAdmin := role == "admin"
+
+	detail, err := h.svc.GetHugDetail(ctx, req.HugId, requesterID, isAdmin)
+	if err != nil {
+		if errors.Is(err, errorz.ErrHugNotFound) {
+			return v1.GetHugDetail404JSONResponse{NotFoundJSONResponse: v1.NotFoundJSONResponse{Code: v1.HUGNOTFOUND, Message: "Hug not found"}}, nil
+		}
+		return nil, err
+	}
+
+	ht := v1.HugType(detail.HugType)
+	resp := v1.GetHugDetail200JSONResponse{
+		Id:                  detail.ID,
+		GiverId:             detail.GiverID,
+		ReceiverId:          detail.ReceiverID,
+		GiverUsername:       detail.GiverUsername,
+		ReceiverUsername:    detail.ReceiverUsername,
+		GiverDisplayName:    detail.GiverDisplayName,
+		ReceiverDisplayName: detail.ReceiverDisplayName,
+		Status:              v1.HugDetailStatus(detail.Status),
+		HugType:             ht,
+		Comment:             detail.Comment,
+		CreatedAt:           detail.CreatedAt,
+		AcceptedAt:          detail.AcceptedAt,
+	}
+	if detail.GiverGender != nil {
+		g := v1.Gender(*detail.GiverGender)
+		resp.GiverGender = &g
+	}
+
 	return resp, nil
 }
 
@@ -169,6 +220,7 @@ func (h *HugHandler) GetHugInbox(ctx context.Context, req v1.GetHugInboxRequestO
 			GiverUsername:    hg.GiverUsername,
 			GiverDisplayName: hg.GiverDisplayName,
 			HugType:          ht,
+			Comment:          hg.Comment,
 			CreatedAt:        hg.CreatedAt,
 		}
 		if hg.GiverGender != nil {
@@ -210,6 +262,7 @@ func (h *HugHandler) GetOutgoingHugs(ctx context.Context, req v1.GetOutgoingHugs
 			ReceiverUsername:    hug.ReceiverUsername,
 			ReceiverDisplayName: hug.ReceiverDisplayName,
 			HugType:             ht,
+			Comment:             hug.Comment,
 			CreatedAt:           hug.CreatedAt,
 		}
 		if hug.ReceiverGender != nil {

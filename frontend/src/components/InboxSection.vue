@@ -132,6 +132,12 @@ function onExplosionDone() {
                 {{ ' ' + hugSuggestionPhrase(item.hug_type) }}
               </span>
             </div>
+            <p
+              v-if="item.comment"
+              class="mt-1 rounded bg-muted/50 px-2 py-1 text-xs leading-relaxed text-muted-foreground"
+            >
+              {{ item.comment }}
+            </p>
             <span class="text-[10px] text-muted-foreground">
               {{ relativeTime(item.created_at) }}
             </span>

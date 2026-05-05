@@ -25,12 +25,17 @@ func toModelHug(h storage.Hug) *models.Hug {
 		t := h.AcceptedAt.Time
 		acceptedAt = &t
 	}
+	var comment *string
+	if h.Comment.Valid {
+		comment = &h.Comment.String
+	}
 	return &models.Hug{
 		ID:         h.ID,
 		GiverID:    h.GiverID,
 		ReceiverID: h.ReceiverID,
 		Status:     h.Status,
 		HugType:    h.HugType,
+		Comment:    comment,
 		CreatedAt:  h.CreatedAt.Time,
 		AcceptedAt: acceptedAt,
 	}
@@ -74,6 +79,7 @@ func toModelFeedItem(row storage.GetRecentHugsFeedRow) *models.HugFeedItem {
 		GiverDisplayName:    giverDisplayName,
 		ReceiverDisplayName: receiverDisplayName,
 		HugType:             row.HugType,
+		HasComment:          row.HasComment,
 		CreatedAt:           row.CreatedAt.Time,
 	}
 }
@@ -101,6 +107,7 @@ func toModelHistoryItem(row storage.ListHugsByUserRow) *models.HugFeedItem {
 		GiverDisplayName:    giverDisplayName,
 		ReceiverDisplayName: receiverDisplayName,
 		HugType:             row.HugType,
+		HasComment:          row.HasComment,
 		CreatedAt:           row.CreatedAt.Time,
 	}
 }
@@ -195,6 +202,10 @@ func toModelPendingInboxItem(row storage.GetPendingHugsForUserRow) *models.Pendi
 	if row.GiverDisplayName.Valid {
 		giverDisplayName = &row.GiverDisplayName.String
 	}
+	var comment *string
+	if row.Comment.Valid {
+		comment = &row.Comment.String
+	}
 	return &models.PendingHugInboxItem{
 		ID:               row.ID,
 		GiverID:          row.GiverID,
@@ -203,6 +214,7 @@ func toModelPendingInboxItem(row storage.GetPendingHugsForUserRow) *models.Pendi
 		GiverGender:      giverGender,
 		GiverDisplayName: giverDisplayName,
 		HugType:          row.HugType,
+		Comment:          comment,
 		CreatedAt:        row.CreatedAt.Time,
 	}
 }

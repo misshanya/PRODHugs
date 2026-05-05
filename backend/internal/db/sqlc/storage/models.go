@@ -29,6 +29,7 @@ type Hug struct {
 	Status     string
 	AcceptedAt pgtype.Timestamptz
 	HugType    string
+	Comment    pgtype.Text
 }
 
 type HugCooldown struct {

@@ -88,6 +88,7 @@ SELECT
     h.receiver_id,
     COALESCE(h.accepted_at, h.created_at) AS created_at,
     h.hug_type,
+    (h.comment IS NOT NULL)::bool AS has_comment,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,

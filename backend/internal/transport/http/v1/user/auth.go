@@ -114,26 +114,28 @@ func (h *UserHandler) RefreshToken(ctx context.Context, req v1.RefreshTokenReque
 	}
 
 	cookie := makeRefreshCookie(newRefreshToken, h.jwtManager.RefreshTokenDuration(), h.cookieSecure)
+	cookieStr := cookie.String()
 
 	return v1.RefreshToken200JSONResponse{
 		Body: struct {
 			Token string `json:"token"`
 		}{Token: accessToken},
 		Headers: v1.RefreshToken200ResponseHeaders{
-			SetCookie: cookie.String(),
+			SetCookie: &cookieStr,
 		},
 	}, nil
 }
 
 func (h *UserHandler) Logout(_ context.Context, _ v1.LogoutRequestObject) (v1.LogoutResponseObject, error) {
 	cookie := expiredRefreshCookie(h.cookieSecure)
+	cookieStr := cookie.String()
 
 	return v1.Logout200JSONResponse{
 		Body: struct {
 			Message string `json:"message"`
 		}{Message: "logged out"},
 		Headers: v1.Logout200ResponseHeaders{
-			SetCookie: cookie.String(),
+			SetCookie: &cookieStr,
 		},
 	}, nil
 }

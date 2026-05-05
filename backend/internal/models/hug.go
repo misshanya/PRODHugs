@@ -30,6 +30,7 @@ type Hug struct {
 	ReceiverID uuid.UUID
 	Status     string
 	HugType    string
+	Comment    *string
 	CreatedAt  time.Time
 	AcceptedAt *time.Time
 }
@@ -44,6 +45,7 @@ type HugFeedItem struct {
 	GiverDisplayName    *string
 	ReceiverDisplayName *string
 	HugType             string
+	HasComment          bool
 	CreatedAt           time.Time
 }
 
@@ -75,6 +77,7 @@ type PendingHugInboxItem struct {
 	GiverGender      *string
 	GiverDisplayName *string
 	HugType          string
+	Comment          *string
 	CreatedAt        time.Time
 }
 
@@ -86,7 +89,25 @@ type OutgoingPendingHug struct {
 	ReceiverGender      *string
 	ReceiverDisplayName *string
 	HugType             string
+	Comment             *string
 	CreatedAt           time.Time
+}
+
+// HugDetail is the full hug info returned by the detail endpoint.
+type HugDetail struct {
+	ID                  uuid.UUID
+	GiverID             uuid.UUID
+	ReceiverID          uuid.UUID
+	GiverUsername       string
+	ReceiverUsername    string
+	GiverGender         *string
+	GiverDisplayName    *string
+	ReceiverDisplayName *string
+	Status              string
+	HugType             string
+	Comment             *string
+	CreatedAt           time.Time
+	AcceptedAt          *time.Time
 }
 
 type SlotInfo struct {

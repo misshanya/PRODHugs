@@ -43,7 +43,7 @@ func (n *Notifier) Enabled() bool {
 }
 
 // NotifyHugSuggestion notifies the receiver with Accept/Decline buttons.
-func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverID uuid.UUID, hugType string) {
+func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID, hugID uuid.UUID, giverID uuid.UUID, hugType string, comment *string) {
 	giver, err := n.repo.GetByID(ctx, giverID)
 	if err != nil {
 		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
@@ -53,15 +53,19 @@ func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID uuid.UUID
 	phrase := hugTypeSuggestionPhrase(hugType)
 
 	if n.bot != nil {
-		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name, phrase)
+		n.bot.SendHugSuggestion(ctx, receiverID, hugID, name, phrase, comment)
 		return
 	}
 	// Fallback: plain text without buttons
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("🤗 <b>%s</b> %s!", name, phrase))
+	text := fmt.Sprintf("🤗 <b>%s</b> %s!", name, phrase)
+	if comment != nil && *comment != "" {
+		text += fmt.Sprintf("\n\n💬 <i>%s</i>", *comment)
+	}
+	n.sendToUser(ctx, receiverID, text)
 }
 
 // NotifyHugCompleted notifies both participants that the hug was accepted.
-func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID uuid.UUID, hugType string, bonusCoins int32) {
+func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID uuid.UUID, hugType string, bonusCoins int32, comment *string) {
 	giver, err := n.repo.GetByID(ctx, giverID)
 	if err != nil {
 		n.logger.Error("telegram: failed to look up giver", "giver_id", giverID, "error", err)
@@ -81,9 +85,23 @@ func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID u
 
 	hugWord := hugTypeCompletedNoun(hugType)
 
+	// Message to giver: if comment was attached, they pay for it (net 0 coins)
+	giverCoinText := coinText
+	if comment != nil {
+		giverCoinText = "0 (оплата комментария)"
+	}
+
 	receiverVerb := genderVerb(receiver.Gender, "принял", "приняла", "принял(а)")
-	n.sendToUser(ctx, giverID, fmt.Sprintf("🎉 <b>%s</b> %s %s! %s монет", displayName(receiver), receiverVerb, hugWord, coinText))
-	n.sendToUser(ctx, receiverID, fmt.Sprintf("🎉 Вы обнялись с <b>%s</b>! %s монет", displayName(giver), coinText))
+	giverMsg := fmt.Sprintf("🎉 <b>%s</b> %s %s! %s монет", displayName(receiver), receiverVerb, hugWord, giverCoinText)
+	receiverMsg := fmt.Sprintf("🎉 Вы обнялись с <b>%s</b>! %s монет", displayName(giver), coinText)
+
+	// Append the comment to the receiver's notification
+	if comment != nil && *comment != "" {
+		receiverMsg += fmt.Sprintf("\n\n💬 <i>%s</i>", *comment)
+	}
+
+	n.sendToUser(ctx, giverID, giverMsg)
+	n.sendToUser(ctx, receiverID, receiverMsg)
 }
 
 // NotifyHugDeclined notifies the giver that their hug was declined.

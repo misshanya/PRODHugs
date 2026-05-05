@@ -11,7 +11,7 @@ import (
 )
 
 type hugRepo interface {
-	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string) (*models.Hug, error)
+	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string, comment *string) (*models.Hug, error)
 	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	CancelHug(ctx context.Context, hugID, giverID uuid.UUID) (*models.Hug, error)
@@ -33,6 +33,7 @@ type hugRepo interface {
 	GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error)
 	CountMutualHugs(ctx context.Context, userA, userB uuid.UUID) (*models.MutualHugStats, error)
 	SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error)
+	GetHugDetail(ctx context.Context, hugID uuid.UUID) (*models.HugDetail, error)
 	ExpirePendingHugs(ctx context.Context) error
 }
 
@@ -74,8 +75,8 @@ type transactor interface {
 }
 
 // Callback types for WebSocket integration
-type HugCompletedCallback func(item *models.HugFeedItem, bonusCoins int32)
-type HugSuggestionCallback func(targetUserID uuid.UUID, item *models.PendingHugInboxItem)
+type HugCompletedCallback func(item *models.HugFeedItem, bonusCoins int32, comment *string)
+type HugSuggestionCallback func(targetUserID uuid.UUID, item *models.PendingHugInboxItem, comment *string)
 type HugDeclinedCallback func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID)
 type HugCancelledCallback func(targetUserID uuid.UUID, hugID uuid.UUID)
 

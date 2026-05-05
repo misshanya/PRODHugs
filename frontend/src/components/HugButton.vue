@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { Heart, Clock, Loader2, Hourglass, ChevronDown } from 'lucide-vue-next'
+import { Heart, Clock, Loader2, Hourglass, ChevronDown, MessageSquare } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type CooldownInfo, type IntimacyInfo, type HugType } from '@/stores/hugs'
@@ -10,8 +10,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 
 const props = defineProps<{
   userId: string
@@ -32,11 +42,22 @@ const btnRef = ref<HTMLButtonElement | null>(null)
 const intimacy = ref<IntimacyInfo | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 
+// Comment dialog state
+const showCommentDialog = ref(false)
+const commentText = ref('')
+const pendingHugType = ref<string | undefined>(undefined)
+
 const availableHugTypes = computed<HugType[]>(() => {
   if (!intimacy.value) return ['standard']
   return intimacy.value.available_hug_types
 })
 const hasMultipleTypes = computed(() => availableHugTypes.value.length > 1)
+
+// Comment cost based on intimacy tier bonus coins + 1 base
+const commentCost = computed(() => {
+  const bonus = intimacy.value?.bonus_coins ?? 0
+  return 1 + bonus
+})
 
 // Pending state computeds
 const allSlotsFull = computed(
@@ -97,12 +118,19 @@ function startTimer() {
 
 let suggesting = false
 
-async function suggest(hugType?: string) {
+function openCommentDialog(hugType?: string) {
+  pendingHugType.value = hugType
+  commentText.value = ''
+  showCommentDialog.value = true
+}
+
+async function suggest(hugType?: string, comment?: string) {
   if (suggesting || isDisabled.value) return
   suggesting = true
   loading.value = true
+  showCommentDialog.value = false
   try {
-    await hugsStore.suggestHug(props.userId, hugType)
+    await hugsStore.suggestHug(props.userId, hugType, comment)
     toast.success(`Ты ${suggestVerb(auth.user?.gender)} обнимашку ${props.username}!`)
     emit('hugged')
   } catch (e: unknown) {
@@ -112,6 +140,11 @@ async function suggest(hugType?: string) {
     loading.value = false
     suggesting = false
   }
+}
+
+function sendWithComment() {
+  const comment = commentText.value.trim() || undefined
+  suggest(pendingHugType.value, comment)
 }
 
 function formatTime(seconds: number): string {
@@ -125,20 +158,22 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
 
-watch(() => hugsStore.cooldownRefreshes[props.userId], (newVal, oldVal) => {
-  if (newVal && newVal !== oldVal) {
-    loadCooldown()
-  }
-})
+watch(
+  () => hugsStore.cooldownRefreshes[props.userId],
+  (newVal, oldVal) => {
+    if (newVal && newVal !== oldVal) {
+      loadCooldown()
+    }
+  },
+)
 </script>
 
 <template>
   <div ref="btnRef" class="relative inline-flex">
-    <!-- Single button when only standard type or disabled state -->
+    <!-- Disabled states: single non-interactive button -->
     <Button
-      v-if="!hasMultipleTypes || isDisabled"
-      @click="suggest()"
-      :disabled="isDisabled"
+      v-if="isDisabled"
+      :disabled="true"
       :size="size ?? 'default'"
       :variant="buttonVariant"
       class="rounded-[21px]"
@@ -154,23 +189,20 @@ watch(() => hugsStore.cooldownRefreshes[props.userId], (newVal, oldVal) => {
       <span v-else>Обняться</span>
     </Button>
 
-    <!-- Split button with dropdown when multiple types are unlocked -->
+    <!-- Active state: split button — main sends standard, dropdown has types + comment -->
     <div v-else class="inline-flex">
       <Button
         @click="suggest()"
-        :disabled="isDisabled"
         :size="size ?? 'default'"
         :variant="buttonVariant"
         class="rounded-l-[21px] rounded-r-none"
       >
-        <Loader2 v-if="loading" class="size-4 animate-spin" />
-        <Heart v-else class="size-4" />
+        <Heart class="size-4" />
         <span>Обняться</span>
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button
-            :disabled="isDisabled"
             :size="size ?? 'default'"
             :variant="buttonVariant"
             class="rounded-l-none rounded-r-[21px] border-l border-background/20 px-1.5"
@@ -178,7 +210,8 @@ watch(() => hugsStore.cooldownRefreshes[props.userId], (newVal, oldVal) => {
             <ChevronDown class="size-3.5" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-40">
+        <DropdownMenuContent align="end" class="w-48">
+          <!-- Hug types -->
           <DropdownMenuItem
             v-for="ht in availableHugTypes"
             :key="ht"
@@ -186,8 +219,65 @@ watch(() => hugsStore.cooldownRefreshes[props.userId], (newVal, oldVal) => {
           >
             {{ hugTypeLabel(ht) }}
           </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <!-- Comment option — opens dialog for standard type -->
+          <DropdownMenuItem @click="openCommentDialog()">
+            <MessageSquare class="size-4" />
+            С комментарием
+          </DropdownMenuItem>
+
+          <!-- Comment + type options (if multiple types unlocked) -->
+          <template v-if="hasMultipleTypes">
+            <DropdownMenuItem
+              v-for="ht in availableHugTypes"
+              :key="`comment-${ht}`"
+              @click="openCommentDialog(ht)"
+              class="text-muted-foreground"
+            >
+              <MessageSquare class="size-4" />
+              {{ hugTypeLabel(ht) }} + комм.
+            </DropdownMenuItem>
+          </template>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+
+    <!-- Comment dialog -->
+    <Dialog v-model:open="showCommentDialog">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Комментарий к обнимашке</DialogTitle>
+          <DialogDescription>
+            Виден только тебе и получателю. Стоимость:
+            {{ commentCost }} {{ commentCost === 1 ? 'монета' : 'монеты' }} (при принятии).
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-2">
+          <Textarea
+            v-model="commentText"
+            placeholder="Напиши что-нибудь приятное..."
+            :maxlength="140"
+            class="resize-none"
+            rows="3"
+          />
+          <div class="text-right text-xs text-muted-foreground">
+            {{ commentText.length }}/140
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="yellow"
+            class="w-full rounded-[21px]"
+            :disabled="commentText.trim().length === 0"
+            @click="sendWithComment"
+          >
+            <MessageSquare class="size-4" />
+            Отправить
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

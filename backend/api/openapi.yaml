@@ -46,6 +46,7 @@ components:
         - TELEGRAM_LOGIN_FAILED
         - HUG_TYPE_LOCKED
         - CANNOT_DELETE_ADMIN
+        - COMMENT_TOO_LONG
 
     Error:
       type: object
@@ -192,6 +193,10 @@ components:
         hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
         accepted_at: { type: string, format: date-time }
+        comment:
+          type: string
+          nullable: true
+          maxLength: 140
 
     HugFeedItem:
       type: object
@@ -219,6 +224,7 @@ components:
           nullable: true
         hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
+        has_comment: { type: boolean }
 
     CooldownInfo:
       type: object
@@ -358,6 +364,10 @@ components:
           nullable: true
         hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
+        comment:
+          type: string
+          nullable: true
+          maxLength: 140
 
     OutgoingPendingHug:
       type: object
@@ -380,6 +390,10 @@ components:
           nullable: true
         hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
+        comment:
+          type: string
+          nullable: true
+          maxLength: 140
 
     HugSlotInfo:
       type: object
@@ -423,6 +437,43 @@ components:
         - count
       properties:
         count: { type: integer }
+
+    HugDetail:
+      type: object
+      required:
+        - id
+        - giver_id
+        - receiver_id
+        - giver_username
+        - receiver_username
+        - status
+        - hug_type
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        giver_id: { type: string, format: uuid }
+        receiver_id: { type: string, format: uuid }
+        giver_username: { type: string }
+        receiver_username: { type: string }
+        giver_gender:
+          $ref: '#/components/schemas/Gender'
+        giver_display_name:
+          type: string
+          nullable: true
+        receiver_display_name:
+          type: string
+          nullable: true
+        status: { type: string, enum: [pending, completed, declined, expired, cancelled] }
+        hug_type: { $ref: '#/components/schemas/HugType' }
+        created_at: { type: string, format: date-time }
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+          maxLength: 140
 
     AdminUser:
       type: object
@@ -1113,6 +1164,10 @@ paths:
               properties:
                 hug_type:
                   $ref: '#/components/schemas/HugType'
+                comment:
+                  type: string
+                  maxLength: 140
+                  description: Optional comment visible only to sender and receiver (costs coins on accept)
               additionalProperties: false
       responses:
         '201':
@@ -1131,6 +1186,33 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+
+  /hugs/{hugId}:
+    get:
+      summary: Get hug details (only visible to sender, receiver, or admin)
+      operationId: getHugDetail
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: hugId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hug details with comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HugDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /hugs/{hugId}/accept:
     post:
