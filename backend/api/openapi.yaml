@@ -1206,7 +1206,7 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
-  /hugs/{hugId}:
+  /hugs/detail/{hugId}:
     get:
       summary: Get hug details (only visible to sender, receiver, or admin)
       operationId: getHugDetail
