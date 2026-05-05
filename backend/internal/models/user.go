@@ -22,6 +22,7 @@ type User struct {
 	Gender         *string
 	DisplayName    *string
 	Tag            *string
+	SpecialTag     *string
 	TelegramID     *int64
 	BannedAt       *time.Time
 	CreatedAt      *time.Time
@@ -34,6 +35,7 @@ type AdminUser struct {
 	Gender      *string
 	DisplayName *string
 	Tag         *string
+	SpecialTag  *string
 	BannedAt    *time.Time
 	CreatedAt   *time.Time
 	Balance     int32
@@ -51,5 +53,6 @@ type BlockedUser struct {
 	Gender      *string
 	DisplayName *string
 	Tag         *string
+	SpecialTag  *string
 	CreatedAt   time.Time
 }

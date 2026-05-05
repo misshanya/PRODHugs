@@ -44,6 +44,10 @@ func toModelUser(u storage.User) *models.User {
 	if u.Tag.Valid {
 		tag = &u.Tag.String
 	}
+	var specialTag *string
+	if u.SpecialTag.Valid {
+		specialTag = &u.SpecialTag.String
+	}
 	return &models.User{
 		ID:             u.ID,
 		Username:       u.Username,
@@ -52,6 +56,7 @@ func toModelUser(u storage.User) *models.User {
 		Gender:         gender,
 		DisplayName:    displayName,
 		Tag:            tag,
+		SpecialTag:     specialTag,
 		TelegramID:     telegramID,
 		BannedAt:       bannedAt,
 		CreatedAt:      createdAt,
@@ -83,6 +88,10 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 	if u.Tag.Valid {
 		tag = &u.Tag.String
 	}
+	var specialTag *string
+	if u.SpecialTag.Valid {
+		specialTag = &u.SpecialTag.String
+	}
 	return &models.AdminUser{
 		ID:          u.ID,
 		Username:    u.Username,
@@ -90,6 +99,7 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 		Gender:      gender,
 		DisplayName: displayName,
 		Tag:         tag,
+		SpecialTag:  specialTag,
 		BannedAt:    bannedAt,
 		CreatedAt:   createdAt,
 		Balance:     u.Balance,
@@ -122,6 +132,10 @@ func toAdminUserFromSearch(u storage.SearchUsersAdminRow) *models.AdminUser {
 	if u.Tag.Valid {
 		tag = &u.Tag.String
 	}
+	var specialTag *string
+	if u.SpecialTag.Valid {
+		specialTag = &u.SpecialTag.String
+	}
 	return &models.AdminUser{
 		ID:          u.ID,
 		Username:    u.Username,
@@ -129,6 +143,7 @@ func toAdminUserFromSearch(u storage.SearchUsersAdminRow) *models.AdminUser {
 		Gender:      gender,
 		DisplayName: displayName,
 		Tag:         tag,
+		SpecialTag:  specialTag,
 		BannedAt:    bannedAt,
 		CreatedAt:   createdAt,
 		Balance:     u.Balance,

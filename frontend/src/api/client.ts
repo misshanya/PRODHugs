@@ -208,6 +208,8 @@ export const adminApi = {
     api.put(`/admin/users/${userId}/display-name`, { display_name: displayName }),
   updateTag: (userId: string, tag: string | null) =>
     api.put(`/admin/users/${userId}/tag`, { tag }),
+  updateSpecialTag: (userId: string, specialTag: string | null) =>
+    api.put(`/admin/users/${userId}/special-tag`, { special_tag: specialTag }),
   updatePassword: (userId: string, password: string) =>
     api.put(`/admin/users/${userId}/password`, { password }),
   updateBalance: (userId: string, amount: number) =>

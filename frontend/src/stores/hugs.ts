@@ -100,6 +100,7 @@ export interface LeaderboardEntry {
   username: string
   display_name?: string | null
   tag?: string | null
+  special_tag?: string | null
   total_hugs: number
   hugs_given: number
   hugs_received: number
@@ -111,6 +112,7 @@ export interface UserProfile {
   username: string
   display_name?: string | null
   tag?: string | null
+  special_tag?: string | null
   role: string
   gender?: string | null
   hugs_given: number
@@ -130,6 +132,8 @@ export interface BlockedUser {
   username: string
   display_name?: string | null
   gender?: string | null
+  tag?: string | null
+  special_tag?: string | null
   created_at: string
 }
 

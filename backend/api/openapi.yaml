@@ -81,6 +81,10 @@ components:
           type: string
           nullable: true
           maxLength: 20
+        special_tag:
+          type: string
+          nullable: true
+          maxLength: 20
 
     AuthResponse:
       type: object
@@ -268,6 +272,9 @@ components:
         tag:
           type: string
           nullable: true
+        special_tag:
+          type: string
+          nullable: true
         hugs_given: { type: integer }
         hugs_received: { type: integer }
         total_hugs: { type: integer }
@@ -296,6 +303,9 @@ components:
           type: string
           nullable: true
         tag:
+          type: string
+          nullable: true
+        special_tag:
           type: string
           nullable: true
         total_hugs: { type: integer }
@@ -331,6 +341,9 @@ components:
           type: string
           nullable: true
         tag:
+          type: string
+          nullable: true
+        special_tag:
           type: string
           nullable: true
 
@@ -494,6 +507,9 @@ components:
         tag:
           type: string
           nullable: true
+        special_tag:
+          type: string
+          nullable: true
         banned_at:
           type: string
           format: date-time
@@ -532,6 +548,9 @@ components:
           type: string
           nullable: true
         tag:
+          type: string
+          nullable: true
+        special_tag:
           type: string
           nullable: true
         created_at: { type: string, format: date-time }
@@ -1901,6 +1920,47 @@ paths:
       responses:
         '200':
           description: Tag updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/users/{userId}/special-tag:
+    put:
+      summary: Change a user's special tag (admin-only styled tag)
+      operationId: adminUpdateSpecialTag
+      security:
+        - BearerAuth: ["admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                special_tag:
+                  type: string
+                  nullable: true
+                  maxLength: 20
+              additionalProperties: false
+      responses:
+        '200':
+          description: Special tag updated
           content:
             application/json:
               schema:

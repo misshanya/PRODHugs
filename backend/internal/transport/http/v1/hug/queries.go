@@ -152,6 +152,7 @@ func (h *HugHandler) GetLeaderboard(ctx context.Context, req v1.GetLeaderboardRe
 			Username:    e.Username,
 			DisplayName: e.DisplayName,
 			Tag:          e.Tag,
+			SpecialTag:   e.SpecialTag,
 			TotalHugs:    int(e.TotalHugs),
 			HugsGiven:    int(e.HugsGiven),
 			HugsReceived: int(e.HugsReceived),
@@ -188,6 +189,7 @@ func (h *HugHandler) GetUserProfile(ctx context.Context, req v1.GetUserProfileRe
 		Username:     user.Username,
 		DisplayName:  user.DisplayName,
 		Tag:          user.Tag,
+		SpecialTag:   user.SpecialTag,
 		Role:         user.Role,
 		HugsGiven:    int(stats.HugsGiven),
 		HugsReceived: int(stats.HugsReceived),
@@ -261,6 +263,7 @@ func (h *HugHandler) SearchUsers(ctx context.Context, req v1.SearchUsersRequestO
 			Role:        u.Role,
 			DisplayName: u.DisplayName,
 			Tag:         u.Tag,
+			SpecialTag:  u.SpecialTag,
 		}
 		if u.Gender != nil {
 			g := v1.Gender(*u.Gender)

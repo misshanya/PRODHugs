@@ -51,6 +51,7 @@ func toV1User(u *models.User) v1.User {
 		Role:        v1.UserRole(u.Role),
 		DisplayName: u.DisplayName,
 		Tag:         u.Tag,
+		SpecialTag:  u.SpecialTag,
 		TelegramId:  u.TelegramID,
 	}
 	if u.Gender != nil {

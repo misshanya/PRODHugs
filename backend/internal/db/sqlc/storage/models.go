@@ -68,6 +68,7 @@ type User struct {
 	DisplayName pgtype.Text
 	TelegramID  pgtype.Int8
 	Tag         pgtype.Text
+	SpecialTag  pgtype.Text
 }
 
 type UserBlock struct {

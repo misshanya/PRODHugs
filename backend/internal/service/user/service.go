@@ -14,6 +14,7 @@ type repo interface {
 	GetByTelegramID(ctx context.Context, telegramID int64) (*models.User, error)
 	UpdateSettings(ctx context.Context, id uuid.UUID, gender *string, displayName *string, tag *string) (*models.User, error)
 	AdminUpdateTag(ctx context.Context, id uuid.UUID, tag *string) (*models.User, error)
+	AdminUpdateSpecialTag(ctx context.Context, id uuid.UUID, specialTag *string) (*models.User, error)
 	GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error)
 	SetTelegramID(ctx context.Context, userID uuid.UUID, telegramID int64) (*models.User, error)
 	ClearTelegramID(ctx context.Context, userID uuid.UUID) (*models.User, error)

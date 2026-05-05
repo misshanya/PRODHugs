@@ -20,6 +20,7 @@ type service interface {
 	AdminUpdateBalance(ctx context.Context, id uuid.UUID, amount int32) (*models.Balance, error)
 	AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, displayName *string) (*models.User, error)
 	AdminUpdateTag(ctx context.Context, id uuid.UUID, tag *string) (*models.User, error)
+	AdminUpdateSpecialTag(ctx context.Context, id uuid.UUID, specialTag *string) (*models.User, error)
 	AdminDeleteUser(ctx context.Context, id uuid.UUID) error
 }
 
@@ -39,6 +40,7 @@ func toV1AdminUser(u *models.User) v1.AdminUser {
 		Balance:     0, // Not available from User model; frontend updates locally
 		DisplayName: u.DisplayName,
 		Tag:         u.Tag,
+		SpecialTag:  u.SpecialTag,
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)
@@ -59,6 +61,7 @@ func toV1AdminUserFromAdmin(u *models.AdminUser) v1.AdminUser {
 		CreatedAt:   u.CreatedAt,
 		DisplayName: u.DisplayName,
 		Tag:         u.Tag,
+		SpecialTag:  u.SpecialTag,
 		LastVisitAt: u.LastVisitAt,
 	}
 	if u.Gender != nil {

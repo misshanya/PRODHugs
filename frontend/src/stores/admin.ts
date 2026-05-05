@@ -10,6 +10,7 @@ export interface AdminUser {
   gender?: Gender | null
   display_name?: string | null
   tag?: string | null
+  special_tag?: string | null
   banned_at?: string | null
   created_at?: string | null
   last_visit_at?: string | null
@@ -114,6 +115,14 @@ export const useAdminStore = defineStore('admin', () => {
     return updated
   }
 
+  async function updateSpecialTag(userId: string, specialTag: string | null) {
+    const res = await adminApi.updateSpecialTag(userId, specialTag)
+    const updated: AdminUser = res.data
+    const idx = users.value.findIndex((u) => u.id === userId)
+    if (idx !== -1) users.value[idx] = updated
+    return updated
+  }
+
   async function updatePassword(userId: string, password: string) {
     await adminApi.updatePassword(userId, password)
   }
@@ -147,6 +156,7 @@ export const useAdminStore = defineStore('admin', () => {
     updateGender,
     updateDisplayName,
     updateTag,
+    updateSpecialTag,
     updatePassword,
     updateBalance,
     deleteUser,

@@ -184,3 +184,22 @@ func (r *repo) AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, display
 
 	return toModelUser(u), nil
 }
+
+func (r *repo) AdminUpdateSpecialTag(ctx context.Context, id uuid.UUID, specialTag *string) (*models.User, error) {
+	q := repository.Queries(ctx, r.q)
+
+	var t pgtype.Text
+	if specialTag != nil {
+		t = pgtype.Text{String: *specialTag, Valid: true}
+	}
+
+	u, err := q.AdminUpdateSpecialTag(ctx, storage.AdminUpdateSpecialTagParams{
+		ID:         id,
+		SpecialTag: t,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return toModelUser(u), nil
+}

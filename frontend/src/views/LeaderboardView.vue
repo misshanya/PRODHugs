@@ -4,6 +4,7 @@ import { useHugsStore, type IntimacyLeaderboardEntry } from '@/stores/hugs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import UserTag from '@/components/UserTag.vue'
 import {
   Table,
   TableBody,
@@ -166,13 +167,11 @@ onMounted(() => {
                             <span class="truncate text-xs font-medium sm:text-sm">{{
                               entry.display_name || entry.username
                             }}</span>
-                            <Badge
-                              v-if="entry.tag"
-                              variant="outline"
-                              class="shrink-0 text-[9px] px-1.5 py-0"
-                            >
-                              {{ entry.tag }}
-                            </Badge>
+                            <UserTag :tag="entry.tag" />
+                            <span
+                              v-if="entry.special_tag"
+                              class="shrink-0 text-[9px] text-prod-yellow"
+                            >{{ entry.special_tag }}</span>
                           </div>
                           <span
                             v-if="entry.display_name"

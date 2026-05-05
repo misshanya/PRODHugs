@@ -125,11 +125,16 @@ func toModelLeaderboardEntry(row storage.GetLeaderboardRow) *models.LeaderboardE
 	if row.Tag.Valid {
 		tag = &row.Tag.String
 	}
+	var specialTag *string
+	if row.SpecialTag.Valid {
+		specialTag = &row.SpecialTag.String
+	}
 	return &models.LeaderboardEntry{
 		UserID:       row.ID,
 		Username:     row.Username,
 		DisplayName:  displayName,
 		Tag:          tag,
+		SpecialTag:   specialTag,
 		Role:         row.Role,
 		TotalHugs:    row.TotalHugs,
 		HugsGiven:    row.HugsGiven,
@@ -160,6 +165,10 @@ func toModelUserListItem(row storage.SearchUsersRow) *models.User {
 	if row.Tag.Valid {
 		tag = &row.Tag.String
 	}
+	var specialTag *string
+	if row.SpecialTag.Valid {
+		specialTag = &row.SpecialTag.String
+	}
 	return &models.User{
 		ID:          row.ID,
 		Username:    row.Username,
@@ -167,6 +176,7 @@ func toModelUserListItem(row storage.SearchUsersRow) *models.User {
 		Gender:      gender,
 		DisplayName: displayName,
 		Tag:         tag,
+		SpecialTag:  specialTag,
 	}
 }
 
@@ -183,6 +193,10 @@ func toModelUserListItemFromAll(row storage.ListAllUsersRow) *models.User {
 	if row.Tag.Valid {
 		tag = &row.Tag.String
 	}
+	var specialTag *string
+	if row.SpecialTag.Valid {
+		specialTag = &row.SpecialTag.String
+	}
 	return &models.User{
 		ID:          row.ID,
 		Username:    row.Username,
@@ -190,6 +204,7 @@ func toModelUserListItemFromAll(row storage.ListAllUsersRow) *models.User {
 		Gender:      gender,
 		DisplayName: displayName,
 		Tag:         tag,
+		SpecialTag:  specialTag,
 	}
 }
 

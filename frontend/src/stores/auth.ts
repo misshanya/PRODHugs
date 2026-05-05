@@ -13,6 +13,7 @@ export interface User {
   gender?: Gender | null
   display_name?: string | null
   tag?: string | null
+  special_tag?: string | null
   telegram_id?: number | null
 }
 

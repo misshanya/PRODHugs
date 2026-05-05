@@ -43,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import UserTag from '@/components/UserTag.vue'
 
 const admin = useAdminStore()
 const onlineStore = useOnlineStore()
@@ -303,6 +304,36 @@ async function saveTag() {
   }
 }
 
+// Special tag dialog
+const specialTagDialogOpen = ref(false)
+const newSpecialTag = ref('')
+const savingSpecialTag = ref(false)
+const specialTagError = ref('')
+
+function openSpecialTagDialog(user: AdminUser) {
+  editingUser.value = user
+  newSpecialTag.value = user.special_tag ?? ''
+  specialTagError.value = ''
+  specialTagDialogOpen.value = true
+}
+
+async function saveSpecialTag() {
+  if (!editingUser.value) return
+  savingSpecialTag.value = true
+  specialTagError.value = ''
+  try {
+    const value = newSpecialTag.value.trim() || null
+    await admin.updateSpecialTag(editingUser.value.id, value)
+    toast.success('Спецтег изменён')
+    specialTagDialogOpen.value = false
+  } catch (e) {
+    const parsed = parseBackendError(e)
+    specialTagError.value = parsed.generalError ?? 'Ошибка сохранения'
+  } finally {
+    savingSpecialTag.value = false
+  }
+}
+
 // ── Ban / Unban ──
 async function toggleBan(user: AdminUser) {
   try {
@@ -474,9 +505,11 @@ function formatDate(dateStr: string): string {
                 <Badge v-if="user.banned_at" variant="destructive" class="text-[10px] px-1.5 py-0">
                   Бан
                 </Badge>
-                <Badge v-if="user.tag" variant="outline" class="text-[10px] px-1.5 py-0">
-                  {{ user.tag }}
-                </Badge>
+                <UserTag :tag="user.tag" size="md" />
+                <span
+                  v-if="user.special_tag"
+                  class="text-[10px] text-prod-yellow"
+                >{{ user.special_tag }}</span>
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <p v-if="user.display_name" class="text-xs text-muted-foreground">
@@ -532,6 +565,10 @@ function formatDate(dateStr: string): string {
               <DropdownMenuItem @click="openTagDialog(user)">
                 <Hash class="size-4" />
                 Изменить тег
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="openSpecialTagDialog(user)">
+                <Tag class="size-4" />
+                Спецтег
               </DropdownMenuItem>
               <DropdownMenuItem @click="openGenderDialog(user)">
                 <Venus class="size-4" />
@@ -724,6 +761,39 @@ function formatDate(dateStr: string): string {
             @click="saveTag"
           >
             {{ savingTag ? 'Сохранение...' : 'Сохранить' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Special tag dialog -->
+    <Dialog v-model:open="specialTagDialogOpen">
+      <DialogContent class="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Спецтег</DialogTitle>
+          <DialogDescription>
+            Пользователь: {{ editingUser?.username }}. Спецтег отображается с особым стилем.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="grid gap-1.5">
+            <Label for="admin-special-tag">Спецтег</Label>
+            <Input
+              id="admin-special-tag"
+              v-model="newSpecialTag"
+              maxlength="20"
+              placeholder="Оставьте пустым для сброса"
+              @keydown.enter="saveSpecialTag"
+            />
+          </div>
+          <p v-if="specialTagError" class="text-sm text-destructive">{{ specialTagError }}</p>
+          <Button
+            variant="yellow"
+            class="w-full rounded-[21px]"
+            :disabled="savingSpecialTag"
+            @click="saveSpecialTag"
+          >
+            {{ savingSpecialTag ? 'Сохранение...' : 'Сохранить' }}
           </Button>
         </div>
       </DialogContent>

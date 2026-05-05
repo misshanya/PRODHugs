@@ -7,9 +7,10 @@ type LeaderboardEntry struct {
 	Username     string
 	DisplayName  *string
 	Tag          *string
+	SpecialTag   *string
 	Role         string
 	TotalHugs    int32
-	HugsGiven    int64
+	HugsGiven   int64
 	HugsReceived int64
 	Rank         string
 }

@@ -8,7 +8,7 @@ DELETE FROM user_blocks
 WHERE blocker_id = $1 AND blocked_id = $2;
 
 -- name: GetBlockedUsers :many
-SELECT u.id, u.username, u.gender, u.display_name, u.tag, ub.created_at
+SELECT u.id, u.username, u.gender, u.display_name, u.tag, u.special_tag, ub.created_at
 FROM user_blocks ub
 JOIN users u ON u.id = ub.blocked_id
 WHERE ub.blocker_id = $1

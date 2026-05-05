@@ -2,8 +2,8 @@
 import { useAuthStore } from '@/stores/auth'
 import { useOnlineStore } from '@/stores/online'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import HugButton from './HugButton.vue'
+import UserTag from './UserTag.vue'
 
 const props = defineProps<{
   user: {
@@ -12,6 +12,7 @@ const props = defineProps<{
     role: string
     display_name?: string | null
     tag?: string | null
+    special_tag?: string | null
   }
 }>()
 
@@ -41,17 +42,12 @@ const isMe = auth.user?.id === props.user.id
           <p class="text-sm font-medium truncate">
             {{ user.display_name || user.username }}
           </p>
-          <Badge
-            v-if="user.tag"
-            variant="outline"
-            class="shrink-0 text-[9px] px-1.5 py-0"
-          >
-            {{ user.tag }}
-          </Badge>
+          <UserTag :tag="user.tag" />
         </div>
         <p class="text-xs text-muted-foreground mt-1">
           <template v-if="user.display_name">@{{ user.username }} · </template>
-          {{ user.role === 'admin' ? 'Админ' : 'Пользователь' }}
+          <span v-if="user.special_tag" class="text-prod-yellow">{{ user.special_tag }}</span>
+          <template v-else>{{ user.role === 'admin' ? 'Админ' : 'Пользователь' }}</template>
         </p>
       </div>
     </RouterLink>

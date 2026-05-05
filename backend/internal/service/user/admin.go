@@ -67,6 +67,10 @@ func (s *service) AdminUpdateTag(ctx context.Context, id uuid.UUID, tag *string)
 	return s.repo.AdminUpdateTag(ctx, id, tag)
 }
 
+func (s *service) AdminUpdateSpecialTag(ctx context.Context, id uuid.UUID, specialTag *string) (*models.User, error) {
+	return s.repo.AdminUpdateSpecialTag(ctx, id, specialTag)
+}
+
 func (s *service) AdminDeleteUser(ctx context.Context, id uuid.UUID) error {
 	return s.repo.AdminDeleteUser(ctx, id)
 }

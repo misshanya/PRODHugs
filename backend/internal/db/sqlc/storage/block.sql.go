@@ -29,7 +29,7 @@ func (q *Queries) BlockUser(ctx context.Context, arg BlockUserParams) error {
 }
 
 const getBlockedUsers = `-- name: GetBlockedUsers :many
-SELECT u.id, u.username, u.gender, u.display_name, u.tag, ub.created_at
+SELECT u.id, u.username, u.gender, u.display_name, u.tag, u.special_tag, ub.created_at
 FROM user_blocks ub
 JOIN users u ON u.id = ub.blocked_id
 WHERE ub.blocker_id = $1
@@ -42,6 +42,7 @@ type GetBlockedUsersRow struct {
 	Gender      pgtype.Text
 	DisplayName pgtype.Text
 	Tag         pgtype.Text
+	SpecialTag  pgtype.Text
 	CreatedAt   pgtype.Timestamptz
 }
 
@@ -60,6 +61,7 @@ func (q *Queries) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]G
 			&i.Gender,
 			&i.DisplayName,
 			&i.Tag,
+			&i.SpecialTag,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

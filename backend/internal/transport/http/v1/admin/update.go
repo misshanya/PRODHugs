@@ -57,6 +57,15 @@ func (h *AdminHandler) AdminUpdateTag(ctx context.Context, req v1.AdminUpdateTag
 	return v1.AdminUpdateTag200JSONResponse(toV1AdminUser(u)), nil
 }
 
+func (h *AdminHandler) AdminUpdateSpecialTag(ctx context.Context, req v1.AdminUpdateSpecialTagRequestObject) (v1.AdminUpdateSpecialTagResponseObject, error) {
+	u, err := h.svc.AdminUpdateSpecialTag(ctx, req.UserId, req.Body.SpecialTag)
+	if err != nil {
+		return nil, err
+	}
+
+	return v1.AdminUpdateSpecialTag200JSONResponse(toV1AdminUser(u)), nil
+}
+
 func (h *AdminHandler) AdminUpdatePassword(ctx context.Context, req v1.AdminUpdatePasswordRequestObject) (v1.AdminUpdatePasswordResponseObject, error) {
 	err := h.svc.AdminUpdatePassword(ctx, req.UserId, req.Body.Password)
 	if err != nil {
