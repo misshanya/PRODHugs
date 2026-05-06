@@ -86,7 +86,7 @@ function statusLabel(status: string): string {
         Не удалось загрузить детали
       </div>
 
-      <div v-else-if="detail" class="space-y-4">
+      <div v-else-if="detail" class="min-w-0 space-y-4">
         <!-- Participants -->
         <div class="space-y-2">
           <div class="flex items-center justify-between text-sm">
@@ -132,7 +132,7 @@ function statusLabel(status: string): string {
               <MessageSquare class="size-3" />
               Комментарий
             </div>
-            <p class="max-h-40 overflow-y-auto break-words rounded-lg bg-muted/50 p-3 text-sm leading-relaxed whitespace-pre-wrap">
+            <p class="max-h-40 overflow-y-auto rounded-lg bg-muted/50 p-3 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
               {{ detail.comment }}
             </p>
           </div>
