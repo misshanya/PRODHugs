@@ -1,48 +1,64 @@
-# frontend
+# Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 SPA for Hugs as a Service.
 
-## Recommended IDE Setup
+## Tech Stack
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- **Vue 3.5** + TypeScript + **Vite 8**
+- **Bun** as package manager and runtime
+- **Pinia 3** for state management (composition API)
+- **Vue Router 5** with auth guards
+- **Tailwind CSS v4** via Vite plugin
+- **shadcn-vue 2** (reka-nova style) for UI components
+- **lucide-vue-next** for icons
+- **vue-sonner** for toast notifications
 
-## Recommended Browser Setup
+## Commands
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+All commands run from `frontend/`. Package manager is **Bun**.
 
-## Type Support for `.vue` Imports in TS
+| Task | Command |
+|------|---------|
+| Dev server | `bun dev` (port 3000, proxies `/api` to `localhost:8080`) |
+| Build | `bun run build` (type-check + vite build in parallel) |
+| Build without type-check | `bun run build-only` |
+| Type-check | `bun run type-check` |
+| Lint | `bun lint` (oxlint then eslint, both with `--fix`) |
+| Format | `bun format` (prettier) |
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## Project Structure
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-bun install
+```
+src/
+  main.ts              # App entry point
+  App.vue              # Root layout (sidebar for auth'd users, bare view for guests)
+  api/client.ts        # Axios instance, all API methods, auth interceptors
+  stores/              # Pinia stores (auth, hugs, admin, online)
+  router/index.ts      # Routes with meta.auth / meta.guest guards
+  views/               # Route-level pages
+  components/          # App-specific components
+  components/ui/       # shadcn-vue primitives (copy-pasted, directly editable)
+  composables/         # Shared composables (WebSocket, Telegram login)
+  lib/utils.ts         # cn() helper (clsx + tailwind-merge)
+  lib/validation.ts    # Client-side validation mirroring backend rules
+  assets/main.css      # Tailwind v4 imports, theme variables, custom animations
 ```
 
-### Compile and Hot-Reload for Development
+## Key Patterns
 
-```sh
-bun dev
-```
+- **API client** (`src/api/client.ts`): single axios instance at `/api/v1`. Request interceptor attaches Bearer token. Response interceptor clears auth on 401.
+- **Auth**: JWT token and user object stored in `localStorage`. Router guard checks `meta.auth` / `meta.guest`.
+- **Dark mode** is always on (`<html class="dark">` hardcoded in `index.html`).
+- **UI strings** are in Russian.
 
-### Type-Check, Compile and Minify for Production
+## Tailwind & shadcn-vue
 
-```sh
-bun run build
-```
+- Tailwind CSS v4 via Vite plugin (no `tailwind.config.js`).
+- Theme variables in `src/assets/main.css` using oklch colors.
+- shadcn-vue components in `src/components/ui/` -- edit them directly.
+- Add new components: `bunx shadcn-vue add <component>`.
 
-### Lint with [ESLint](https://eslint.org/)
+## Docker
 
-```sh
-bun lint
-```
+- **Production**: `Dockerfile` -- builds with `bun run build-only`, serves via nginx with SPA fallback.
+- **Development**: `Dockerfile.dev` -- volume-mounted source, runs `bun dev --host 0.0.0.0`.

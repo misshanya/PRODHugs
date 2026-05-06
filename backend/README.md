@@ -1,82 +1,105 @@
-# Go Service Template
+# Backend
 
-## Tech stack
+Go API server for Hugs as a Service.
 
-- [Echo](https://echo.labstack.com) with oapi-codegen
-- PostgreSQL with [pgx/v5](https://github.com/jackc/pgx), [sqlc](https://sqlc.dev) and [goose](https://github.com/pressly/goose)
-- S3 with [AWS SDK](https://github.com/aws/aws-sdk-go-v2) ([RustFS](https://rustfs.com) included in compose)
-- Valkey
-- Kafka with [segmentio/kafka-go](https://github.com/segmentio/kafka-go)
+## Tech Stack
 
-## Structure
+- **Go 1.25** with [Echo v4](https://echo.labstack.com)
+- **PostgreSQL** via [pgx/v5](https://github.com/jackc/pgx), [sqlc](https://sqlc.dev), [goose](https://github.com/pressly/goose) migrations
+- **OpenAPI-first** code generation with [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)
+- **WebSocket** for real-time events (hug completions, inbox notifications, online presence)
+
+## Architecture
 
 ```
-.
-├── api/
-│   └── openapi.yaml - OpenAPI spec for the service, used for code generation and docs
-├── cmd/
-│   └── main.go - entry point for the whole application, loads a config, creates an app and manages its lifecycle
-├── internal
-│   ├── app/
-│   │   └── app.go - initialization of all components
-│   ├── config/
-│   │   └── config.go - config structs and loading from .env
-│   ├── db/
-│   │   ├── migrate.go - simple function to migrate db
-│   │   ├── migrations/ - there would be your migrations
-│   │   └── sqlc/ - sqlc config and queries
-│   ├── errorz/ - domain-level errors
-│   ├── models/ - domain-level models
-│   ├── repository/ - storage, repo level
-│   ├── service/ - use-case, business-logic and whatever else it's called
-│   └── transport/ - top-level transport communications
-│       └── http/ - specifically http transport
-├── pkg/
-│   └── dberrors/ - some sugar for db errors processing
-│       └── is_unique_violation.go
+transport/http  ->  service  ->  repository  ->  db/sqlc/storage
 ```
 
-## How to start
+- **Domain models** in `internal/models/`
+- **Sentinel errors** in `internal/errorz/` — mapped to HTTP status codes via `errors.Is()`
+- **Transactions** via `repository.NewTransactor(db).RunInTx(ctx, fn)`
+- **Auth context** set by middleware: `UserIDContextKey` (uuid.UUID), `UserRoleContextKey`
 
-1. Clone repo and cd into it
+## Project Structure
 
-    ```shell
-   git clone https://github.com/misshanya/go-service-template my-ultimate-project
-   cd my-ultimate-project
-    ```
+```
+api/openapi.yaml                # OpenAPI spec (source of truth for HTTP API)
+cmd/main.go                     # Entry point
+internal/
+  app/app.go                    # Component initialization and wiring
+  config/                       # Config structs, loaded from .env + OS env
+  db/
+    migrations/                 # Goose SQL migrations (auto-run on startup)
+    sqlc/                       # sqlc config, queries, and generated storage code
+  errorz/                       # Domain-level sentinel errors
+  models/                       # Domain models
+  repository/                   # Data access layer
+  service/                      # Business logic
+  transport/http/               # HTTP handlers, middleware, generated OpenAPI code
+  ws/                           # WebSocket hub
+```
 
-2. Remove `.git/` to use it as a base for your own project
+## Commands
 
-    ```shell
-   rm -rf .git
-    ```
-   
-3. Update the module name in go.mod (IDE can help refactor the code accordingly)
+| Task | Command |
+|------|---------|
+| Build | `go build -o ./tmp/main ./cmd` |
+| Run | `go run ./cmd` |
+| Dev (hot-reload) | `air` |
+| Dev (Docker) | `docker compose -f compose-dev.yml up` (from repo root or `backend/`) |
+| Lint | `golangci-lint run` |
 
-4. Enjoy developing! (don't forget to read dev notes)
+## Code Generation
 
-## Development notes
+**Generated files (do not hand-edit):**
+- `internal/transport/http/v1/api.gen.go`
+- `internal/db/sqlc/storage/`
 
-### Infrastructure
+**Regenerate after changes:**
 
-- Use required connectors in `internal/app/app.go` and remove unused ones  
-  Uncomment or remove corresponding services in compose
+```sh
+# After editing api/openapi.yaml
+oapi-codegen -config oapi-codegen.yml api/openapi.yaml
 
-### Database-related
+# After editing SQL queries or migrations
+sqlc generate -f internal/db/sqlc/sqlc.yaml
+```
 
-#### sqlc
+## Database
 
-- You should write your queries in `internal/db/sqlc/queries/`
-- Generate Go code from SQL with `sqlc generate -f internal/db/sqlc/sqlc.yaml`
+### New Migration
 
-#### Migrations with goose
+```sh
+goose -dir internal/db/migrations create -s {name} sql
+```
 
-- Create migrations with `goose -dir internal/db/migrations create -s {migration_name} sql`
+Migrations run automatically on app startup via embedded goose.
 
-### API
+### New Query
 
-- Swagger runs on `/api/v1/swagger`
+1. Write SQL with sqlc annotations in `internal/db/sqlc/queries/`
+2. Regenerate: `sqlc generate -f internal/db/sqlc/sqlc.yaml`
+3. Use generated methods in the repository layer
 
-#### OpenAPI codegen
+## Environment
 
-- Generate code from OpenAPI spec with `oapi-codegen -config oapi-codegen.yml api/openapi.yaml`
+Required env vars (loaded from `.env`, then OS env):
+
+| Variable | Description |
+|----------|-------------|
+| `POSTGRES_URL` | Full PostgreSQL connection string |
+| `JWT_SECRET` | HS256 signing key for JWT tokens |
+
+```sh
+cp .env.example .env
+```
+
+## API
+
+- **Swagger UI**: `/api/v1/swagger/`
+- **OpenAPI spec**: `/api/v1/openapi.json`
+- **WebSocket**: `/api/v1/ws` (authenticated, defined outside OpenAPI spec)
+
+## Dev Tools
+
+A Nix flake (`.envrc` / `flake.nix`) provides all dev tools: `sqlc`, `goose`, `oapi-codegen`, `air`, `golangci-lint`. Without Nix, install them manually.
