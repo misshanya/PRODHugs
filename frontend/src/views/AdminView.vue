@@ -536,24 +536,26 @@ function formatDate(dateStr: string): string {
             </div>
           </div>
 
-          <DropdownMenu v-if="user.role !== 'admin'">
+          <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button variant="ghost" size="icon-sm">
                 <MoreHorizontal class="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="w-48">
-              <DropdownMenuItem @click="toggleBan(user)">
-                <template v-if="user.banned_at">
-                  <ShieldCheck class="size-4" />
-                  Разблокировать
-                </template>
-                <template v-else>
-                  <Ban class="size-4" />
-                  Заблокировать
-                </template>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <template v-if="user.role !== 'admin'">
+                <DropdownMenuItem @click="toggleBan(user)">
+                  <template v-if="user.banned_at">
+                    <ShieldCheck class="size-4" />
+                    Разблокировать
+                  </template>
+                  <template v-else>
+                    <Ban class="size-4" />
+                    Заблокировать
+                  </template>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </template>
               <DropdownMenuItem @click="openUsernameDialog(user)">
                 <UserPen class="size-4" />
                 Изменить логин
@@ -582,14 +584,16 @@ function formatDate(dateStr: string): string {
                 <Coins class="size-4" />
                 Изменить баланс
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                class="text-destructive focus:text-destructive"
-                @click="openDeleteDialog(user)"
-              >
-                <Trash2 class="size-4" />
-                Удалить
-              </DropdownMenuItem>
+              <template v-if="user.role !== 'admin'">
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  class="text-destructive focus:text-destructive"
+                  @click="openDeleteDialog(user)"
+                >
+                  <Trash2 class="size-4" />
+                  Удалить
+                </DropdownMenuItem>
+              </template>
             </DropdownMenuContent>
           </DropdownMenu>
           </div>
