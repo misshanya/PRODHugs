@@ -3,6 +3,7 @@ package hug
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go-service-template/internal/errorz"
 	"go-service-template/internal/models"
@@ -350,4 +351,27 @@ func (s *service) GetIntimacyLeaderboard(ctx context.Context, limit, offset int3
 // ApplyIntimacyDecay runs the decay job for stale pairs.
 func (s *service) ApplyIntimacyDecay(ctx context.Context) error {
 	return s.intimacyRepo.ApplyDecay(ctx)
+}
+
+// GetPairStreak returns the streak info for a pair of users.
+func (s *service) GetPairStreak(ctx context.Context, userA, userB uuid.UUID) (*models.StreakInfo, error) {
+	streak, err := s.hugRepo.GetPairStreak(ctx, userA, userB)
+	if err != nil {
+		return nil, err
+	}
+
+	info := models.ComputeStreakInfo(streak)
+	return &info, nil
+}
+
+// GetUserTopStreaks returns the user's top active pair streaks.
+func (s *service) GetUserTopStreaks(ctx context.Context, userID uuid.UUID, limit int32) ([]*models.TopStreakEntry, error) {
+	return s.hugRepo.GetUserTopStreaks(ctx, userID, limit)
+}
+
+// GetPairStreakCalendar returns the hug calendar for a pair of users.
+func (s *service) GetPairStreakCalendar(ctx context.Context, userA, userB uuid.UUID) ([]*models.StreakCalendarDay, error) {
+	// Get last 90 days of data for the calendar
+	since := time.Now().UTC().AddDate(0, -3, 0)
+	return s.hugRepo.GetPairStreakCalendar(ctx, userA, userB, since)
 }

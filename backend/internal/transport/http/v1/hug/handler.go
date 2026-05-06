@@ -35,6 +35,10 @@ type service interface {
 	GetPairIntimacy(ctx context.Context, userA, userB uuid.UUID) (*models.IntimacyInfo, error)
 	GetUserConnections(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.ConnectionItem, error)
 	GetIntimacyLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardPairEntry, error)
+	// Streak methods
+	GetPairStreak(ctx context.Context, userA, userB uuid.UUID) (*models.StreakInfo, error)
+	GetUserTopStreaks(ctx context.Context, userID uuid.UUID, limit int32) ([]*models.TopStreakEntry, error)
+	GetPairStreakCalendar(ctx context.Context, userA, userB uuid.UUID) ([]*models.StreakCalendarDay, error)
 }
 
 type HugHandler struct {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { hugsApi, balanceApi, leaderboardApi, usersApi, intimacyApi } from '@/api/client'
+import { hugsApi, balanceApi, leaderboardApi, usersApi, intimacyApi, streaksApi } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
 export type HugType = 'standard' | 'bear' | 'group' | 'warm' | 'soul'
@@ -16,6 +16,7 @@ export interface HugFeedItem {
   receiver_display_name?: string | null
   hug_type: HugType
   has_comment?: boolean
+  streak_tier?: string
   created_at: string
 }
 
@@ -85,6 +86,7 @@ export interface HugDetail {
   status: string
   hug_type: HugType
   comment?: string | null
+  streak_tier?: string
   created_at: string
   accepted_at?: string | null
 }
@@ -162,6 +164,40 @@ export interface DailyRewardResponse {
   streak_days: number
   new_balance: number
   already_claimed?: boolean
+}
+
+export interface StreakInfo {
+  current_streak: number
+  best_streak: number
+  tier_level: number
+  tier_name: string
+  tier_key: string
+  next_tier_at?: number | null
+  a_hugged_today: boolean
+  b_hugged_today: boolean
+}
+
+export interface TopStreakEntry {
+  user_id: string
+  username: string
+  display_name?: string | null
+  gender?: string | null
+  current_streak: number
+  best_streak: number
+  tier_level: number
+  tier_name: string
+  tier_key: string
+}
+
+export interface StreakCalendarDay {
+  date: string
+  hug_count: number
+  completed: boolean
+}
+
+export interface PairStreakResponse {
+  streak: StreakInfo
+  calendar: StreakCalendarDay[]
 }
 
 export const useHugsStore = defineStore('hugs', () => {
@@ -387,6 +423,16 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data || []
   }
 
+  async function getPairStreak(userId: string): Promise<PairStreakResponse> {
+    const res = await streaksApi.getPairStreak(userId)
+    return res.data
+  }
+
+  async function getTopStreaks(): Promise<TopStreakEntry[]> {
+    const res = await streaksApi.getTopStreaks()
+    return res.data || []
+  }
+
   return {
     balance,
     feed,
@@ -427,5 +473,7 @@ export const useHugsStore = defineStore('hugs', () => {
     getPairIntimacy,
     getConnections,
     getIntimacyLeaderboard,
+    getPairStreak,
+    getTopStreaks,
   }
 })

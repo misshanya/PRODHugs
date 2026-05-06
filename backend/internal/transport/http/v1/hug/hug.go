@@ -127,6 +127,7 @@ func (h *HugHandler) GetHugDetail(ctx context.Context, req v1.GetHugDetailReques
 		Status:              v1.HugDetailStatus(detail.Status),
 		HugType:             ht,
 		Comment:             detail.Comment,
+		StreakTier:          &detail.StreakTier,
 		CreatedAt:           detail.CreatedAt,
 		AcceptedAt:          detail.AcceptedAt,
 	}

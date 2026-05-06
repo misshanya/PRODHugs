@@ -64,6 +64,7 @@ func (h *HugHandler) GetHugHistory(ctx context.Context, req v1.GetHugHistoryRequ
 			ReceiverDisplayName: hg.ReceiverDisplayName,
 			HugType:             ht,
 			HasComment:          &hasComment,
+			StreakTier:          &hg.StreakTier,
 			CreatedAt:           hg.CreatedAt,
 		}
 		if hg.GiverGender != nil {
@@ -105,6 +106,7 @@ func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestO
 			ReceiverDisplayName: it.ReceiverDisplayName,
 			HugType:             ht,
 			HasComment:          &hasComment,
+			StreakTier:          &it.StreakTier,
 			CreatedAt:           it.CreatedAt,
 		}
 		if it.GiverGender != nil {

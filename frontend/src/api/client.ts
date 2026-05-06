@@ -165,6 +165,12 @@ export const intimacyApi = {
     api.get('/intimacy/leaderboard', { params: { limit, offset } }),
 }
 
+// Streaks
+export const streaksApi = {
+  getPairStreak: (userId: string) => api.get(`/streaks/${userId}`),
+  getTopStreaks: () => api.get('/streaks/top'),
+}
+
 // Balance
 export const balanceApi = {
   get: () => api.get('/balance'),

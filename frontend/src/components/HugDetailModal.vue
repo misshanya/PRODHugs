@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import StreakBadge from '@/components/StreakBadge.vue'
 
 const props = defineProps<{
   hugId: string | null
@@ -117,6 +118,7 @@ function statusLabel(status: string): string {
         <div class="flex flex-wrap gap-2">
           <Badge variant="secondary">{{ hugTypeLabel(detail.hug_type) }}</Badge>
           <Badge variant="outline">{{ statusLabel(detail.status) }}</Badge>
+          <StreakBadge v-if="detail.streak_tier" :tier-key="detail.streak_tier" />
         </div>
 
         <div class="space-y-1 text-xs text-muted-foreground">

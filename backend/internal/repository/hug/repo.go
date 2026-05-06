@@ -36,6 +36,7 @@ func toModelHug(h storage.Hug) *models.Hug {
 		Status:     h.Status,
 		HugType:    h.HugType,
 		Comment:    comment,
+		StreakTier: h.StreakTier,
 		CreatedAt:  h.CreatedAt.Time,
 		AcceptedAt: acceptedAt,
 	}
@@ -80,6 +81,7 @@ func toModelFeedItem(row storage.GetRecentHugsFeedRow) *models.HugFeedItem {
 		ReceiverDisplayName: receiverDisplayName,
 		HugType:             row.HugType,
 		HasComment:          row.HasComment,
+		StreakTier:          row.StreakTier,
 		CreatedAt:           row.CreatedAt.Time,
 	}
 }
@@ -108,6 +110,7 @@ func toModelHistoryItem(row storage.ListHugsByUserRow) *models.HugFeedItem {
 		ReceiverDisplayName: receiverDisplayName,
 		HugType:             row.HugType,
 		HasComment:          row.HasComment,
+		StreakTier:          row.StreakTier,
 		CreatedAt:           row.CreatedAt.Time,
 	}
 }

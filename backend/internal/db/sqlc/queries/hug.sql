@@ -4,12 +4,12 @@ VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: GetHugByID :one
-SELECT id, giver_id, receiver_id, status, hug_type, created_at, accepted_at, comment
+SELECT id, giver_id, receiver_id, status, hug_type, created_at, accepted_at, comment, streak_tier
 FROM hugs
 WHERE id = $1;
 
 -- name: AcceptHug :one
-UPDATE hugs SET status = 'completed', accepted_at = now()
+UPDATE hugs SET status = 'completed', accepted_at = now(), streak_tier = $3
 WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
 RETURNING *;
 
@@ -105,6 +105,7 @@ SELECT
     COALESCE(h.accepted_at, h.created_at) AS created_at,
     h.hug_type,
     (h.comment IS NOT NULL)::bool AS has_comment,
+    h.streak_tier,
     g.username AS giver_username,
     r.username AS receiver_username,
     g.gender AS giver_gender,
@@ -148,6 +149,7 @@ SELECT
     h.status,
     h.hug_type,
     h.comment,
+    h.streak_tier,
     h.created_at,
     h.accepted_at,
     g.username AS giver_username,

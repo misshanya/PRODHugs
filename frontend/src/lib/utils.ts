@@ -112,3 +112,90 @@ export function plural(n: number, one: string, few: string, many: string): strin
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} ${few}`
   return `${n} ${many}`
 }
+
+// ── Streak tier utilities ──
+
+export interface StreakTierDef {
+  key: string
+  name: string
+  minDays: number
+  borderClass: string
+  bgClass: string
+  textClass: string
+  badgeClasses: string
+}
+
+export const streakTiers: StreakTierDef[] = [
+  {
+    key: 'legendary',
+    name: 'Легендарная',
+    minDays: 90,
+    borderClass: 'border-amber-400',
+    bgClass: 'bg-amber-400/10',
+    textClass: 'text-amber-300',
+    badgeClasses: 'bg-amber-400/15 text-amber-300 border-amber-400/20',
+  },
+  {
+    key: 'obsidian',
+    name: 'Обсидиановая',
+    minDays: 60,
+    borderClass: 'border-violet-500',
+    bgClass: 'bg-violet-500/10',
+    textClass: 'text-violet-400',
+    badgeClasses: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
+  },
+  {
+    key: 'diamond',
+    name: 'Алмазная',
+    minDays: 30,
+    borderClass: 'border-cyan-300',
+    bgClass: 'bg-cyan-300/10',
+    textClass: 'text-cyan-200',
+    badgeClasses: 'bg-cyan-300/15 text-cyan-200 border-cyan-300/20',
+  },
+  {
+    key: 'sapphire',
+    name: 'Сапфировая',
+    minDays: 21,
+    borderClass: 'border-blue-500',
+    bgClass: 'bg-blue-500/10',
+    textClass: 'text-blue-400',
+    badgeClasses: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
+  },
+  {
+    key: 'ruby',
+    name: 'Рубиновая',
+    minDays: 14,
+    borderClass: 'border-rose-500',
+    bgClass: 'bg-rose-500/10',
+    textClass: 'text-rose-400',
+    badgeClasses: 'bg-rose-500/15 text-rose-400 border-rose-500/20',
+  },
+  {
+    key: 'emerald',
+    name: 'Изумрудная',
+    minDays: 7,
+    borderClass: 'border-emerald-400',
+    bgClass: 'bg-emerald-400/10',
+    textClass: 'text-emerald-300',
+    badgeClasses: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/20',
+  },
+]
+
+/** Look up streak tier styling by key. Returns undefined if no tier (empty key). */
+export function getStreakTier(key: string | undefined | null): StreakTierDef | undefined {
+  if (!key) return undefined
+  return streakTiers.find((t) => t.key === key)
+}
+
+/** Get the streak tier name in Russian for a given key. */
+export function streakTierLabel(key: string | undefined | null): string {
+  const tier = getStreakTier(key)
+  return tier?.name ?? ''
+}
+
+/** Get border class for a streak tier (for feed item left border). */
+export function streakTierBorderClass(key: string | undefined | null): string {
+  const tier = getStreakTier(key)
+  return tier ? `border-l-2 ${tier.borderClass}` : ''
+}

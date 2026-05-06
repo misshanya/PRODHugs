@@ -17,6 +17,7 @@ type HugFeedItemDTO struct {
 	ReceiverDisplayName *string `json:"receiver_display_name,omitempty"`
 	HugType             string  `json:"hug_type"`
 	HasComment          bool    `json:"has_comment"`
+	StreakTier          string  `json:"streak_tier"`
 	CreatedAt           string  `json:"created_at"`
 }
 
@@ -32,6 +33,7 @@ func ToFeedItemDTO(item *models.HugFeedItem) HugFeedItemDTO {
 		ReceiverDisplayName: item.ReceiverDisplayName,
 		HugType:             item.HugType,
 		HasComment:          item.HasComment,
+		StreakTier:          item.StreakTier,
 		CreatedAt:           item.CreatedAt.Format(time.RFC3339),
 	}
 }

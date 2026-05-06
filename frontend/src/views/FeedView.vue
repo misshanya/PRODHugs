@@ -4,10 +4,11 @@ import { Wifi, WifiOff, ChevronUp, MessageSquare, Loader2 } from 'lucide-vue-nex
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
 import { useWebSocket } from '@/composables/useWebSocket'
-import { hugFeedPhrase } from '@/lib/utils'
+import { hugFeedPhrase, streakTierLabel } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import HugDetailModal from '@/components/HugDetailModal.vue'
+import StreakBadge from '@/components/StreakBadge.vue'
 import { VisArea, VisAxis, VisXYContainer } from '@unovis/vue'
 import type { ChartConfig } from '@/components/ui/chart'
 import {
@@ -346,6 +347,12 @@ onUnmounted(() => {
               <MessageSquare
                 v-if="item.has_comment && canViewComment(item)"
                 class="ml-1 inline size-3 text-prod-yellow"
+              />
+              <StreakBadge
+                v-if="item.streak_tier"
+                :tier-key="item.streak_tier"
+                :tier-name="streakTierLabel(item.streak_tier)"
+                class="ml-1 inline-flex scale-90"
               />
             </div>
             <span class="shrink-0 text-xs text-muted-foreground tabular-nums">

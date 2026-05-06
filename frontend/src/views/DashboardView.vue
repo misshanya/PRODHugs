@@ -10,14 +10,22 @@ import {
   Trophy,
   Newspaper,
   MessageSquare,
+  Flame,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useHugsStore, type DailyRewardResponse, type UserProfile } from '@/stores/hugs'
+import {
+  useHugsStore,
+  type DailyRewardResponse,
+  type UserProfile,
+  type TopStreakEntry,
+} from '@/stores/hugs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import RankBadge from '@/components/RankBadge.vue'
+import StreakBadge from '@/components/StreakBadge.vue'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { plural, hugVerb } from '@/lib/utils'
@@ -28,6 +36,7 @@ const auth = useAuthStore()
 const hugs = useHugsStore()
 
 const profile = ref<UserProfile | null>(null)
+const topStreaks = ref<TopStreakEntry[]>([])
 const dailyResult = ref<DailyRewardResponse | null>(null)
 const claimingDaily = ref(false)
 const loading = ref(true)
@@ -82,6 +91,11 @@ onMounted(async () => {
   const [p] = await Promise.all([profilePromise, historyPromise, inboxPromise, outgoingPromise])
   if (unmounted) return
   if (p) profile.value = p
+
+  hugs.getTopStreaks().catch(() => [] as TopStreakEntry[]).then((data) => {
+    if (!unmounted) topStreaks.value = data
+  })
+
   loading.value = false
 })
 
@@ -232,6 +246,42 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
             <Gift class="size-4" />
             {{ claimingDaily ? 'Загрузка...' : 'Забрать награду' }}
           </Button>
+        </CardContent>
+      </Card>
+
+      <!-- Active streaks -->
+      <Card class="md:col-span-2">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-base">
+            <Flame class="size-4 text-prod-yellow" />
+            Активные серии
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p v-if="topStreaks.length === 0" class="text-sm text-muted-foreground">
+            Нет активных серий
+          </p>
+          <div v-else class="space-y-2">
+            <RouterLink
+              v-for="entry in topStreaks"
+              :key="entry.user_id"
+              :to="`/user/${entry.user_id}`"
+              class="flex items-center justify-between rounded-md px-2 py-1.5 transition-colors hover:bg-muted/50"
+            >
+              <span class="text-sm font-medium">
+                {{ entry.display_name || entry.username }}
+              </span>
+              <StreakBadge
+                v-if="entry.tier_key"
+                :tier-key="entry.tier_key"
+                :tier-name="entry.tier_name"
+                :streak-days="entry.current_streak"
+              />
+              <span v-else class="text-sm tabular-nums text-muted-foreground">
+                {{ entry.current_streak }} дн.
+              </span>
+            </RouterLink>
+          </div>
         </CardContent>
       </Card>
     </div>

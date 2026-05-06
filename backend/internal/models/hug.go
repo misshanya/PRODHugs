@@ -31,6 +31,7 @@ type Hug struct {
 	Status     string
 	HugType    string
 	Comment    *string
+	StreakTier string
 	CreatedAt  time.Time
 	AcceptedAt *time.Time
 }
@@ -46,6 +47,7 @@ type HugFeedItem struct {
 	ReceiverDisplayName *string
 	HugType             string
 	HasComment          bool
+	StreakTier          string
 	CreatedAt           time.Time
 }
 
@@ -106,6 +108,7 @@ type HugDetail struct {
 	Status              string
 	HugType             string
 	Comment             *string
+	StreakTier          string
 	CreatedAt           time.Time
 	AcceptedAt          *time.Time
 }

@@ -12,7 +12,7 @@ import (
 
 type hugRepo interface {
 	InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, status, hugType string, comment *string) (*models.Hug, error)
-	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
+	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID, streakTier string) (*models.Hug, error)
 	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
 	CancelHug(ctx context.Context, hugID, giverID uuid.UUID) (*models.Hug, error)
 	GetHugByID(ctx context.Context, hugID uuid.UUID) (*models.Hug, error)
@@ -35,6 +35,11 @@ type hugRepo interface {
 	SearchUsers(ctx context.Context, query string, viewerID uuid.UUID, limit, offset int32) ([]*models.User, error)
 	GetHugDetail(ctx context.Context, hugID uuid.UUID) (*models.HugDetail, error)
 	ExpirePendingHugs(ctx context.Context) error
+	// Streak methods
+	GetPairStreak(ctx context.Context, userA, userB uuid.UUID) (*models.PairStreak, error)
+	UpsertPairStreak(ctx context.Context, streak *models.PairStreak) (*models.PairStreak, error)
+	GetUserTopStreaks(ctx context.Context, userID uuid.UUID, limit int32) ([]*models.TopStreakEntry, error)
+	GetPairStreakCalendar(ctx context.Context, userA, userB uuid.UUID, since time.Time) ([]*models.StreakCalendarDay, error)
 }
 
 type balanceRepo interface {

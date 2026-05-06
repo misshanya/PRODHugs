@@ -1,9 +1,23 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { Coins, Clock, ArrowUpCircle, MoreHorizontal, Ban, ShieldCheck } from 'lucide-vue-next'
+import { useRoute, RouterLink } from 'vue-router'
+import {
+  Coins,
+  Clock,
+  ArrowUpCircle,
+  MoreHorizontal,
+  Ban,
+  ShieldCheck,
+  Flame,
+} from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
-import { useHugsStore, type UserProfile, type CooldownInfo } from '@/stores/hugs'
+import {
+  useHugsStore,
+  type UserProfile,
+  type CooldownInfo,
+  type PairStreakResponse,
+  type TopStreakEntry,
+} from '@/stores/hugs'
 import { useAuthStore } from '@/stores/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +32,8 @@ import {
 import HugButton from '@/components/HugButton.vue'
 import RankBadge from '@/components/RankBadge.vue'
 import UserTag from '@/components/UserTag.vue'
+import StreakCalendar from '@/components/StreakCalendar.vue'
+import StreakBadge from '@/components/StreakBadge.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -25,6 +41,8 @@ const hugsStore = useHugsStore()
 
 const profile = ref<UserProfile | null>(null)
 const cooldown = ref<CooldownInfo | null>(null)
+const pairStreak = ref<PairStreakResponse | null>(null)
+const topStreaks = ref<TopStreakEntry[]>([])
 const loading = ref(true)
 const upgrading = ref(false)
 const error = ref('')
@@ -34,12 +52,28 @@ const isMe = computed(() => auth.user?.id === userId.value)
 const isBlocked = computed(() => profile.value?.is_blocked === true)
 const blocking = ref(false)
 
+// Compute whether the viewer is user_a in the canonical pair (a < b by UUID string)
+const viewerIsA = computed(() => {
+  if (!auth.user?.id) return true
+  return auth.user.id < userId.value
+})
+
 async function load() {
   loading.value = true
+  pairStreak.value = null
+  topStreaks.value = []
   try {
     profile.value = await hugsStore.getUserProfile(userId.value)
     if (!isMe.value && !profile.value.is_blocked) {
-      cooldown.value = await hugsStore.getCooldown(userId.value)
+      const [cd, streak] = await Promise.all([
+        hugsStore.getCooldown(userId.value),
+        hugsStore.getPairStreak(userId.value).catch(() => null),
+      ])
+      cooldown.value = cd
+      pairStreak.value = streak
+    }
+    if (isMe.value) {
+      topStreaks.value = await hugsStore.getTopStreaks().catch(() => [])
     }
   } catch {
     error.value = 'Пользователь не найден'
@@ -265,6 +299,66 @@ watch(userId, () => {
               +{{ profile.intimacy.bonus_coins }} бонусных монет за обнимашку
             </span>
           </div>
+        </CardContent>
+      </Card>
+
+      <!-- Pair streak section (viewing another user) -->
+      <Card v-if="!isMe && !isBlocked && pairStreak">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-base">
+            <Flame class="size-4" />
+            Серия обнимашек
+          </CardTitle>
+          <CardDescription>
+            Обнимайте друг друга каждый день, чтобы продлить серию
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StreakCalendar
+            :streak="pairStreak.streak"
+            :calendar="pairStreak.calendar"
+            :viewer-is-a="viewerIsA"
+          />
+        </CardContent>
+      </Card>
+
+      <!-- Top streaks section (viewing own profile) -->
+      <Card v-if="isMe && topStreaks.length > 0">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-base">
+            <Flame class="size-4" />
+            Активные серии
+          </CardTitle>
+          <CardDescription>Ваши лучшие текущие серии обнимашек</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <RouterLink
+            v-for="entry in topStreaks"
+            :key="entry.user_id"
+            :to="'/user/' + entry.user_id"
+            class="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+          >
+            <Avatar class="size-8">
+              <AvatarFallback class="text-xs">
+                {{ (entry.display_name || entry.username).slice(0, 2).toUpperCase() }}
+              </AvatarFallback>
+            </Avatar>
+            <div class="flex-1 min-w-0">
+              <p class="truncate text-sm font-medium">
+                {{ entry.display_name || entry.username }}
+              </p>
+              <p class="text-xs text-muted-foreground">@{{ entry.username }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <StreakBadge
+                v-if="entry.tier_key"
+                :tier-key="entry.tier_key"
+                :tier-name="entry.tier_name"
+                :streak-days="entry.current_streak"
+              />
+              <span v-else class="text-sm font-semibold tabular-nums">{{ entry.current_streak }} дн.</span>
+            </div>
+          </RouterLink>
         </CardContent>
       </Card>
 

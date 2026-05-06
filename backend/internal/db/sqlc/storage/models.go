@@ -30,6 +30,7 @@ type Hug struct {
 	AcceptedAt pgtype.Timestamptz
 	HugType    string
 	Comment    pgtype.Text
+	StreakTier string
 }
 
 type HugCooldown struct {
@@ -46,6 +47,17 @@ type PairIntimacy struct {
 	RawScore    int32
 	LastHugAt   pgtype.Timestamptz
 	LastDecayAt pgtype.Timestamptz
+}
+
+type PairStreak struct {
+	UserAID        uuid.UUID
+	UserBID        uuid.UUID
+	CurrentStreak  int32
+	BestStreak     int32
+	LastStreakDate pgtype.Date
+	AHuggedToday   bool
+	BHuggedToday   bool
+	TodayDate      pgtype.Date
 }
 
 type RefreshToken struct {

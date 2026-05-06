@@ -229,6 +229,9 @@ components:
         hug_type: { $ref: '#/components/schemas/HugType' }
         created_at: { type: string, format: date-time }
         has_comment: { type: boolean }
+        streak_tier:
+          type: string
+          description: Streak tier key stamped at hug completion (empty if no streak)
 
     CooldownInfo:
       type: object
@@ -487,6 +490,9 @@ components:
           type: string
           nullable: true
           maxLength: 140
+        streak_tier:
+          type: string
+          description: Streak tier key stamped at hug completion
 
     AdminUser:
       type: object
@@ -554,6 +560,76 @@ components:
           type: string
           nullable: true
         created_at: { type: string, format: date-time }
+
+    StreakInfo:
+      type: object
+      required:
+        - current_streak
+        - best_streak
+        - tier_level
+        - tier_name
+        - tier_key
+        - a_hugged_today
+        - b_hugged_today
+      properties:
+        current_streak: { type: integer }
+        best_streak: { type: integer }
+        tier_level: { type: integer }
+        tier_name: { type: string }
+        tier_key: { type: string }
+        next_tier_at:
+          type: integer
+          nullable: true
+        a_hugged_today: { type: boolean }
+        b_hugged_today: { type: boolean }
+
+    TopStreakEntry:
+      type: object
+      required:
+        - user_id
+        - username
+        - current_streak
+        - best_streak
+        - tier_level
+        - tier_name
+        - tier_key
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        display_name:
+          type: string
+          nullable: true
+        gender:
+          $ref: '#/components/schemas/Gender'
+        current_streak: { type: integer }
+        best_streak: { type: integer }
+        tier_level: { type: integer }
+        tier_name: { type: string }
+        tier_key: { type: string }
+
+    StreakCalendarDay:
+      type: object
+      required:
+        - date
+        - hug_count
+        - completed
+      properties:
+        date: { type: string, format: date }
+        hug_count: { type: integer }
+        completed: { type: boolean }
+
+    PairStreakResponse:
+      type: object
+      required:
+        - streak
+        - calendar
+      properties:
+        streak:
+          $ref: '#/components/schemas/StreakInfo'
+        calendar:
+          type: array
+          items:
+            $ref: '#/components/schemas/StreakCalendarDay'
 
   responses:
     BadRequest:
@@ -1594,6 +1670,47 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/IntimacyLeaderboardEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /streaks/{userId}:
+    get:
+      summary: Get pair streak info and calendar between current user and target
+      operationId: getPairStreak
+      security:
+        - BearerAuth: ["user", "admin"]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pair streak info with calendar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairStreakResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /streaks/top:
+    get:
+      summary: Get current user's top active pair streaks
+      operationId: getTopStreaks
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Top active pair streaks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopStreakEntry'
         '401':
           $ref: '#/components/responses/Unauthorized'
 

@@ -161,22 +161,26 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 	var earnedBonusCoins int32
 
 	err := s.tx.RunInTx(ctx, func(txCtx context.Context) error {
-		h, err := s.hugRepo.AcceptHug(txCtx, hugID, receiverID)
+		// First, look up the hug to get giver/receiver IDs for streak computation
+		existing, err := s.hugRepo.GetHugByID(txCtx, hugID)
+		if err != nil {
+			return err
+		}
+		if existing == nil {
+			return errorz.ErrHugNotFound
+		}
+		if existing.Status != models.HugStatusPending {
+			return errorz.ErrHugNotPending
+		}
+
+		// Compute streak tier before accepting (so we can stamp it)
+		streakTier := s.computeAndUpdateStreak(txCtx, existing.GiverID, existing.ReceiverID)
+
+		h, err := s.hugRepo.AcceptHug(txCtx, hugID, receiverID, streakTier)
 		if err != nil {
 			return err
 		}
 		if h == nil {
-			// Check why it failed — hug might not exist or might have expired
-			existing, lookupErr := s.hugRepo.GetHugByID(txCtx, hugID)
-			if lookupErr != nil {
-				return lookupErr
-			}
-			if existing == nil {
-				return errorz.ErrHugNotFound
-			}
-			if existing.Status != models.HugStatusPending {
-				return errorz.ErrHugNotPending
-			}
 			// It was pending but the 24h window passed
 			return errorz.ErrHugExpired
 		}
@@ -261,12 +265,108 @@ func (s *service) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*
 				GiverGender:      giverGender,
 				HugType:          hugCopy.HugType,
 				HasComment:       hugCopy.Comment != nil,
+				StreakTier:       hugCopy.StreakTier,
 				CreatedAt:        completedAt,
 			}, bonus, hugCopy.Comment)
 		}()
 	}
 
 	return acceptedHug, nil
+}
+
+// computeAndUpdateStreak handles the streak logic when a hug is accepted.
+// It updates the pair streak state and returns the current streak tier key to stamp on the hug.
+func (s *service) computeAndUpdateStreak(ctx context.Context, giverID, receiverID uuid.UUID) string {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	streak, err := s.hugRepo.GetPairStreak(ctx, giverID, receiverID)
+	if err != nil {
+		// Non-critical: if streak lookup fails, just don't stamp a tier
+		return ""
+	}
+
+	// Determine canonical ordering: user_a_id < user_b_id
+	var userAID, userBID uuid.UUID
+	if giverID.String() < receiverID.String() {
+		userAID = giverID
+		userBID = receiverID
+	} else {
+		userAID = receiverID
+		userBID = giverID
+	}
+
+	// Is the giver user_a or user_b?
+	giverIsA := giverID == userAID
+
+	if streak == nil {
+		// First hug for this pair — create initial streak record
+		streak = &models.PairStreak{
+			UserAID:       userAID,
+			UserBID:       userBID,
+			CurrentStreak: 0,
+			BestStreak:    0,
+			AHuggedToday:  false,
+			BHuggedToday:  false,
+			TodayDate:     today,
+		}
+	}
+
+	// Day transition: if today_date in record is not today, evaluate and reset daily flags
+	if !streak.TodayDate.Equal(today) {
+		yesterday := today.AddDate(0, 0, -1)
+
+		// Check if the previous day was completed (both sides hugged)
+		prevDayCompleted := streak.AHuggedToday && streak.BHuggedToday
+
+		if prevDayCompleted && streak.TodayDate.Equal(yesterday) {
+			// Previous day was completed and it was yesterday — streak already incremented on that day
+			// Just reset daily flags for today
+		} else if streak.LastStreakDate != nil && streak.LastStreakDate.Equal(yesterday) {
+			// Last streak date was yesterday but today's flags weren't both set —
+			// the streak is still valid (grace: streak only breaks if a FULL day passes without completion)
+		} else if streak.LastStreakDate != nil && streak.LastStreakDate.Equal(today) {
+			// Already completed today somehow (shouldn't happen but handle gracefully)
+		} else {
+			// Streak is broken — more than 1 day gap since last completion
+			streak.CurrentStreak = 0
+		}
+
+		// Reset daily flags for the new day
+		streak.AHuggedToday = false
+		streak.BHuggedToday = false
+		streak.TodayDate = today
+	}
+
+	// Mark the giver's side as hugged today
+	if giverIsA {
+		streak.AHuggedToday = true
+	} else {
+		streak.BHuggedToday = true
+	}
+
+	// Check if both sides have now hugged today
+	if streak.AHuggedToday && streak.BHuggedToday {
+		// Check if we already incremented for today
+		alreadyCountedToday := streak.LastStreakDate != nil && streak.LastStreakDate.Equal(today)
+		if !alreadyCountedToday {
+			streak.CurrentStreak++
+			streak.LastStreakDate = &today
+			if streak.CurrentStreak > streak.BestStreak {
+				streak.BestStreak = streak.CurrentStreak
+			}
+		}
+	}
+
+	// Persist updated streak
+	_, err = s.hugRepo.UpsertPairStreak(ctx, streak)
+	if err != nil {
+		// Non-critical failure — log but don't fail the hug
+		return ""
+	}
+
+	// Return the current tier key
+	tier := models.ComputeStreakTier(streak.CurrentStreak)
+	return tier.Key
 }
 
 // DeclineHug declines a pending hug suggestion.

@@ -34,12 +34,13 @@ func (r *repo) InsertHug(ctx context.Context, giverID, receiverID uuid.UUID, sta
 	return toModelHug(h), nil
 }
 
-func (r *repo) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error) {
+func (r *repo) AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID, streakTier string) (*models.Hug, error) {
 	q := repository.Queries(ctx, r.q)
 
 	h, err := q.AcceptHug(ctx, storage.AcceptHugParams{
 		ID:         hugID,
 		ReceiverID: receiverID,
+		StreakTier: streakTier,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -113,6 +114,7 @@ func (r *repo) GetHugByID(ctx context.Context, hugID uuid.UUID) (*models.Hug, er
 		Status:     row.Status,
 		HugType:    row.HugType,
 		Comment:    comment,
+		StreakTier: row.StreakTier,
 		CreatedAt:  row.CreatedAt.Time,
 		AcceptedAt: acceptedAt,
 	}, nil
@@ -284,6 +286,7 @@ func (r *repo) GetHugDetail(ctx context.Context, hugID uuid.UUID) (*models.HugDe
 		Status:              row.Status,
 		HugType:             row.HugType,
 		Comment:             comment,
+		StreakTier:          row.StreakTier,
 		CreatedAt:           row.CreatedAt.Time,
 		AcceptedAt:          acceptedAt,
 	}, nil
