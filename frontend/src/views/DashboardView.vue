@@ -48,7 +48,7 @@ const rankThresholds = [
   { name: 'Дружелюбный', min: 50 },
   { name: 'Мастер обнимашек', min: 200 },
   { name: 'Легенда', min: 500 },
-  { name: 'Бог обнимашек', min: 1000 },
+  { name: 'Тактильный маньяк', min: 1000 },
 ]
 
 function getRankProgress(totalHugs: number) {
