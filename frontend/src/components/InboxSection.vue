@@ -134,7 +134,7 @@ function onExplosionDone() {
             </div>
             <p
               v-if="item.comment"
-              class="mt-1 rounded bg-muted/50 px-2 py-1 text-xs leading-relaxed text-muted-foreground"
+              class="mt-1 max-h-20 overflow-y-auto rounded bg-muted/50 px-2 py-1 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap [overflow-wrap:anywhere]"
             >
               {{ item.comment }}
             </p>
