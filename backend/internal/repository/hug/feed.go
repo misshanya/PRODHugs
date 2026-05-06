@@ -9,10 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func (r *repo) GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error) {
+func (r *repo) GetRecentFeed(ctx context.Context, limit, offset int32) ([]*models.HugFeedItem, error) {
 	q := repository.Queries(ctx, r.q)
 
-	rows, err := q.GetRecentHugsFeed(ctx, limit)
+	rows, err := q.GetRecentHugsFeed(ctx, storage.GetRecentHugsFeedParams{
+		Lim: limit,
+		Off: offset,
+	})
 	if err != nil {
 		return nil, err
 	}

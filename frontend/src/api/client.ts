@@ -151,7 +151,7 @@ export const hugsApi = {
   getCooldown: (userId: string) => api.get(`/hugs/cooldown/${userId}`),
   upgradeCooldown: (userId: string) => api.post(`/hugs/cooldown/${userId}/upgrade`),
   getHistory: () => api.get('/hugs/history'),
-  getFeed: (limit = 50) => api.get('/hugs/feed', { params: { limit } }),
+  getFeed: (limit = 50, offset = 0) => api.get('/hugs/feed', { params: { limit, offset } }),
   getActivity: () => api.get('/hugs/activity'),
   buySlot: () => api.post('/hugs/slots/buy'),
 }

@@ -27,7 +27,7 @@ type hugRepo interface {
 	UpsertCooldown(ctx context.Context, userA, userB uuid.UUID, cooldownSeconds int32) (*models.HugCooldown, error)
 	ReduceCooldown(ctx context.Context, userA, userB uuid.UUID, reduction int32) (*models.HugCooldown, error)
 	SetDeclineCooldown(ctx context.Context, userA, userB uuid.UUID, until time.Time) error
-	GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error)
+	GetRecentFeed(ctx context.Context, limit, offset int32) ([]*models.HugFeedItem, error)
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error)

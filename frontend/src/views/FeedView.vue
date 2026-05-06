@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { Wifi, WifiOff, ChevronUp, MessageSquare } from 'lucide-vue-next'
+import { Wifi, WifiOff, ChevronUp, MessageSquare, Loader2 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore, type HugFeedItem, type HugActivityItem } from '@/stores/hugs'
 import { useWebSocket } from '@/composables/useWebSocket'
@@ -18,11 +18,15 @@ import {
   componentToString,
 } from '@/components/ui/chart'
 
+const PAGE_SIZE = 50
+
 const auth = useAuthStore()
 const hugsStore = useHugsStore()
 const ws = useWebSocket()
 const feed = ref<HugFeedItem[]>([])
 const initialLoading = ref(true)
+const loadingMore = ref(false)
+const hasMore = ref(true)
 const now = ref(Date.now())
 let tick: ReturnType<typeof setInterval> | null = null
 
@@ -85,7 +89,6 @@ function onScroll() {
 function prependItem(item: HugFeedItem) {
   newItemIds.value.add(item.id)
   feed.value.unshift(item)
-  if (feed.value.length > 100) feed.value = feed.value.slice(0, 100)
 }
 
 function flushPending() {
@@ -107,6 +110,35 @@ function bumpActivityBucket(createdAt: string) {
   }
 }
 
+// Infinite scroll
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value || initialLoading.value) return
+  loadingMore.value = true
+  try {
+    const result = await hugsStore.fetchFeedPage(PAGE_SIZE, feed.value.length)
+    feed.value.push(...result)
+    hasMore.value = result.length >= PAGE_SIZE
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+function observeSentinel() {
+  if (observer) observer.disconnect()
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && hasMore.value && !loadingMore.value) {
+        loadMore()
+      }
+    },
+    { rootMargin: '200px' },
+  )
+  if (sentinel.value) observer.observe(sentinel.value)
+}
+
 // WebSocket subscription cleanup
 const cleanups: Array<() => void> = []
 let isUnmounted = false
@@ -121,9 +153,14 @@ onMounted(async () => {
       chartLoading.value = false
     })
 
-  await hugsStore.fetchFeed(50)
+  await hugsStore.fetchFeed(PAGE_SIZE)
   feed.value = [...hugsStore.feed]
+  hasMore.value = feed.value.length >= PAGE_SIZE
   initialLoading.value = false
+
+  nextTick(() => {
+    if (!isUnmounted) observeSentinel()
+  })
 
   // Subscribe to hug_completed events via the shared composable
   cleanups.push(
@@ -162,6 +199,10 @@ onUnmounted(() => {
   if (tick) {
     clearInterval(tick)
     tick = null
+  }
+  if (observer) {
+    observer.disconnect()
+    observer = null
   }
   scrollContainer.value?.removeEventListener('scroll', onScroll)
 })
@@ -313,6 +354,17 @@ onUnmounted(() => {
           </div>
         </TransitionGroup>
       </div>
+
+      <!-- Infinite scroll sentinel -->
+      <div v-if="hasMore" ref="sentinel" class="flex justify-center py-4">
+        <Loader2 v-if="loadingMore" class="size-5 animate-spin text-muted-foreground" />
+      </div>
+      <p
+        v-if="!hasMore && feed.length > 0"
+        class="py-4 text-center text-sm text-muted-foreground"
+      >
+        Вся лента загружена
+      </p>
     </div>
 
     <HugDetailModal v-model:open="showDetail" :hug-id="detailHugId" />
@@ -329,7 +381,7 @@ onUnmounted(() => {
   transform: translateY(-12px);
 }
 
-/* Leave — fade out (for items dropping off the 100-item cap) */
+/* Leave — fade out */
 .feed-leave-active {
   transition: all 0.25s ease-out;
   position: absolute;

@@ -100,7 +100,7 @@ JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
 WHERE h.status = 'completed'
 ORDER BY COALESCE(h.accepted_at, h.created_at) DESC
-LIMIT @lim::int;
+LIMIT @lim::int OFFSET @off::int;
 
 -- name: UpdateUserSettings :one
 UPDATE users

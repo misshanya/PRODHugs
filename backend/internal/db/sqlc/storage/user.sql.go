@@ -408,8 +408,13 @@ JOIN users g ON g.id = h.giver_id
 JOIN users r ON r.id = h.receiver_id
 WHERE h.status = 'completed'
 ORDER BY COALESCE(h.accepted_at, h.created_at) DESC
-LIMIT $1::int
+LIMIT $2::int OFFSET $1::int
 `
+
+type GetRecentHugsFeedParams struct {
+	Off int32
+	Lim int32
+}
 
 type GetRecentHugsFeedRow struct {
 	ID                  uuid.UUID
@@ -425,8 +430,8 @@ type GetRecentHugsFeedRow struct {
 	ReceiverDisplayName pgtype.Text
 }
 
-func (q *Queries) GetRecentHugsFeed(ctx context.Context, lim int32) ([]GetRecentHugsFeedRow, error) {
-	rows, err := q.db.Query(ctx, getRecentHugsFeed, lim)
+func (q *Queries) GetRecentHugsFeed(ctx context.Context, arg GetRecentHugsFeedParams) ([]GetRecentHugsFeedRow, error) {
+	rows, err := q.db.Query(ctx, getRecentHugsFeed, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

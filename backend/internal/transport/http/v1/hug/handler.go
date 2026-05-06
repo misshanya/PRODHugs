@@ -20,7 +20,7 @@ type service interface {
 	GetOutgoingHugs(ctx context.Context, userID uuid.UUID) ([]*models.OutgoingPendingHug, *models.SlotInfo, error)
 	BuyHugSlot(ctx context.Context, userID uuid.UUID) (*models.SlotInfo, int32, error)
 	GetHugHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.HugFeedItem, error)
-	GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error)
+	GetRecentFeed(ctx context.Context, limit, offset int32) ([]*models.HugFeedItem, error)
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetLeaderboard(ctx context.Context, limit, offset int32) ([]*models.LeaderboardEntry, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error)

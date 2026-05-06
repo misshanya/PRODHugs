@@ -305,14 +305,19 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data
   }
 
-  async function fetchFeed(limit = 50) {
+  async function fetchFeed(limit = 50, offset = 0) {
     feedLoading.value = true
     try {
-      const res = await hugsApi.getFeed(limit)
+      const res = await hugsApi.getFeed(limit, offset)
       feed.value = res.data || []
     } finally {
       feedLoading.value = false
     }
+  }
+
+  async function fetchFeedPage(limit: number, offset: number): Promise<HugFeedItem[]> {
+    const res = await hugsApi.getFeed(limit, offset)
+    return res.data || []
   }
 
   async function fetchLeaderboard(limit = 20, offset = 0) {
@@ -410,6 +415,7 @@ export const useHugsStore = defineStore('hugs', () => {
     getCooldown,
     upgradeCooldown,
     fetchFeed,
+    fetchFeedPage,
     fetchLeaderboard,
     getHugHistory,
     getHugActivity,

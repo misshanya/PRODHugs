@@ -34,8 +34,8 @@ func (s *service) GetHugHistory(ctx context.Context, userID uuid.UUID, limit, of
 	return s.hugRepo.ListHugsByUser(ctx, userID, limit, offset)
 }
 
-func (s *service) GetRecentFeed(ctx context.Context, limit int32) ([]*models.HugFeedItem, error) {
-	return s.hugRepo.GetRecentFeed(ctx, limit)
+func (s *service) GetRecentFeed(ctx context.Context, limit, offset int32) ([]*models.HugFeedItem, error) {
+	return s.hugRepo.GetRecentFeed(ctx, limit, offset)
 }
 
 func (s *service) GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error) {

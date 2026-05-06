@@ -78,11 +78,15 @@ func (h *HugHandler) GetHugHistory(ctx context.Context, req v1.GetHugHistoryRequ
 
 func (h *HugHandler) GetHugsFeed(ctx context.Context, req v1.GetHugsFeedRequestObject) (v1.GetHugsFeedResponseObject, error) {
 	limit := int32(50)
+	offset := int32(0)
 	if req.Params.Limit != nil && *req.Params.Limit > 0 {
 		limit = int32(*req.Params.Limit)
 	}
+	if req.Params.Offset != nil && *req.Params.Offset >= 0 {
+		offset = int32(*req.Params.Offset)
+	}
 
-	items, err := h.svc.GetRecentFeed(ctx, limit)
+	items, err := h.svc.GetRecentFeed(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
