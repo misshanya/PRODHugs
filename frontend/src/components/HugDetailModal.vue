@@ -132,7 +132,7 @@ function statusLabel(status: string): string {
               <MessageSquare class="size-3" />
               Комментарий
             </div>
-            <p class="rounded-lg bg-muted/50 p-3 text-sm leading-relaxed">
+            <p class="max-h-40 overflow-y-auto break-words rounded-lg bg-muted/50 p-3 text-sm leading-relaxed whitespace-pre-wrap">
               {{ detail.comment }}
             </p>
           </div>
