@@ -278,7 +278,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
                 :streak-days="entry.current_streak"
               />
               <span v-else class="text-sm tabular-nums text-muted-foreground">
-                {{ entry.current_streak }} дн.
+                {{ plural(entry.current_streak, 'день', 'дня', 'дней') }}
               </span>
             </RouterLink>
           </div>

@@ -21,6 +21,15 @@ const props = defineProps<{
 
 const tier = computed(() => getStreakTier(props.streak.tier_key))
 
+function dayWord(n: number): string {
+  const abs = Math.abs(n)
+  const mod10 = abs % 10
+  const mod100 = abs % 100
+  if (mod10 === 1 && mod100 !== 11) return 'день'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'дня'
+  return 'дней'
+}
+
 // Build a 90-day grid (last ~3 months)
 const calendarGrid = computed(() => {
   const days: Array<{
@@ -83,7 +92,7 @@ function cellColor(day: { completed: boolean; partial: boolean }) {
       <Flame class="size-5" :class="tier?.textClass ?? 'text-muted-foreground'" />
       <span class="text-lg font-semibold tabular-nums">{{ streak.current_streak }}</span>
       <span class="text-sm text-muted-foreground">
-        {{ streak.current_streak === 1 ? 'день' : streak.current_streak < 5 ? 'дня' : 'дней' }}
+        {{ dayWord(streak.current_streak) }}
       </span>
       <StreakBadge
         v-if="streak.tier_key"
@@ -94,7 +103,7 @@ function cellColor(day: { completed: boolean; partial: boolean }) {
 
     <!-- Best streak -->
     <p v-if="streak.best_streak > streak.current_streak" class="text-xs text-muted-foreground">
-      Лучшая серия: {{ streak.best_streak }} дн.
+      Лучшая серия: {{ streak.best_streak }} {{ dayWord(streak.best_streak) }}
     </p>
 
     <!-- Today's progress -->
@@ -132,7 +141,7 @@ function cellColor(day: { completed: boolean; partial: boolean }) {
 
     <!-- Next tier info -->
     <p v-if="streak.next_tier_at" class="text-xs text-muted-foreground">
-      До следующей лиги: {{ streak.next_tier_at - streak.current_streak }} дн.
+      До следующей лиги: {{ streak.next_tier_at - streak.current_streak }} {{ dayWord(streak.next_tier_at - streak.current_streak) }}
     </p>
   </div>
 </template>

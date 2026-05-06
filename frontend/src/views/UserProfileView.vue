@@ -34,6 +34,7 @@ import RankBadge from '@/components/RankBadge.vue'
 import UserTag from '@/components/UserTag.vue'
 import StreakCalendar from '@/components/StreakCalendar.vue'
 import StreakBadge from '@/components/StreakBadge.vue'
+import { plural } from '@/lib/utils'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -356,7 +357,7 @@ watch(userId, () => {
                 :tier-name="entry.tier_name"
                 :streak-days="entry.current_streak"
               />
-              <span v-else class="text-sm font-semibold tabular-nums">{{ entry.current_streak }} дн.</span>
+              <span v-else class="text-sm font-semibold tabular-nums">{{ plural(entry.current_streak, 'день', 'дня', 'дней') }}</span>
             </div>
           </RouterLink>
         </CardContent>
