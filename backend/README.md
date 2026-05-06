@@ -1,6 +1,6 @@
 # Backend
 
-Go API server for Hugs as a Service.
+Go API server for PRODHugs.
 
 ## Tech Stack
 

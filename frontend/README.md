@@ -1,6 +1,6 @@
 # Frontend
 
-Vue 3 SPA for Hugs as a Service.
+Vue 3 SPA for PRODHugs.
 
 ## Tech Stack
 

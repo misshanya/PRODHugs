@@ -2,7 +2,7 @@
 
 ## Project
 
-Full-stack "Hugs as a Service" app — Go backend + Vue 3 frontend, orchestrated via Docker Compose behind nginx reverse proxy. No CI, no monorepo tooling — just two directories with independent build systems.
+Full-stack "PRODHugs" app — Go backend + Vue 3 frontend, orchestrated via Docker Compose behind nginx reverse proxy. No CI, no monorepo tooling — just two directories with independent build systems.
 
 ## Repo layout
 

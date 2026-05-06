@@ -1,6 +1,6 @@
-# Hugs as a Service
+# PRODHugs
 
-Full-stack social app where users can send and receive virtual hugs. Go backend + Vue 3 frontend, orchestrated via Docker Compose behind an nginx reverse proxy.
+Full-stack social app for virtual hugs. Go backend + Vue 3 frontend, orchestrated via Docker Compose behind an nginx reverse proxy.
 
 ## Features
 
