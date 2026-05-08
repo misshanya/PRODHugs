@@ -10,7 +10,7 @@ type LeaderboardEntry struct {
 	SpecialTag   *string
 	Role         string
 	TotalHugs    int32
-	HugsGiven   int64
+	HugsGiven    int64
 	HugsReceived int64
 	Rank         string
 }
@@ -33,7 +33,7 @@ var ranks = []struct {
 	minHugs int32
 	def     rankDef
 }{
-	{1000, rankDef{"Тактильный маньян", "Тактильная маньячка", "Тактильный(ая) маньяк(чка)"}},
+	{1000, rankDef{"Тактильный маньяк", "Тактильная маньячка", "Тактильный(ая) маньяк(чка)"}},
 	{500, rankDef{"Легенда", "Легенда", "Легенда"}},
 	{200, rankDef{"Обнимастер", "Обнимастер", "Обнимастер"}},
 	{50, rankDef{"Тактильный", "Тактильная", "Тактильный(ая)"}},
