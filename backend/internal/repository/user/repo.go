@@ -76,6 +76,7 @@ func toModelUser(u storage.User) *models.User {
 		CaptchaCooldownUntil: captchaCooldownUntil,
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
+		PromotionBid:         u.PromotionBid,
 	}
 }
 
@@ -141,6 +142,7 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 		CaptchaCooldownUntil: captchaCooldownUntil,
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
+		PromotionBid:         u.PromotionBid,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -208,6 +210,7 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 		CaptchaCooldownUntil: captchaCooldownUntil,
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
+		PromotionBid:         u.PromotionBid,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -275,6 +278,7 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 		CaptchaCooldownUntil: captchaCooldownUntil,
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
+		PromotionBid:         u.PromotionBid,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}

@@ -14,34 +14,14 @@ import (
 
 const adminClearPromotion = `-- name: AdminClearPromotion :one
 UPDATE users
-SET promoted_until = NULL, promotion_message = NULL
+SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
-type AdminClearPromotionRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (AdminClearPromotionRow, error) {
+func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, adminClearPromotion, id)
-	var i AdminClearPromotionRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -59,7 +39,7 @@ func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (AdminC
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -81,7 +61,7 @@ const adminUpdateCaptchaType = `-- name: AdminUpdateCaptchaType :one
 UPDATE users
 SET captcha_type = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type AdminUpdateCaptchaTypeParams struct {
@@ -89,29 +69,9 @@ type AdminUpdateCaptchaTypeParams struct {
 	CaptchaType string
 }
 
-type AdminUpdateCaptchaTypeRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminUpdateCaptchaType(ctx context.Context, arg AdminUpdateCaptchaTypeParams) (AdminUpdateCaptchaTypeRow, error) {
+func (q *Queries) AdminUpdateCaptchaType(ctx context.Context, arg AdminUpdateCaptchaTypeParams) (User, error) {
 	row := q.db.QueryRow(ctx, adminUpdateCaptchaType, arg.ID, arg.CaptchaType)
-	var i AdminUpdateCaptchaTypeRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -129,7 +89,7 @@ func (q *Queries) AdminUpdateCaptchaType(ctx context.Context, arg AdminUpdateCap
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -138,7 +98,7 @@ const adminUpdateDisplayName = `-- name: AdminUpdateDisplayName :one
 UPDATE users
 SET display_name = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type AdminUpdateDisplayNameParams struct {
@@ -146,29 +106,9 @@ type AdminUpdateDisplayNameParams struct {
 	DisplayName pgtype.Text
 }
 
-type AdminUpdateDisplayNameRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminUpdateDisplayName(ctx context.Context, arg AdminUpdateDisplayNameParams) (AdminUpdateDisplayNameRow, error) {
+func (q *Queries) AdminUpdateDisplayName(ctx context.Context, arg AdminUpdateDisplayNameParams) (User, error) {
 	row := q.db.QueryRow(ctx, adminUpdateDisplayName, arg.ID, arg.DisplayName)
-	var i AdminUpdateDisplayNameRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -186,7 +126,7 @@ func (q *Queries) AdminUpdateDisplayName(ctx context.Context, arg AdminUpdateDis
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -195,7 +135,7 @@ const adminUpdateGender = `-- name: AdminUpdateGender :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type AdminUpdateGenderParams struct {
@@ -203,29 +143,9 @@ type AdminUpdateGenderParams struct {
 	Gender pgtype.Text
 }
 
-type AdminUpdateGenderRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderParams) (AdminUpdateGenderRow, error) {
+func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderParams) (User, error) {
 	row := q.db.QueryRow(ctx, adminUpdateGender, arg.ID, arg.Gender)
-	var i AdminUpdateGenderRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -243,7 +163,7 @@ func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderPa
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -268,7 +188,7 @@ const adminUpdateSpecialTag = `-- name: AdminUpdateSpecialTag :one
 UPDATE users
 SET special_tag = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type AdminUpdateSpecialTagParams struct {
@@ -276,29 +196,9 @@ type AdminUpdateSpecialTagParams struct {
 	SpecialTag pgtype.Text
 }
 
-type AdminUpdateSpecialTagRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminUpdateSpecialTag(ctx context.Context, arg AdminUpdateSpecialTagParams) (AdminUpdateSpecialTagRow, error) {
+func (q *Queries) AdminUpdateSpecialTag(ctx context.Context, arg AdminUpdateSpecialTagParams) (User, error) {
 	row := q.db.QueryRow(ctx, adminUpdateSpecialTag, arg.ID, arg.SpecialTag)
-	var i AdminUpdateSpecialTagRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -316,7 +216,7 @@ func (q *Queries) AdminUpdateSpecialTag(ctx context.Context, arg AdminUpdateSpec
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -325,7 +225,7 @@ const adminUpdateTag = `-- name: AdminUpdateTag :one
 UPDATE users
 SET tag = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type AdminUpdateTagParams struct {
@@ -333,29 +233,9 @@ type AdminUpdateTagParams struct {
 	Tag pgtype.Text
 }
 
-type AdminUpdateTagRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminUpdateTag(ctx context.Context, arg AdminUpdateTagParams) (AdminUpdateTagRow, error) {
+func (q *Queries) AdminUpdateTag(ctx context.Context, arg AdminUpdateTagParams) (User, error) {
 	row := q.db.QueryRow(ctx, adminUpdateTag, arg.ID, arg.Tag)
-	var i AdminUpdateTagRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -373,7 +253,7 @@ func (q *Queries) AdminUpdateTag(ctx context.Context, arg AdminUpdateTagParams) 
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -382,7 +262,7 @@ const adminUpdateUsername = `-- name: AdminUpdateUsername :one
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type AdminUpdateUsernameParams struct {
@@ -390,29 +270,9 @@ type AdminUpdateUsernameParams struct {
 	Username string
 }
 
-type AdminUpdateUsernameRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUsernameParams) (AdminUpdateUsernameRow, error) {
+func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUsernameParams) (User, error) {
 	row := q.db.QueryRow(ctx, adminUpdateUsername, arg.ID, arg.Username)
-	var i AdminUpdateUsernameRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -430,7 +290,7 @@ func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUserna
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -439,7 +299,7 @@ const banUser = `-- name: BanUser :one
 UPDATE users
 SET banned_at = NOW()
 WHERE id = $1 AND role != 'admin'
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -462,6 +322,7 @@ func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -470,7 +331,7 @@ const clearUserTelegramID = `-- name: ClearUserTelegramID :one
 UPDATE users
 SET telegram_id = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -493,6 +354,7 @@ func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, 
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -524,7 +386,7 @@ INSERT INTO users (username, password, role, gender, created_at)
 VALUES (
     $1, $2, $3, $4, NOW()
 )
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type CreateUserParams struct {
@@ -559,6 +421,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -699,7 +562,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, arg GetRecentHugsFeedPa
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -728,6 +591,7 @@ type GetUserByIDRow struct {
 	CaptchaType          string
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
+	PromotionBid         int32
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -752,6 +616,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -760,7 +625,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -789,6 +654,7 @@ type GetUserByTelegramIDRow struct {
 	CaptchaType          string
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
+	PromotionBid         int32
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -813,6 +679,7 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -821,7 +688,7 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -850,6 +717,7 @@ type GetUserByUsernameRow struct {
 	CaptchaType          string
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
+	PromotionBid         int32
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -874,6 +742,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -938,7 +807,7 @@ const listAllUsers = `-- name: ListAllUsers :many
 SELECT 
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
-    u.promoted_until, u.promotion_message,
+    u.promoted_until, u.promotion_message, u.promotion_bid,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -958,6 +827,7 @@ WHERE u.banned_at IS NULL
   )
 ORDER BY 
     (u.promoted_until > NOW()) DESC,
+    u.promotion_bid DESC,
     (
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -984,6 +854,7 @@ type ListAllUsersRow struct {
 	IsTelegramLinked bool
 	PromotedUntil    pgtype.Timestamptz
 	PromotionMessage pgtype.Text
+	PromotionBid     int32
 	AvgResponseTime  float64
 }
 
@@ -1007,6 +878,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 			&i.IsTelegramLinked,
 			&i.PromotedUntil,
 			&i.PromotionMessage,
+			&i.PromotionBid,
 			&i.AvgResponseTime,
 		); err != nil {
 			return nil, err
@@ -1021,7 +893,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 
 const listUsersAdmin = `-- name: ListUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
-       u.promoted_until, u.promotion_message,
+       u.promoted_until, u.promotion_message, u.promotion_bid,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -1054,6 +926,7 @@ type ListUsersAdminRow struct {
 	CaptchaCooldownUntil pgtype.Timestamptz
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
+	PromotionBid         int32
 	Balance              int32
 	LastVisitAt          pgtype.Timestamptz
 }
@@ -1081,6 +954,7 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 			&i.CaptchaCooldownUntil,
 			&i.PromotedUntil,
 			&i.PromotionMessage,
+			&i.PromotionBid,
 			&i.Balance,
 			&i.LastVisitAt,
 		); err != nil {
@@ -1096,40 +970,26 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 
 const promoteUser = `-- name: PromoteUser :one
 UPDATE users
-SET promoted_until = $2, promotion_message = $3
+SET promoted_until = $2, promotion_message = $3, promotion_bid = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type PromoteUserParams struct {
 	ID               uuid.UUID
 	PromotedUntil    pgtype.Timestamptz
 	PromotionMessage pgtype.Text
+	PromotionBid     int32
 }
 
-type PromoteUserRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) PromoteUser(ctx context.Context, arg PromoteUserParams) (PromoteUserRow, error) {
-	row := q.db.QueryRow(ctx, promoteUser, arg.ID, arg.PromotedUntil, arg.PromotionMessage)
-	var i PromoteUserRow
+func (q *Queries) PromoteUser(ctx context.Context, arg PromoteUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, promoteUser,
+		arg.ID,
+		arg.PromotedUntil,
+		arg.PromotionMessage,
+		arg.PromotionBid,
+	)
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -1147,7 +1007,7 @@ func (q *Queries) PromoteUser(ctx context.Context, arg PromoteUserParams) (Promo
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -1156,7 +1016,7 @@ const searchUsers = `-- name: SearchUsers :many
 SELECT 
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
-    u.promoted_until, u.promotion_message,
+    u.promoted_until, u.promotion_message, u.promotion_bid,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -1177,6 +1037,7 @@ WHERE (u.username ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1
   )
 ORDER BY 
     (u.promoted_until > NOW()) DESC,
+    u.promotion_bid DESC,
     (
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -1204,6 +1065,7 @@ type SearchUsersRow struct {
 	IsTelegramLinked bool
 	PromotedUntil    pgtype.Timestamptz
 	PromotionMessage pgtype.Text
+	PromotionBid     int32
 	AvgResponseTime  float64
 }
 
@@ -1232,6 +1094,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.IsTelegramLinked,
 			&i.PromotedUntil,
 			&i.PromotionMessage,
+			&i.PromotionBid,
 			&i.AvgResponseTime,
 		); err != nil {
 			return nil, err
@@ -1246,7 +1109,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 
 const searchUsersAdmin = `-- name: SearchUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
-       u.promoted_until, u.promotion_message,
+       u.promoted_until, u.promotion_message, u.promotion_bid,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -1281,6 +1144,7 @@ type SearchUsersAdminRow struct {
 	CaptchaCooldownUntil pgtype.Timestamptz
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
+	PromotionBid         int32
 	Balance              int32
 	LastVisitAt          pgtype.Timestamptz
 }
@@ -1308,6 +1172,7 @@ func (q *Queries) SearchUsersAdmin(ctx context.Context, arg SearchUsersAdminPara
 			&i.CaptchaCooldownUntil,
 			&i.PromotedUntil,
 			&i.PromotionMessage,
+			&i.PromotionBid,
 			&i.Balance,
 			&i.LastVisitAt,
 		); err != nil {
@@ -1341,7 +1206,7 @@ const setUserTelegramID = `-- name: SetUserTelegramID :one
 UPDATE users
 SET telegram_id = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type SetUserTelegramIDParams struct {
@@ -1369,6 +1234,7 @@ func (q *Queries) SetUserTelegramID(ctx context.Context, arg SetUserTelegramIDPa
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -1377,7 +1243,7 @@ const unbanUser = `-- name: UnbanUser :one
 UPDATE users
 SET banned_at = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -1400,6 +1266,7 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
+		&i.PromotionBid,
 	)
 	return i, err
 }
@@ -1424,7 +1291,7 @@ const updateUserSettings = `-- name: UpdateUserSettings :one
 UPDATE users
 SET gender = $2, display_name = $3, tag = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
 `
 
 type UpdateUserSettingsParams struct {
@@ -1434,34 +1301,14 @@ type UpdateUserSettingsParams struct {
 	Tag         pgtype.Text
 }
 
-type UpdateUserSettingsRow struct {
-	ID                   uuid.UUID
-	Username             string
-	Password             string
-	Role                 string
-	Gender               pgtype.Text
-	BannedAt             pgtype.Timestamptz
-	HugSlots             int32
-	CreatedAt            pgtype.Timestamptz
-	DisplayName          pgtype.Text
-	TelegramID           pgtype.Int8
-	Tag                  pgtype.Text
-	SpecialTag           pgtype.Text
-	CaptchaCooldownUntil pgtype.Timestamptz
-	CaptchaType          string
-	PromotedUntil        pgtype.Timestamptz
-	PromotionMessage     pgtype.Text
-	Balance              int32
-}
-
-func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (UpdateUserSettingsRow, error) {
+func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (User, error) {
 	row := q.db.QueryRow(ctx, updateUserSettings,
 		arg.ID,
 		arg.Gender,
 		arg.DisplayName,
 		arg.Tag,
 	)
-	var i UpdateUserSettingsRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -1479,7 +1326,7 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.CaptchaType,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
-		&i.Balance,
+		&i.PromotionBid,
 	)
 	return i, err
 }

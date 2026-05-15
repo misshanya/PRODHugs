@@ -305,6 +305,7 @@ func (h *HugHandler) SearchUsers(ctx context.Context, req v1.SearchUsersRequestO
 			AvgResponseTime:  avgResponseTime,
 			PromotedUntil:    u.PromotedUntil,
 			PromotionMessage: u.PromotionMessage,
+			PromotionBid:     int(u.PromotionBid),
 		}
 		if u.Gender != nil {
 			g := v1.Gender(*u.Gender)

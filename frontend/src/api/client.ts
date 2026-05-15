@@ -196,8 +196,7 @@ export const usersApi = {
   blockUser: (userId: string) => api.post(`/users/${userId}/block`),
   unblockUser: (userId: string) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get('/users/me/blocked'),
-  promote: (durationHours: number, message?: string) =>
-    api.post('/users/promote', { duration_hours: durationHours, message }),
+  promote: (bid: number, message?: string) => api.post('/users/promote', { bid, message }),
 }
 
 // Leaderboard

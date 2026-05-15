@@ -197,6 +197,7 @@ func toModelUserListItem(row storage.SearchUsersRow) *models.User {
 		IsTelegramLinked: row.IsTelegramLinked,
 		PromotedUntil:    promotedUntil,
 		PromotionMessage: promotionMessage,
+		PromotionBid:     row.PromotionBid,
 		AvgResponseTime:  avgResponseTime,
 	}
 }
@@ -243,6 +244,7 @@ func toModelUserListItemFromAll(row storage.ListAllUsersRow) *models.User {
 		IsTelegramLinked: row.IsTelegramLinked,
 		PromotedUntil:    promotedUntil,
 		PromotionMessage: promotionMessage,
+		PromotionBid:     row.PromotionBid,
 		AvgResponseTime:  avgResponseTime,
 	}
 }

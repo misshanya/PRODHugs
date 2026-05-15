@@ -66,6 +66,7 @@ func toV1User(u *models.User) v1.User {
 		CaptchaCooldownUntil: u.CaptchaCooldownUntil,
 		PromotedUntil:        u.PromotedUntil,
 		PromotionMessage:     u.PromotionMessage,
+		PromotionBid:         int(u.PromotionBid),
 		Balance:              &bal,
 	}
 	if u.Gender != nil {
@@ -93,6 +94,7 @@ func toV1UserListItem(u *models.User) v1.UserListItem {
 		AvgResponseTime:  avgResponseTime,
 		PromotedUntil:    u.PromotedUntil,
 		PromotionMessage: u.PromotionMessage,
+		PromotionBid:     int(u.PromotionBid),
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)

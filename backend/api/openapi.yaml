@@ -108,6 +108,9 @@ components:
         promotion_message:
           type: string
           nullable: true
+        promotion_bid:
+          type: integer
+          description: Current bid for this promotion spot
         balance:
           type: integer
           description: User's current balance (returned for /users/me or own profile)
@@ -395,21 +398,23 @@ components:
         promotion_message:
           type: string
           nullable: true
+        promotion_bid:
+          type: integer
+          description: Current bid for this promotion spot
 
     PromoteUserRequest:
       type: object
       required:
-        - duration_hours
+        - bid
       properties:
-        duration_hours:
+        bid:
           type: integer
           minimum: 1
-          maximum: 168
-          description: Duration in hours to stay promoted (max 1 week)
+          description: Amount of coins to bid for a spot
         message:
           type: string
           maxLength: 100
-          description: Optional promotion message ("Sponsored place" etc)
+          description: Optional promotion message
 
     HugActivityItem:
       type: object
@@ -604,6 +609,9 @@ components:
         promotion_message:
           type: string
           nullable: true
+        promotion_bid:
+          type: integer
+          description: Current bid for this promotion spot
 
     AdminStats:
       type: object

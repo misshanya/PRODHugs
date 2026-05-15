@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Search, Loader2, Star } from 'lucide-vue-next'
+import { Search, Loader2, Star, Zap, Crown, Coins as Coin } from 'lucide-vue-next'
 import { useHugsStore } from '@/stores/hugs'
 import { useOnlineStore } from '@/stores/online'
 import { useAuthStore } from '@/stores/auth'
@@ -155,12 +155,18 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- ── Sponsored Slots (Top 3) ── -->
+    <!-- ── VIP Slots (Top 3) ── -->
     <div v-if="!query && !loading" class="space-y-2">
-      <p class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">Спонсоры</p>
+      <p class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1 text-prod-yellow">VIP-места</p>
       <div class="grid gap-2">
         <!-- Real promoted users -->
-        <UserCard v-for="user in sponsoredUsers" :key="user.id" :user="user" />
+        <div v-for="user in sponsoredUsers" :key="user.id" class="relative">
+          <UserCard :user="user" />
+          <div class="absolute right-14 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-prod-yellow/10 px-1.5 py-0.5 rounded border border-prod-yellow/20 pointer-events-none">
+            <Coin class="size-3 text-prod-yellow" />
+            <span class="text-[10px] font-bold text-prod-yellow">{{ user.promotion_bid }}</span>
+          </div>
+        </div>
         
         <!-- Placeholders if less than 3 -->
         <div 
@@ -171,7 +177,7 @@ onUnmounted(() => {
         >
           <div class="flex items-center gap-2 text-xs text-muted-foreground group-hover:text-prod-yellow transition-colors">
             <Star class="size-3" />
-            <span>Свободное место</span>
+            <span>Свободный VIP-слот</span>
           </div>
         </div>
       </div>

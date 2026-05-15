@@ -118,6 +118,7 @@ type User struct {
 	CaptchaType          string
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
+	PromotionBid         int32
 }
 
 type UserBlock struct {

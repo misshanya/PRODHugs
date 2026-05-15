@@ -98,7 +98,7 @@ func (r *repo) UpdatePassword(ctx context.Context, id uuid.UUID, hashedPassword 
 	})
 }
 
-func (r *repo) PromoteUser(ctx context.Context, id uuid.UUID, promotedUntil time.Time, message *string) (*models.User, error) {
+func (r *repo) PromoteUser(ctx context.Context, id uuid.UUID, promotedUntil time.Time, message *string, bid int32) (*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 
 	var msg pgtype.Text
@@ -110,6 +110,7 @@ func (r *repo) PromoteUser(ctx context.Context, id uuid.UUID, promotedUntil time
 		ID:            id,
 		PromotedUntil: pgtype.Timestamptz{Time: promotedUntil, Valid: true},
 		PromotionMessage: msg,
+		PromotionBid:  bid,
 	})
 	if err != nil {
 		return nil, err

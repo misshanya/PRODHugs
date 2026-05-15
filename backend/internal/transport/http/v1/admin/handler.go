@@ -50,6 +50,7 @@ func toV1User(u *models.User) v1.User {
 		CaptchaCooldownUntil: u.CaptchaCooldownUntil,
 		PromotedUntil:        u.PromotedUntil,
 		PromotionMessage:     u.PromotionMessage,
+		PromotionBid:         int(u.PromotionBid),
 		Balance:              &bal,
 	}
 	if u.Gender != nil {
@@ -72,6 +73,7 @@ func toV1AdminUser(u *models.User) v1.AdminUser {
 		CaptchaCooldownUntil: u.CaptchaCooldownUntil,
 		PromotedUntil:        u.PromotedUntil,
 		PromotionMessage:     u.PromotionMessage,
+		PromotionBid:         int(u.PromotionBid),
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)
@@ -98,6 +100,7 @@ func toV1AdminUserFromAdmin(u *models.AdminUser) v1.AdminUser {
 		CaptchaCooldownUntil: u.CaptchaCooldownUntil,
 		PromotedUntil:        u.PromotedUntil,
 		PromotionMessage:     u.PromotionMessage,
+		PromotionBid:         int(u.PromotionBid),
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)

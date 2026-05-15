@@ -35,7 +35,7 @@ WHERE u.id = $1;
 SELECT 
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
-    u.promoted_until, u.promotion_message,
+    u.promoted_until, u.promotion_message, u.promotion_bid,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -56,6 +56,7 @@ WHERE (u.username ILIKE '%' || @query::text || '%' OR u.display_name ILIKE '%' |
   )
 ORDER BY 
     (u.promoted_until > NOW()) DESC,
+    u.promotion_bid DESC,
     (
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -68,7 +69,7 @@ LIMIT @lim::int OFFSET @off::int;
 SELECT 
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
-    u.promoted_until, u.promotion_message,
+    u.promoted_until, u.promotion_message, u.promotion_bid,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -88,6 +89,7 @@ WHERE u.banned_at IS NULL
   )
 ORDER BY 
     (u.promoted_until > NOW()) DESC,
+    u.promotion_bid DESC,
     (
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM hugs h
@@ -136,7 +138,7 @@ LIMIT @lim::int OFFSET @off::int;
 UPDATE users
 SET gender = $2, display_name = $3, tag = $4
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: GetUserTelegramID :one
 SELECT telegram_id FROM users WHERE id = $1;
@@ -196,7 +198,7 @@ SELECT COUNT(*) FROM users WHERE banned_at IS NOT NULL;
 
 -- name: ListUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
-       u.promoted_until, u.promotion_message,
+       u.promoted_until, u.promotion_message, u.promotion_bid,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -211,7 +213,7 @@ LIMIT @lim::int OFFSET @off::int;
 
 -- name: SearchUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
-       u.promoted_until, u.promotion_message,
+       u.promoted_until, u.promotion_message, u.promotion_bid,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -229,13 +231,13 @@ LIMIT @lim::int OFFSET @off::int;
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: AdminUpdateGender :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: AdminUpdatePassword :exec
 UPDATE users
@@ -255,25 +257,25 @@ RETURNING hug_slots;
 UPDATE users
 SET display_name = $2
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: AdminUpdateTag :one
 UPDATE users
 SET tag = $2
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: AdminUpdateSpecialTag :one
 UPDATE users
 SET special_tag = $2
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: AdminUpdateCaptchaType :one
 UPDATE users
 SET captcha_type = $2
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: SetCaptchaCooldown :exec
 UPDATE users
@@ -286,12 +288,12 @@ WHERE id = $1 AND role != 'admin';
 
 -- name: AdminClearPromotion :one
 UPDATE users
-SET promoted_until = NULL, promotion_message = NULL
+SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
 
 -- name: PromoteUser :one
 UPDATE users
-SET promoted_until = $2, promotion_message = $3
+SET promoted_until = $2, promotion_message = $3, promotion_bid = $4
 WHERE id = $1
-RETURNING *, (SELECT COALESCE(amount, 0) FROM balances WHERE user_id = users.id)::int AS balance;
+RETURNING *;
