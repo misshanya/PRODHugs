@@ -116,6 +116,8 @@ type User struct {
 	SpecialTag           pgtype.Text
 	CaptchaCooldownUntil pgtype.Timestamptz
 	CaptchaType          string
+	PromotedUntil        pgtype.Timestamptz
+	PromotionMessage     pgtype.Text
 }
 
 type UserBlock struct {

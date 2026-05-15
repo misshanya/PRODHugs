@@ -196,6 +196,8 @@ export const usersApi = {
   blockUser: (userId: string) => api.post(`/users/${userId}/block`),
   unblockUser: (userId: string) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get('/users/me/blocked'),
+  promote: (durationHours: number, message?: string) =>
+    api.post('/users/promote', { duration_hours: durationHours, message }),
 }
 
 // Leaderboard
@@ -232,6 +234,7 @@ export const adminApi = {
     api.put(`/admin/users/${userId}/balance`, { amount }),
   updateCaptchaType: (userId: string, captchaType: string) =>
     api.put(`/admin/users/${userId}/captcha-type`, { captcha_type: captchaType }),
+  clearPromotion: (userId: string) => api.delete(`/admin/users/${userId}/promotion`),
   deleteUser: (userId: string) => api.delete(`/admin/users/${userId}`),
   createAnnouncement: (message: string) => api.post('/admin/announcements', { message }),
   deleteAnnouncement: (id: string) => api.delete(`/admin/announcements/${id}`),
