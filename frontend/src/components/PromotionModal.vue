@@ -34,10 +34,12 @@ const bid = ref(10)
 const message = ref('')
 
 const minBid = computed(() => {
-  // Base price is 5
-  // If we want to be #1, we need to outbid the current #1
-  const currentMax = hugsStore.vips?.[0]?.promotion_bid ?? 0
-  return Math.max(5, currentMax + 1)
+  // If there are less than 3 VIPs, we just need the base price
+  if (hugsStore.vips.length < 3) return 5
+  
+  // If all slots are full, we need to outbid the 3rd person
+  const lowestVIPBid = hugsStore.vips[2]?.promotion_bid ?? 0
+  return lowestVIPBid + 1
 })
 
 const canAfford = computed(() => {
