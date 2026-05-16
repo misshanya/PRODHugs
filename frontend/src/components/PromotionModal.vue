@@ -42,9 +42,19 @@ const minBid = computed(() => {
   return lowestVIPBid + 1
 })
 
+const cost = computed(() => {
+  if (!auth.user?.promoted_until) return bid.value
+  const isExpired = new Date(auth.user.promoted_until) < new Date()
+  if (isExpired) return bid.value
+  
+  const currentBid = auth.user.promotion_bid ?? 0
+  const diff = bid.value - currentBid
+  return Math.max(0, diff)
+})
+
 const canAfford = computed(() => {
   const balance = auth.user?.balance ?? 0
-  return balance >= bid.value
+  return balance >= cost.value
 })
 
 async function handlePromote() {
@@ -52,7 +62,10 @@ async function handlePromote() {
     toast.error(`Минимальная ставка: ${minBid.value}`)
     return
   }
-  if (!canAfford.value) return
+  if (!canAfford.value) {
+    toast.error('Недостаточно монет')
+    return
+  }
   
   loading.value = true
   try {
@@ -105,15 +118,19 @@ async function handlePromote() {
           <p class="text-[10px] text-muted-foreground">Минимальная ставка: {{ minBid }} монет. Твоя позиция зависит от суммы.</p>
         </div>
 
-        <div class="rounded-lg bg-muted p-3">
+        <div class="rounded-lg bg-muted p-3 space-y-2">
           <div class="flex items-center justify-between text-sm">
-            <span>Твой баланс:</span>
-            <span class="font-bold text-prod-yellow">{{ auth.user?.balance ?? 0 }} монет</span>
+            <span class="text-muted-foreground">К оплате:</span>
+            <span class="font-bold text-prod-yellow">{{ cost }} монет</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Твой баланс:</span>
+            <span class="font-bold">{{ auth.user?.balance ?? 0 }} монет</span>
           </div>
         </div>
         
         <p v-if="!canAfford" class="text-xs text-destructive text-center">
-          Недостаточно монет
+          Недостаточно монет для повышения ставки
         </p>
       </div>
 
@@ -124,7 +141,7 @@ async function handlePromote() {
           @click="handlePromote"
         >
           <Loader2 v-if="loading" class="mr-2 size-4 animate-spin" />
-          Перебить ставку
+          {{ auth.user?.promoted_until && new Date(auth.user.promoted_until) > new Date() ? 'Повысить ставку' : 'Занять место' }}
         </Button>
       </DialogFooter>
     </DialogContent>
