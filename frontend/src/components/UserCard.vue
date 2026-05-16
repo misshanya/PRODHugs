@@ -29,23 +29,29 @@ const auth = useAuthStore()
 const onlineStore = useOnlineStore()
 const isMe = auth.user?.id === props.user.id
 
+const localRemainingSeconds = ref(props.user.vip_remaining_seconds ?? 0)
+
+watch(() => props.user.vip_remaining_seconds, (val) => {
+  localRemainingSeconds.value = val ?? 0
+})
+
 const remainingTimeText = ref('')
 let timerInterval: ReturnType<typeof setInterval> | null = null
 
 function updateRemainingTime() {
-  if (!props.user.promoted_until) {
+  if (!props.user.promoted_until || localRemainingSeconds.value <= 0) {
     remainingTimeText.value = ''
     return
   }
-  const diff = new Date(props.user.promoted_until).getTime() - Date.now()
-  if (diff <= 0) {
-    remainingTimeText.value = '00:00'
-    return
+
+  // If in Top 3, tick down
+  if (props.isVip && localRemainingSeconds.value > 0) {
+    localRemainingSeconds.value--
   }
 
-  const hours = Math.floor(diff / 3600000)
-  const minutes = Math.floor((diff % 3600000) / 60000)
-  const seconds = Math.floor((diff % 60000) / 1000)
+  const hours = Math.floor(localRemainingSeconds.value / 3600)
+  const minutes = Math.floor((localRemainingSeconds.value % 3600) / 60)
+  const seconds = localRemainingSeconds.value % 60
 
   if (hours > 0) {
     remainingTimeText.value = `${hours}ч ${minutes}м`

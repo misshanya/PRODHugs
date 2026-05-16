@@ -64,6 +64,38 @@ const isMePromoted = computed(() => {
   return new Date(auth.user.promoted_until) > new Date()
 })
 
+const isMeOnCooldown = computed(() => {
+  if (!auth.user?.vip_cooldown_until) return false
+  return new Date(auth.user.vip_cooldown_until) > new Date()
+})
+
+const cooldownTimeText = ref('')
+let cooldownInterval: ReturnType<typeof setInterval> | null = null
+
+function updateCooldownTimer() {
+  if (!auth.user?.vip_cooldown_until) {
+    cooldownTimeText.value = ''
+    return
+  }
+  const diff = new Date(auth.user.vip_cooldown_until).getTime() - Date.now()
+  if (diff <= 0) {
+    cooldownTimeText.value = ''
+    return
+  }
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  const s = Math.floor((diff % 60000) / 1000)
+  cooldownTimeText.value = h > 0 ? `${h}ч ${m}м` : `${m}:${s.toString().padStart(2, '0')}`
+}
+
+watch(() => auth.user?.vip_cooldown_until, (val) => {
+  if (cooldownInterval) clearInterval(cooldownInterval)
+  if (val) {
+    updateCooldownTimer()
+    cooldownInterval = setInterval(updateCooldownTimer, 1000)
+  }
+}, { immediate: true })
+
 const isMeInTop3 = computed(() => {
   if (!auth.user?.id) return false
   const myId = auth.user.id.toLowerCase()
@@ -213,23 +245,46 @@ onUnmounted(() => {
       :class="{
         'border-prod-yellow/30 bg-prod-yellow/5': isMeInTop3,
         'border-destructive/30 bg-destructive/5': isMeOutbid,
-        'border-muted bg-muted/5': !isMePromoted
+        'border-blue-500/30 bg-blue-500/5': isMeOnCooldown,
+        'border-muted bg-muted/5': !isMePromoted && !isMeOnCooldown
       }"
     >
       <div class="space-y-1">
-        <h3 class="text-sm font-semibold flex items-center gap-1.5" :class="isMeInTop3 ? 'text-prod-yellow' : isMeOutbid ? 'text-destructive' : ''">
-          <Star class="size-4" :class="isMeInTop3 ? 'fill-prod-yellow text-prod-yellow' : ''" />
-          {{ isMeInTop3 ? 'Вы в ТОПе!' : isMeOutbid ? 'Вашу ставку перебили!' : 'Хотите в ТОП?' }}
+        <h3 class="text-sm font-semibold flex items-center gap-1.5" :class="isMeInTop3 ? 'text-prod-yellow' : isMeOutbid ? 'text-destructive' : isMeOnCooldown ? 'text-blue-400' : ''">
+          <template v-if="isMeOnCooldown">
+            <Timer class="size-4" />
+            Вы устали
+          </template>
+          <template v-else>
+            <Star class="size-4" :class="isMeInTop3 ? 'fill-prod-yellow text-prod-yellow' : ''" />
+            {{ isMeInTop3 ? 'Вы в ТОПе!' : isMeOutbid ? 'Вашу ставку перебили!' : 'Хотите в ТОП?' }}
+          </template>
+
           <span v-if="isMeInTop3 && myRemainingTime" class="ml-auto text-[10px] font-mono bg-prod-yellow/20 px-1.5 py-0.5 rounded animate-pulse">
             {{ myRemainingTime }}
           </span>
+          <span v-if="isMeOnCooldown && cooldownTimeText" class="ml-auto text-[10px] font-mono bg-blue-500/20 px-1.5 py-0.5 rounded">
+            {{ cooldownTimeText }}
+          </span>
         </h3>
         <p class="text-xs text-muted-foreground">
-          {{ isMeInTop3 ? 'Вы занимаете VIP-место. Повысьте ставку, чтобы подняться ещё выше.' : isMeOutbid ? 'Вас вытеснили из Топ-3. Поднимите ставку, чтобы вернуться!' : 'Займите VIP-место, чтобы вас видели первым!' }}
+          <template v-if="isMeOnCooldown">
+            Ваш 24-часовой VIP-лимит исчерпан. Подождите 6 часов перед следующей ставкой.
+          </template>
+          <template v-else>
+            {{ isMeInTop3 ? 'Вы занимаете VIP-место. Повысьте ставку, чтобы подняться ещё выше.' : isMeOutbid ? 'Вас вытеснили из Топ-3. Поднимите ставку, чтобы вернуться!' : 'Займите VIP-место, чтобы вас видели первым!' }}
+          </template>
         </p>
       </div>
-      <Button variant="outline" size="sm" class="shrink-0" :class="isMeInTop3 ? 'border-prod-yellow text-prod-yellow hover:bg-prod-yellow hover:text-black' : isMeOutbid ? 'border-destructive text-destructive hover:bg-destructive hover:text-white' : 'border-prod-yellow text-prod-yellow hover:bg-prod-yellow hover:text-black'" @click="promotionOpen = true">
-        {{ isMeInTop3 ? 'Повысить' : isMeOutbid ? 'Вернуть место' : 'Занять место' }}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        class="shrink-0" 
+        :disabled="isMeOnCooldown"
+        :class="isMeInTop3 ? 'border-prod-yellow text-prod-yellow hover:bg-prod-yellow hover:text-black' : isMeOutbid ? 'border-destructive text-destructive hover:bg-destructive hover:text-white' : isMeOnCooldown ? 'border-blue-500/50 text-blue-400' : 'border-prod-yellow text-prod-yellow hover:bg-prod-yellow hover:text-black'" 
+        @click="promotionOpen = true"
+      >
+        {{ isMeOnCooldown ? 'Отдых' : isMeInTop3 ? 'Повысить' : isMeOutbid ? 'Вернуть место' : 'Занять место' }}
       </Button>
     </div>
 
