@@ -110,6 +110,11 @@ type IntimacyInfo struct {
 	TierName             string    `json:"tier_name"`
 }
 
+// UpsertUserNoteRequest defines model for UpsertUserNoteRequest.
+type UpsertUserNoteRequest struct {
+	Content string `json:"content"`
+}
+
 // UserListItem defines model for UserListItem.
 type UserListItem struct {
 	AvgResponseTime     *float32           `json:"avg_response_time,omitempty"`
@@ -127,6 +132,19 @@ type UserListItem struct {
 	Username            string             `json:"username"`
 	VipCooldownUntil    *time.Time         `json:"vip_cooldown_until,omitempty"`
 	VipRemainingSeconds int                `json:"vip_remaining_seconds"`
+}
+
+// UserNote defines model for UserNote.
+type UserNote struct {
+	Content string `json:"content"`
+
+	// TargetDisplayName Only present in the list endpoint.
+	TargetDisplayName *string            `json:"target_display_name,omitempty"`
+	TargetId          openapi_types.UUID `json:"target_id"`
+
+	// TargetUsername Only present in the list endpoint.
+	TargetUsername *string   `json:"target_username,omitempty"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // UserProfile defines model for UserProfile.
@@ -152,6 +170,9 @@ type UserProfile struct {
 	Username             string             `json:"username"`
 }
 
+// BadRequest defines model for BadRequest.
+type BadRequest = Error
+
 // NotFound defines model for NotFound.
 type NotFound = Error
 
@@ -161,6 +182,12 @@ type Unauthorized = Error
 // bearerAuthContextKey is the context key for BearerAuth security scheme
 type bearerAuthContextKey string
 
+// ListUserNotesV2Params defines parameters for ListUserNotesV2.
+type ListUserNotesV2Params struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // SearchUsersV2Params defines parameters for SearchUsersV2.
 type SearchUsersV2Params struct {
 	Q      *string `form:"q,omitempty" json:"q,omitempty"`
@@ -168,14 +195,29 @@ type SearchUsersV2Params struct {
 	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// UpsertUserNoteV2JSONRequestBody defines body for UpsertUserNoteV2 for application/json ContentType.
+type UpsertUserNoteV2JSONRequestBody = UpsertUserNoteRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get daily-reward status
 	// (GET /daily-reward/status)
 	GetDailyRewardStatus(ctx echo.Context) error
+	// List the caller's notes
+	// (GET /notes)
+	ListUserNotesV2(ctx echo.Context, params ListUserNotesV2Params) error
 	// Search users (supports @username prefix)
 	// (GET /users/search)
 	SearchUsersV2(ctx echo.Context, params SearchUsersV2Params) error
+	// Delete the caller's note about the target user
+	// (DELETE /users/{usernameOrId}/note)
+	DeleteUserNoteV2(ctx echo.Context, usernameOrId string) error
+	// Get the caller's note about the target user
+	// (GET /users/{usernameOrId}/note)
+	GetUserNoteV2(ctx echo.Context, usernameOrId string) error
+	// Create or update the caller's note about the target user
+	// (PUT /users/{usernameOrId}/note)
+	UpsertUserNoteV2(ctx echo.Context, usernameOrId string) error
 	// Get user profile (by UUID or username)
 	// (GET /users/{usernameOrId}/profile)
 	GetUserProfileV2(ctx echo.Context, usernameOrId string) error
@@ -194,6 +236,33 @@ func (w *ServerInterfaceWrapper) GetDailyRewardStatus(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetDailyRewardStatus(ctx)
+	return err
+}
+
+// ListUserNotesV2 converts echo context to params.
+func (w *ServerInterfaceWrapper) ListUserNotesV2(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(BearerAuthScopes), []string{"user", "admin"})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListUserNotesV2Params
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", ctx.QueryParams(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter limit: %s", err))
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", ctx.QueryParams(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter offset: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListUserNotesV2(ctx, params)
 	return err
 }
 
@@ -228,6 +297,60 @@ func (w *ServerInterfaceWrapper) SearchUsersV2(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.SearchUsersV2(ctx, params)
+	return err
+}
+
+// DeleteUserNoteV2 converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteUserNoteV2(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "usernameOrId" -------------
+	var usernameOrId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "usernameOrId", ctx.Param("usernameOrId"), &usernameOrId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter usernameOrId: %s", err))
+	}
+
+	ctx.Set(string(BearerAuthScopes), []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteUserNoteV2(ctx, usernameOrId)
+	return err
+}
+
+// GetUserNoteV2 converts echo context to params.
+func (w *ServerInterfaceWrapper) GetUserNoteV2(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "usernameOrId" -------------
+	var usernameOrId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "usernameOrId", ctx.Param("usernameOrId"), &usernameOrId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter usernameOrId: %s", err))
+	}
+
+	ctx.Set(string(BearerAuthScopes), []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetUserNoteV2(ctx, usernameOrId)
+	return err
+}
+
+// UpsertUserNoteV2 converts echo context to params.
+func (w *ServerInterfaceWrapper) UpsertUserNoteV2(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "usernameOrId" -------------
+	var usernameOrId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "usernameOrId", ctx.Param("usernameOrId"), &usernameOrId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter usernameOrId: %s", err))
+	}
+
+	ctx.Set(string(BearerAuthScopes), []string{"user", "admin"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpsertUserNoteV2(ctx, usernameOrId)
 	return err
 }
 
@@ -297,10 +420,16 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	}
 
 	router.GET(options.BaseURL+"/daily-reward/status", wrapper.GetDailyRewardStatus, options.OperationMiddlewares["getDailyRewardStatus"]...)
+	router.GET(options.BaseURL+"/notes", wrapper.ListUserNotesV2, options.OperationMiddlewares["listUserNotesV2"]...)
 	router.GET(options.BaseURL+"/users/search", wrapper.SearchUsersV2, options.OperationMiddlewares["searchUsersV2"]...)
+	router.DELETE(options.BaseURL+"/users/:usernameOrId/note", wrapper.DeleteUserNoteV2, options.OperationMiddlewares["deleteUserNoteV2"]...)
+	router.GET(options.BaseURL+"/users/:usernameOrId/note", wrapper.GetUserNoteV2, options.OperationMiddlewares["getUserNoteV2"]...)
+	router.PUT(options.BaseURL+"/users/:usernameOrId/note", wrapper.UpsertUserNoteV2, options.OperationMiddlewares["upsertUserNoteV2"]...)
 	router.GET(options.BaseURL+"/users/:usernameOrId/profile", wrapper.GetUserProfileV2, options.OperationMiddlewares["getUserProfileV2"]...)
 
 }
+
+type BadRequestJSONResponse Error
 
 type NotFoundJSONResponse Error
 
@@ -330,6 +459,42 @@ func (response GetDailyRewardStatus200JSONResponse) VisitGetDailyRewardStatusRes
 type GetDailyRewardStatus401JSONResponse struct{ UnauthorizedJSONResponse }
 
 func (response GetDailyRewardStatus401JSONResponse) VisitGetDailyRewardStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListUserNotesV2RequestObject struct {
+	Params ListUserNotesV2Params
+}
+
+type ListUserNotesV2ResponseObject interface {
+	VisitListUserNotesV2Response(w http.ResponseWriter) error
+}
+
+type ListUserNotesV2200JSONResponse []UserNote
+
+func (response ListUserNotesV2200JSONResponse) VisitListUserNotesV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListUserNotesV2401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListUserNotesV2401JSONResponse) VisitListUserNotesV2Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -373,6 +538,165 @@ func (response SearchUsersV2401JSONResponse) VisitSearchUsersV2Response(w http.R
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteUserNoteV2RequestObject struct {
+	UsernameOrId string `json:"usernameOrId"`
+}
+
+type DeleteUserNoteV2ResponseObject interface {
+	VisitDeleteUserNoteV2Response(w http.ResponseWriter) error
+}
+
+type DeleteUserNoteV2204Response struct {
+}
+
+func (response DeleteUserNoteV2204Response) VisitDeleteUserNoteV2Response(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteUserNoteV2401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteUserNoteV2401JSONResponse) VisitDeleteUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteUserNoteV2404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteUserNoteV2404JSONResponse) VisitDeleteUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUserNoteV2RequestObject struct {
+	UsernameOrId string `json:"usernameOrId"`
+}
+
+type GetUserNoteV2ResponseObject interface {
+	VisitGetUserNoteV2Response(w http.ResponseWriter) error
+}
+
+type GetUserNoteV2200JSONResponse UserNote
+
+func (response GetUserNoteV2200JSONResponse) VisitGetUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUserNoteV2401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetUserNoteV2401JSONResponse) VisitGetUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUserNoteV2404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetUserNoteV2404JSONResponse) VisitGetUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpsertUserNoteV2RequestObject struct {
+	UsernameOrId string `json:"usernameOrId"`
+	Body         *UpsertUserNoteV2JSONRequestBody
+}
+
+type UpsertUserNoteV2ResponseObject interface {
+	VisitUpsertUserNoteV2Response(w http.ResponseWriter) error
+}
+
+type UpsertUserNoteV2200JSONResponse UserNote
+
+func (response UpsertUserNoteV2200JSONResponse) VisitUpsertUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpsertUserNoteV2400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertUserNoteV2400JSONResponse) VisitUpsertUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpsertUserNoteV2401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpsertUserNoteV2401JSONResponse) VisitUpsertUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpsertUserNoteV2404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertUserNoteV2404JSONResponse) VisitUpsertUserNoteV2Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -432,9 +756,21 @@ type StrictServerInterface interface {
 	// Get daily-reward status
 	// (GET /daily-reward/status)
 	GetDailyRewardStatus(ctx context.Context, request GetDailyRewardStatusRequestObject) (GetDailyRewardStatusResponseObject, error)
+	// List the caller's notes
+	// (GET /notes)
+	ListUserNotesV2(ctx context.Context, request ListUserNotesV2RequestObject) (ListUserNotesV2ResponseObject, error)
 	// Search users (supports @username prefix)
 	// (GET /users/search)
 	SearchUsersV2(ctx context.Context, request SearchUsersV2RequestObject) (SearchUsersV2ResponseObject, error)
+	// Delete the caller's note about the target user
+	// (DELETE /users/{usernameOrId}/note)
+	DeleteUserNoteV2(ctx context.Context, request DeleteUserNoteV2RequestObject) (DeleteUserNoteV2ResponseObject, error)
+	// Get the caller's note about the target user
+	// (GET /users/{usernameOrId}/note)
+	GetUserNoteV2(ctx context.Context, request GetUserNoteV2RequestObject) (GetUserNoteV2ResponseObject, error)
+	// Create or update the caller's note about the target user
+	// (PUT /users/{usernameOrId}/note)
+	UpsertUserNoteV2(ctx context.Context, request UpsertUserNoteV2RequestObject) (UpsertUserNoteV2ResponseObject, error)
 	// Get user profile (by UUID or username)
 	// (GET /users/{usernameOrId}/profile)
 	GetUserProfileV2(ctx context.Context, request GetUserProfileV2RequestObject) (GetUserProfileV2ResponseObject, error)
@@ -475,6 +811,31 @@ func (sh *strictHandler) GetDailyRewardStatus(ctx echo.Context) error {
 	return nil
 }
 
+// ListUserNotesV2 operation middleware
+func (sh *strictHandler) ListUserNotesV2(ctx echo.Context, params ListUserNotesV2Params) error {
+	var request ListUserNotesV2RequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListUserNotesV2(ctx.Request().Context(), request.(ListUserNotesV2RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListUserNotesV2")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListUserNotesV2ResponseObject); ok {
+		return validResponse.VisitListUserNotesV2Response(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // SearchUsersV2 operation middleware
 func (sh *strictHandler) SearchUsersV2(ctx echo.Context, params SearchUsersV2Params) error {
 	var request SearchUsersV2RequestObject
@@ -494,6 +855,87 @@ func (sh *strictHandler) SearchUsersV2(ctx echo.Context, params SearchUsersV2Par
 		return err
 	} else if validResponse, ok := response.(SearchUsersV2ResponseObject); ok {
 		return validResponse.VisitSearchUsersV2Response(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteUserNoteV2 operation middleware
+func (sh *strictHandler) DeleteUserNoteV2(ctx echo.Context, usernameOrId string) error {
+	var request DeleteUserNoteV2RequestObject
+
+	request.UsernameOrId = usernameOrId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteUserNoteV2(ctx.Request().Context(), request.(DeleteUserNoteV2RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteUserNoteV2")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteUserNoteV2ResponseObject); ok {
+		return validResponse.VisitDeleteUserNoteV2Response(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetUserNoteV2 operation middleware
+func (sh *strictHandler) GetUserNoteV2(ctx echo.Context, usernameOrId string) error {
+	var request GetUserNoteV2RequestObject
+
+	request.UsernameOrId = usernameOrId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserNoteV2(ctx.Request().Context(), request.(GetUserNoteV2RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserNoteV2")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetUserNoteV2ResponseObject); ok {
+		return validResponse.VisitGetUserNoteV2Response(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpsertUserNoteV2 operation middleware
+func (sh *strictHandler) UpsertUserNoteV2(ctx echo.Context, usernameOrId string) error {
+	var request UpsertUserNoteV2RequestObject
+
+	request.UsernameOrId = usernameOrId
+
+	var body UpsertUserNoteV2JSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertUserNoteV2(ctx.Request().Context(), request.(UpsertUserNoteV2RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertUserNoteV2")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpsertUserNoteV2ResponseObject); ok {
+		return validResponse.VisitUpsertUserNoteV2Response(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -530,39 +972,45 @@ func (sh *strictHandler) GetUserProfileV2(ctx echo.Context, usernameOrId string)
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"p2QFq8SFSOeLc7G53fw3AAD//w==",
+	"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",
+	"AQAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
