@@ -97,7 +97,7 @@ async function refreshVIPs() {
       hugsStore.fetchVIPs(),
       auth.fetchMe(),
       // Re-fetch current search results to update stars/borders in the main list
-      hugsStore.searchUsers(query.value, users.value.length, 0).then(res => {
+      hugsStore.searchUsers(query.value, Math.max(PAGE_SIZE, users.value.length), 0).then(res => {
         users.value = res
       })
     ])
@@ -202,7 +202,12 @@ onUnmounted(() => {
       <p class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1 text-prod-yellow">VIP-места</p>
       <div class="grid gap-2">
         <!-- Real promoted users -->
-        <UserCard v-for="user in sponsoredUsers" :key="user.id" :user="user" />
+        <div v-for="user in sponsoredUsers" :key="user.id" class="group relative cursor-pointer" @click="promotionOpen = true">
+          <UserCard :user="user" class="group-hover:border-prod-yellow/50 transition-colors pointer-events-none" />
+          <div class="absolute right-12 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-prod-yellow text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg">
+            ПЕРЕБИТЬ
+          </div>
+        </div>
         
         <!-- Placeholders if less than 3 -->
         <div 

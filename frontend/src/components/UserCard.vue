@@ -58,11 +58,11 @@ const formatResponseTime = (seconds: number) => {
         />
       </div>
       <div class="min-w-0">
-        <div class="flex items-center gap-1.5">
-          <p class="text-sm font-medium truncate">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <p class="text-sm font-medium truncate shrink">
             {{ user.display_name || user.username }}
           </p>
-          <UserTag :tag="user.tag" />
+          <UserTag :tag="user.tag" class="shrink-0" />
           <div v-if="user.promotion_bid" class="flex items-center gap-1 bg-prod-yellow/10 px-1 py-0.5 rounded border border-prod-yellow/20 shrink-0">
             <Coin class="size-2.5 text-prod-yellow" />
             <span class="text-[9px] font-bold text-prod-yellow">{{ user.promotion_bid }}</span>
