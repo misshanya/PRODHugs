@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { usersApi } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useHugsStore } from '@/stores/hugs'
+import { useTicker } from '@/composables/useTicker'
 import { toast } from 'vue-sonner'
 import { Loader2, Star, Coins as Coin } from 'lucide-vue-next'
 
