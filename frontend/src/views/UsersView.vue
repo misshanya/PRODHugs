@@ -92,9 +92,15 @@ async function search() {
 }
 
 async function refreshVIPs() {
-  if (query.value) return
   try {
-    await hugsStore.fetchVIPs()
+    await Promise.all([
+      hugsStore.fetchVIPs(),
+      auth.fetchMe(),
+      // Re-fetch current search results to update stars/borders in the main list
+      hugsStore.searchUsers(query.value, users.value.length, 0).then(res => {
+        users.value = res
+      })
+    ])
   } catch {
     // Ignore
   }
