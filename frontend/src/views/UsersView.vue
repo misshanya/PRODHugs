@@ -39,10 +39,10 @@ const sponsoredUsers = computed(() => {
 
 // ── Main list users (excluding those shown in sponsored slots) ──
 const mainListUsers = computed(() => {
-  const sponsoredIds = new Set(sponsoredUsers.value.map(u => u.id))
+  const sponsoredIds = new Set(sponsoredUsers.value.map(u => u.id.toLowerCase()))
   
   return users.value
-    .filter(u => !sponsoredIds.has(u.id))
+    .filter(u => !sponsoredIds.has(u.id.toLowerCase()))
     .sort((a, b) => {
       // 1. Other VIPs (if > 3)
       const aPromoted = a.promoted_until && new Date(a.promoted_until) > new Date() ? 0 : 1
@@ -65,12 +65,41 @@ const isMePromoted = computed(() => {
 })
 
 const isMeInTop3 = computed(() => {
-  return sponsoredUsers.value.some(u => u.id === auth.user?.id)
+  if (!auth.user?.id) return false
+  const myId = auth.user.id.toLowerCase()
+  return sponsoredUsers.value.some(u => u.id.toLowerCase() === myId)
 })
 
 const isMeOutbid = computed(() => {
   return isMePromoted.value && !isMeInTop3.value
 })
+
+const myRemainingTime = ref('')
+let myTimerInterval: ReturnType<typeof setInterval> | null = null
+
+function updateMyTimer() {
+  if (!auth.user?.promoted_until) {
+    myRemainingTime.value = ''
+    return
+  }
+  const diff = new Date(auth.user.promoted_until).getTime() - Date.now()
+  if (diff <= 0) {
+    myRemainingTime.value = ''
+    return
+  }
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  const s = Math.floor((diff % 60000) / 1000)
+  myRemainingTime.value = h > 0 ? `${h}ч ${m}м` : `${m}:${s.toString().padStart(2, '0')}`
+}
+
+watch(() => auth.user?.promoted_until, (val) => {
+  if (myTimerInterval) clearInterval(myTimerInterval)
+  if (val) {
+    updateMyTimer()
+    myTimerInterval = setInterval(updateMyTimer, 1000)
+  }
+}, { immediate: true })
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 // Monotonic counter to discard out-of-order search responses.
@@ -191,6 +220,9 @@ onUnmounted(() => {
         <h3 class="text-sm font-semibold flex items-center gap-1.5" :class="isMeInTop3 ? 'text-prod-yellow' : isMeOutbid ? 'text-destructive' : ''">
           <Star class="size-4" :class="isMeInTop3 ? 'fill-prod-yellow text-prod-yellow' : ''" />
           {{ isMeInTop3 ? 'Вы в ТОПе!' : isMeOutbid ? 'Вашу ставку перебили!' : 'Хотите в ТОП?' }}
+          <span v-if="isMeInTop3 && myRemainingTime" class="ml-auto text-[10px] font-mono bg-prod-yellow/20 px-1.5 py-0.5 rounded animate-pulse">
+            {{ myRemainingTime }}
+          </span>
         </h3>
         <p class="text-xs text-muted-foreground">
           {{ isMeInTop3 ? 'Вы занимаете VIP-место. Повысьте ставку, чтобы подняться ещё выше.' : isMeOutbid ? 'Вас вытеснили из Топ-3. Поднимите ставку, чтобы вернуться!' : 'Займите VIP-место, чтобы вас видели первым!' }}
