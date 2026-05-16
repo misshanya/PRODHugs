@@ -21,6 +21,7 @@ const ws = useWebSocket()
 const query = ref('')
 const users = ref<any[]>([])
 const loading = ref(false)
+const loadingVips = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(true)
 const sentinel = ref<HTMLElement | null>(null)
@@ -103,6 +104,8 @@ const isMeInTop3 = computed(() => {
 })
 
 const isMeOutbid = computed(() => {
+  // Don't show "outbid" status while VIPs are loading to prevent flickering
+  if (loadingVips.value) return false
   return isMePromoted.value && !isMeInTop3.value
 })
 
@@ -153,6 +156,7 @@ let observer: IntersectionObserver | null = null
 async function search() {
   const gen = ++searchGeneration
   loading.value = true
+  loadingVips.value = true
   hasMore.value = true
   try {
     const [userList] = await Promise.all([
@@ -166,6 +170,7 @@ async function search() {
   } finally {
     if (gen === searchGeneration) {
       loading.value = false
+      loadingVips.value = false
     }
   }
   await nextTick()
@@ -174,6 +179,7 @@ async function search() {
 
 async function refreshVIPs() {
   try {
+    loadingVips.value = true
     await Promise.all([
       hugsStore.fetchVIPs(),
       auth.fetchMe(),
@@ -184,6 +190,8 @@ async function refreshVIPs() {
     ])
   } catch {
     // Ignore
+  } finally {
+    loadingVips.value = false
   }
 }
 
