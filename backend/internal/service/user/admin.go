@@ -75,6 +75,14 @@ func (s *service) AdminDeleteUser(ctx context.Context, id uuid.UUID) error {
 	return s.repo.AdminDeleteUser(ctx, id)
 }
 
+func (s *service) ClearExpiredPromotions(ctx context.Context) (int64, error) {
+	count, err := s.repo.ClearExpiredPromotions(ctx)
+	if err == nil && count > 0 && s.onPromotionUpdated != nil {
+		s.onPromotionUpdated()
+	}
+	return count, err
+}
+
 func (s *service) AdminUpdateBalance(ctx context.Context, id uuid.UUID, amount int32) (*models.Balance, error) {
 	return s.balanceRepo.AdminSetBalance(ctx, id, amount)
 }

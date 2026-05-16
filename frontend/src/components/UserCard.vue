@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useOnlineStore } from '@/stores/online'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Send, Star, Zap, Coins as Coin } from 'lucide-vue-next'
+import { Send, Star, Zap, Coins as Coin, Timer } from 'lucide-vue-next'
 import HugButton from './HugButton.vue'
 import UserTag from './UserTag.vue'
 
@@ -30,6 +30,42 @@ const isMe = auth.user?.id === props.user.id
 const isPromoted = computed(() => {
   if (!props.user.promoted_until) return false
   return new Date(props.user.promoted_until) > new Date()
+})
+
+const remainingTimeText = ref('')
+let timerInterval: ReturnType<typeof setInterval> | null = null
+
+function updateRemainingTime() {
+  if (!props.user.promoted_until) {
+    remainingTimeText.value = ''
+    return
+  }
+  const diff = new Date(props.user.promoted_until).getTime() - Date.now()
+  if (diff <= 0) {
+    remainingTimeText.value = '00:00'
+    return
+  }
+
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+
+  if (hours > 0) {
+    remainingTimeText.value = `${hours}ч ${minutes}м`
+  } else {
+    remainingTimeText.value = `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+}
+
+onMounted(() => {
+  if (isPromoted.value) {
+    updateRemainingTime()
+    timerInterval = setInterval(updateRemainingTime, 1000)
+  }
+})
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval)
 })
 
 const formatResponseTime = (seconds: number) => {
@@ -66,6 +102,11 @@ const formatResponseTime = (seconds: number) => {
           <div v-if="user.promotion_bid" class="flex items-center gap-1 bg-prod-yellow/10 px-1 py-0.5 rounded border border-prod-yellow/20 shrink-0">
             <Coin class="size-2.5 text-prod-yellow" />
             <span class="text-[9px] font-bold text-prod-yellow">{{ user.promotion_bid }}</span>
+            <template v-if="remainingTimeText">
+              <span class="w-[1px] h-2.5 bg-prod-yellow/20 mx-0.5"></span>
+              <Timer class="size-2.5 text-prod-yellow/70" />
+              <span class="text-[9px] font-medium text-prod-yellow/80 tabular-nums">{{ remainingTimeText }}</span>
+            </template>
           </div>
           <Send v-if="user.is_telegram_linked" class="size-3 text-[#229ED9]" />
           <Star v-if="isPromoted" class="size-3 text-prod-yellow fill-prod-yellow" />

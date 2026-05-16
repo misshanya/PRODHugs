@@ -147,6 +147,11 @@ func (r *repo) AdminDeleteUser(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (r *repo) ClearExpiredPromotions(ctx context.Context) (int64, error) {
+	q := repository.Queries(ctx, r.q)
+	return q.ClearExpiredPromotions(ctx)
+}
+
 func (r *repo) AdminUpdateTag(ctx context.Context, id uuid.UUID, tag *string) (*models.User, error) {
 	q := repository.Queries(ctx, r.q)
 

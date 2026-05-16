@@ -34,6 +34,7 @@ type repo interface {
 	AdminUpdateDisplayName(ctx context.Context, id uuid.UUID, displayName *string) (*models.User, error)
 	SearchUsersAdmin(ctx context.Context, query string, limit, offset int32) ([]*models.AdminUser, error)
 	AdminDeleteUser(ctx context.Context, id uuid.UUID) error
+	ClearExpiredPromotions(ctx context.Context) (int64, error)
 	ListVIPUsers(ctx context.Context) ([]*models.User, error)
 	AdminUpdateCaptchaType(ctx context.Context, id uuid.UUID, captchaType string) (*models.User, error)
 	AdminClearPromotion(ctx context.Context, id uuid.UUID) (*models.User, error)

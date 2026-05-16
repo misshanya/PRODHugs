@@ -357,6 +357,11 @@ WHERE id = $1;
 DELETE FROM users
 WHERE id = $1 AND role != 'admin';
 
+-- name: ClearExpiredPromotions :execrows
+UPDATE users
+SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
+WHERE promoted_until < NOW();
+
 -- name: AdminClearPromotion :one
 UPDATE users
 SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0

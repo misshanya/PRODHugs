@@ -223,6 +223,22 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 		}
 	}()
 
+	// Clear expired VIP promotions every minute.
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-jobCtx.Done():
+				return
+			case <-ticker.C:
+				if _, err := userService.ClearExpiredPromotions(jobCtx); err != nil {
+					a.l.Error("failed to clear expired promotions", "error", err)
+				}
+			}
+		}
+	}()
+
 	return a, nil
 }
 

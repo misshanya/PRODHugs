@@ -327,6 +327,20 @@ func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const clearExpiredPromotions = `-- name: ClearExpiredPromotions :execrows
+UPDATE users
+SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
+WHERE promoted_until < NOW()
+`
+
+func (q *Queries) ClearExpiredPromotions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearExpiredPromotions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearUserTelegramID = `-- name: ClearUserTelegramID :one
 UPDATE users
 SET telegram_id = NULL
