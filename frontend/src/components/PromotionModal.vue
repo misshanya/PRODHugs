@@ -84,7 +84,7 @@ async function handlePromote() {
           Стать VIP-пользователем
         </DialogTitle>
         <DialogDescription>
-          Предложите самую высокую ставку, чтобы занять место в топе!
+          Предложите самую высокую ставку, чтобы занять место в топе! VIP-статус действует ровно 24 часа.
         </DialogDescription>
       </DialogHeader>
 
