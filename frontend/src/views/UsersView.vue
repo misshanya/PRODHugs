@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Search, Loader2, Star, Zap, Crown, Coins as Coin } from 'lucide-vue-next'
+import { Search, Loader2, Star, Zap, Crown, Coins as Coin, Timer } from 'lucide-vue-next'
 import { useHugsStore } from '@/stores/hugs'
 import { useOnlineStore } from '@/stores/online'
 import { useAuthStore } from '@/stores/auth'
