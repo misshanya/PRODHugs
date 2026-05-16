@@ -282,6 +282,28 @@ export const balanceApiV2 = {
     }>('/daily-reward/status'),
 }
 
+export interface UserNoteDTO {
+  target_id: string
+  target_username?: string
+  target_display_name?: string | null
+  content: string
+  updated_at: string
+}
+
+export const notesApiV2 = {
+  // usernameOrId may be a UUID, a bare username, or "@username".
+  get: (usernameOrId: string) =>
+    apiV2.get<UserNoteDTO>(`/users/${encodeURIComponent(usernameOrId)}/note`),
+  upsert: (usernameOrId: string, content: string) =>
+    apiV2.put<UserNoteDTO>(`/users/${encodeURIComponent(usernameOrId)}/note`, {
+      content,
+    }),
+  remove: (usernameOrId: string) =>
+    apiV2.delete<void>(`/users/${encodeURIComponent(usernameOrId)}/note`),
+  list: (limit = 50, offset = 0) =>
+    apiV2.get<UserNoteDTO[]>('/notes', { params: { limit, offset } }),
+}
+
 // Captcha
 export const captchaApi = {
   getSudoku: (targetId: string) => api.get<{ id: string; puzzle: number[][] }>('/captcha/sudoku', { params: { target_id: targetId } }),

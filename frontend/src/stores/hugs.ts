@@ -5,10 +5,12 @@ import {
   balanceApi,
   balanceApiV2,
   leaderboardApi,
+  notesApiV2,
   usersApi,
   usersApiV2,
   intimacyApi,
   streaksApi,
+  type UserNoteDTO,
 } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
@@ -424,6 +426,35 @@ export const useHugsStore = defineStore('hugs', () => {
     return res.data
   }
 
+  // ── Notes (private per-pair, 1 note per (author, target), ≤256 chars) ──
+
+  // Returns null when the user has no note about the target (HTTP 404 is the
+  // "no note" signal, not an error worth surfacing).
+  async function getNote(usernameOrId: string): Promise<UserNoteDTO | null> {
+    try {
+      const res = await notesApiV2.get(usernameOrId)
+      return res.data
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } }).response?.status
+      if (status === 404) return null
+      throw e
+    }
+  }
+
+  async function upsertNote(usernameOrId: string, content: string): Promise<UserNoteDTO> {
+    const res = await notesApiV2.upsert(usernameOrId, content)
+    return res.data
+  }
+
+  async function deleteNote(usernameOrId: string): Promise<void> {
+    await notesApiV2.remove(usernameOrId)
+  }
+
+  async function listNotes(limit = 50, offset = 0): Promise<UserNoteDTO[]> {
+    const res = await notesApiV2.list(limit, offset)
+    return res.data || []
+  }
+
   async function blockUser(userId: string) {
     await usersApi.blockUser(userId)
   }
@@ -502,6 +533,10 @@ export const useHugsStore = defineStore('hugs', () => {
     fetchVIPs,
     getUserProfile,
     getDailyRewardStatus,
+    getNote,
+    upsertNote,
+    deleteNote,
+    listNotes,
     blockUser,
     unblockUser,
     getBlockedUsers,
