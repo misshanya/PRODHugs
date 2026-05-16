@@ -236,11 +236,11 @@ onUnmounted(() => {
           <div class="flex items-center gap-1.5">
             <template v-if="isMeOnCooldown">
               <TimerIcon class="size-4" />
-              <span>Вы устали</span>
+              <span>Ты устал</span>
             </template>
             <template v-else>
               <Star class="size-4" :class="isMeInTop3 ? 'fill-prod-yellow text-prod-yellow' : ''" />
-              <span>{{ isMeInTop3 ? 'Вы в ТОПе!' : isMeOutbid ? 'Вашу ставку перебили!' : 'Хотите в ТОП?' }}</span>
+              <span>{{ isMeInTop3 ? 'Ты в ТОПе!' : isMeOutbid ? 'Твою ставку перебили!' : 'Хочешь в ТОП?' }}</span>
             </template>
           </div>
 
@@ -253,10 +253,10 @@ onUnmounted(() => {
         </h3>
         <p class="text-xs text-muted-foreground">
           <template v-if="isMeOnCooldown">
-            Ваш 24-часовой VIP-лимит исчерпан. Подождите 6 часов перед следующей ставкой.
+            Твой 24-часовой VIP-лимит исчерпан. Подожди 6 часов перед следующей ставкой.
           </template>
           <template v-else>
-            {{ isMeInTop3 ? 'Вы занимаете VIP-место. Повысьте ставку, чтобы подняться ещё выше.' : isMeOutbid ? 'Вас вытеснили из Топ-3. Поднимите ставку, чтобы вернуться!' : 'Займите VIP-место, чтобы вас видели первым!' }}
+            {{ isMeInTop3 ? 'Ты занимаешь VIP-место. Повысь ставку, чтобы подняться ещё выше.' : isMeOutbid ? 'Тебя вытеснили из Топ-3. Подними ставку, чтобы вернуться!' : 'Займи VIP-место, чтобы тебя видели первым!' }}
           </template>
         </p>
       </div>

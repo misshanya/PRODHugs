@@ -57,7 +57,7 @@ async function handlePromote() {
   loading.value = true
   try {
     await usersApi.promote(bid.value, message.value || undefined)
-    toast.success(`VIP-статус активирован! Вы в топе за ${bid.value} монет.`)
+    toast.success(`VIP-статус активирован! Ты в топе за ${bid.value} монет.`)
     emit('success')
     emit('update:open', false)
     await Promise.all([
@@ -84,13 +84,13 @@ async function handlePromote() {
           Стать VIP-пользователем
         </DialogTitle>
         <DialogDescription>
-          Предложите самую высокую ставку, чтобы занять место в топе! VIP-статус действует ровно 24 часа.
+          Предложи самую высокую ставку, чтобы занять место в топе! VIP-статус действует ровно 24 часа.
         </DialogDescription>
       </DialogHeader>
 
       <div class="grid gap-4 py-4">
         <div class="space-y-2">
-          <Label for="bid">Ваша ставка</Label>
+          <Label for="bid">Твоя ставка</Label>
           <div class="flex items-center gap-2 rounded-md border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
             <Coin class="size-4 shrink-0 text-prod-yellow" />
             <input
@@ -102,12 +102,12 @@ async function handlePromote() {
               placeholder="Введите количество монет"
             />
           </div>
-          <p class="text-[10px] text-muted-foreground">Минимальная ставка: {{ minBid }} монет. Ваша позиция зависит от суммы.</p>
+          <p class="text-[10px] text-muted-foreground">Минимальная ставка: {{ minBid }} монет. Твоя позиция зависит от суммы.</p>
         </div>
 
         <div class="rounded-lg bg-muted p-3">
           <div class="flex items-center justify-between text-sm">
-            <span>Ваш баланс:</span>
+            <span>Твой баланс:</span>
             <span class="font-bold text-prod-yellow">{{ auth.user?.balance ?? 0 }} монет</span>
           </div>
         </div>
