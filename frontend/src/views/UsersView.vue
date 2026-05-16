@@ -202,11 +202,16 @@ onUnmounted(() => {
       <p class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1 text-prod-yellow">VIP-места</p>
       <div class="grid gap-2">
         <!-- Real promoted users -->
-        <div v-for="user in sponsoredUsers" :key="user.id" class="group relative cursor-pointer" @click="promotionOpen = true">
-          <UserCard :user="user" class="group-hover:border-prod-yellow/50 transition-colors pointer-events-none" />
-          <div class="absolute right-12 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-prod-yellow text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg">
+        <div v-for="user in sponsoredUsers" :key="user.id" class="relative group">
+          <UserCard :user="user" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            class="absolute right-[110px] top-1/2 -translate-y-1/2 h-8 text-[10px] font-bold text-prod-yellow border border-prod-yellow/20 bg-prod-yellow/5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-prod-yellow hover:text-black"
+            @click="promotionOpen = true"
+          >
             ПЕРЕБИТЬ
-          </div>
+          </Button>
         </div>
         
         <!-- Placeholders if less than 3 -->
