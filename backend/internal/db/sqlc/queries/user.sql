@@ -400,6 +400,11 @@ SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
 WHERE id = $1
 RETURNING *;
 
+-- name: SetCaptchaCooldown :exec
+UPDATE users
+SET captcha_cooldown_until = $2
+WHERE id = $1;
+
 -- name: PromoteUser :one
 UPDATE users
 SET promoted_until = $2, promotion_message = $3, promotion_bid = $4

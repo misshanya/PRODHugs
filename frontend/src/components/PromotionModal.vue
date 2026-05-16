@@ -91,13 +91,13 @@ async function handlePromote() {
       <div class="grid gap-4 py-4">
         <div class="space-y-2">
           <Label for="bid">Ваша ставка</Label>
-          <div class="relative">
-            <Coin class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-prod-yellow" />
-            <Input
+          <div class="flex items-center gap-2 rounded-md border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+            <Coin class="size-4 shrink-0 text-prod-yellow" />
+            <input
               id="bid"
               v-model.number="bid"
               type="number"
-              class="pl-9"
+              class="flex h-9 w-full bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
               :min="minBid"
               placeholder="Введите количество монет"
             />

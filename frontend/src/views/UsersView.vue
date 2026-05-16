@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Search, Loader2, Star, Zap, Crown, Coins as Coin, Timer } from 'lucide-vue-next'
+import { Search, Loader2, Star, Zap, Crown, Coins as Coin, Timer as TimerIcon } from 'lucide-vue-next'
 import { useHugsStore } from '@/stores/hugs'
 import { useOnlineStore } from '@/stores/online'
 import { useAuthStore } from '@/stores/auth'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { useTicker } from '@/composables/useTicker'
+import { formatRemainingTime } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -230,21 +231,23 @@ onUnmounted(() => {
         'border-muted bg-muted/5': !isMePromoted && !isMeOnCooldown
       }"
     >
-      <div class="space-y-1">
-        <h3 class="text-sm font-semibold flex items-center gap-1.5" :class="isMeInTop3 ? 'text-prod-yellow' : isMeOutbid ? 'text-destructive' : isMeOnCooldown ? 'text-blue-400' : ''">
-          <template v-if="isMeOnCooldown">
-            <Timer class="size-4" />
-            Вы устали
-          </template>
-          <template v-else>
-            <Star class="size-4" :class="isMeInTop3 ? 'fill-prod-yellow text-prod-yellow' : ''" />
-            {{ isMeInTop3 ? 'Вы в ТОПе!' : isMeOutbid ? 'Вашу ставку перебили!' : 'Хотите в ТОП?' }}
-          </template>
+      <div class="space-y-1 flex-1">
+        <h3 class="text-sm font-semibold flex items-center gap-2 flex-wrap" :class="isMeInTop3 ? 'text-prod-yellow' : isMeOutbid ? 'text-destructive' : isMeOnCooldown ? 'text-blue-400' : ''">
+          <div class="flex items-center gap-1.5">
+            <template v-if="isMeOnCooldown">
+              <TimerIcon class="size-4" />
+              <span>Вы устали</span>
+            </template>
+            <template v-else>
+              <Star class="size-4" :class="isMeInTop3 ? 'fill-prod-yellow text-prod-yellow' : ''" />
+              <span>{{ isMeInTop3 ? 'Вы в ТОПе!' : isMeOutbid ? 'Вашу ставку перебили!' : 'Хотите в ТОП?' }}</span>
+            </template>
+          </div>
 
-          <span v-if="isMeInTop3 && myRemainingTime" class="ml-auto text-[10px] font-mono bg-prod-yellow/20 px-1.5 py-0.5 rounded animate-pulse">
+          <span v-if="isMeInTop3 && myRemainingTime" class="text-[10px] font-mono bg-prod-yellow/20 px-1.5 py-0.5 rounded animate-pulse">
             {{ myRemainingTime }}
           </span>
-          <span v-if="isMeOnCooldown && cooldownTimeText" class="ml-auto text-[10px] font-mono bg-blue-500/20 px-1.5 py-0.5 rounded">
+          <span v-if="isMeOnCooldown && cooldownTimeText" class="text-[10px] font-mono bg-blue-500/20 px-1.5 py-0.5 rounded">
             {{ cooldownTimeText }}
           </span>
         </h3>
@@ -269,12 +272,12 @@ onUnmounted(() => {
       </Button>
     </div>
 
-    <div class="relative">
-      <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
+    <div class="flex items-center gap-2 rounded-md border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+      <Search class="size-4 shrink-0 text-muted-foreground" />
+      <input
         v-model="query"
         type="text"
-        class="pl-9"
+        class="flex h-9 w-full bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
         placeholder="Поиск по имени..."
         maxlength="64"
       />

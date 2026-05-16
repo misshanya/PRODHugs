@@ -61,6 +61,10 @@ func toModelUser(u storage.User) *models.User {
 	if u.PromotionMessage.Valid {
 		promotionMessage = &u.PromotionMessage.String
 	}
+	var vipCooldownUntil *time.Time
+	if u.VipCooldownUntil.Valid {
+		vipCooldownUntil = &u.VipCooldownUntil.Time
+	}
 	return &models.User{
 		ID:                   u.ID,
 		Username:             u.Username,
@@ -124,6 +128,10 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 	if u.PromotionMessage.Valid {
 		promotionMessage = &u.PromotionMessage.String
 	}
+	var vipCooldownUntil *time.Time
+	if u.VipCooldownUntil.Valid {
+		vipCooldownUntil = &u.VipCooldownUntil.Time
+	}
 	var avgResponseTime *float64
 	if u.AvgResponseTime >= 0 {
 		avgResponseTime = &u.AvgResponseTime
@@ -148,7 +156,6 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 		PromotionBid:         u.PromotionBid,
 		VipRemainingSeconds:  u.VipRemainingSeconds,
 		VipCooldownUntil:     vipCooldownUntil,
-		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -195,6 +202,10 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 	if u.PromotionMessage.Valid {
 		promotionMessage = &u.PromotionMessage.String
 	}
+	var vipCooldownUntil *time.Time
+	if u.VipCooldownUntil.Valid {
+		vipCooldownUntil = &u.VipCooldownUntil.Time
+	}
 	var avgResponseTime *float64
 	if u.AvgResponseTime >= 0 {
 		avgResponseTime = &u.AvgResponseTime
@@ -219,7 +230,6 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 		PromotionBid:         u.PromotionBid,
 		VipRemainingSeconds:  u.VipRemainingSeconds,
 		VipCooldownUntil:     vipCooldownUntil,
-		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -266,6 +276,10 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 	if u.PromotionMessage.Valid {
 		promotionMessage = &u.PromotionMessage.String
 	}
+	var vipCooldownUntil *time.Time
+	if u.VipCooldownUntil.Valid {
+		vipCooldownUntil = &u.VipCooldownUntil.Time
+	}
 	var avgResponseTime *float64
 	if u.AvgResponseTime >= 0 {
 		avgResponseTime = &u.AvgResponseTime
@@ -290,7 +304,6 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 		PromotionBid:         u.PromotionBid,
 		VipRemainingSeconds:  u.VipRemainingSeconds,
 		VipCooldownUntil:     vipCooldownUntil,
-		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -336,6 +349,10 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 	var promotionMessage *string
 	if u.PromotionMessage.Valid {
 		promotionMessage = &u.PromotionMessage.String
+	}
+	var vipCooldownUntil *time.Time
+	if u.VipCooldownUntil.Valid {
+		vipCooldownUntil = &u.VipCooldownUntil.Time
 	}
 	return &models.AdminUser{
 		ID:                   u.ID,
@@ -400,6 +417,10 @@ func toAdminUserFromSearch(u storage.SearchUsersAdminRow) *models.AdminUser {
 	if u.PromotionMessage.Valid {
 		promotionMessage = &u.PromotionMessage.String
 	}
+	var vipCooldownUntil *time.Time
+	if u.VipCooldownUntil.Valid {
+		vipCooldownUntil = &u.VipCooldownUntil.Time
+	}
 	return &models.AdminUser{
 		ID:                   u.ID,
 		Username:             u.Username,
@@ -447,6 +468,10 @@ func toModelUserListItemFromVIP(row storage.ListVIPUsersRow) *models.User {
 	if row.PromotionMessage.Valid {
 		promotionMessage = &row.PromotionMessage.String
 	}
+	var vipCooldownUntil *time.Time
+	if row.VipCooldownUntil.Valid {
+		vipCooldownUntil = &row.VipCooldownUntil.Time
+	}
 
 	var avgResponseTime *float64
 	if row.AvgResponseTime >= 0 {
@@ -454,21 +479,21 @@ func toModelUserListItemFromVIP(row storage.ListVIPUsersRow) *models.User {
 	}
 
 	return &models.User{
-		ID:               row.ID,
-		Username:         row.Username,
-		Role:             row.Role,
-		Gender:           gender,
-		DisplayName:      displayName,
-		Tag:              tag,
-		SpecialTag:       specialTag,
-		IsTelegramLinked: row.IsTelegramLinked,
-		PromotedUntil:    promotedUntil,
-		PromotionMessage: promotionMessage,
-		PromotionBid:     row.PromotionBid,
+		ID:                  row.ID,
+		Username:            row.Username,
+		Role:                row.Role,
+		Gender:              gender,
+		DisplayName:         displayName,
+		Tag:                 tag,
+		SpecialTag:          specialTag,
+		IsTelegramLinked:    row.IsTelegramLinked,
+		PromotedUntil:       promotedUntil,
+		PromotionMessage:    promotionMessage,
+		PromotionBid:        row.PromotionBid,
 		VipRemainingSeconds: row.VipRemainingSeconds,
-		VipCooldownUntil: vipCooldownUntil,
-		IsRecentlyActive: row.IsRecentlyActive,
-		AvgResponseTime:  avgResponseTime,
+		VipCooldownUntil:    vipCooldownUntil,
+		IsRecentlyActive:    row.IsRecentlyActive,
+		AvgResponseTime:     avgResponseTime,
 	}
 }
 

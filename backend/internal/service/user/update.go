@@ -122,29 +122,39 @@ func (s *service) PromoteUser(ctx context.Context, id uuid.UUID, bid int32, mess
 		now := time.Now()
 		isAlreadyPromoted := u.PromotedUntil != nil && u.PromotedUntil.After(now)
 		
-		var cost int32
 		var promotedUntil time.Time
+		farFuture := now.Add(100 * 365 * 24 * time.Hour)
 
 		if isAlreadyPromoted {
 			// If already in top, pay the difference and keep the same timer
-			cost = bid - u.PromotionBid
+			cost := bid - u.PromotionBid
 			if cost < 0 {
 				cost = 0 // Allow updating message without paying more, but don't refund
 			}
 			promotedUntil = *u.PromotedUntil
+
+			if cost > 0 {
+				bal, err := s.balanceRepo.DeductBalance(txCtx, id, cost)
+				if err != nil {
+					return err
+				}
+				if bal == nil {
+					return errorz.ErrInsufficientBalance
+				}
+			}
 		} else {
 			// First time or expired, pay full price and get 24h
-			cost = bid
-			promotedUntil = now.Add(24 * time.Hour)
-		}
+			cost := bid
+			promotedUntil = farFuture
 
-		if cost > 0 {
-			bal, err := s.balanceRepo.DeductBalance(txCtx, id, cost)
-			if err != nil {
-				return err
-			}
-			if bal == nil {
-				return errorz.ErrInsufficientBalance
+			if cost > 0 {
+				bal, err := s.balanceRepo.DeductBalance(txCtx, id, cost)
+				if err != nil {
+					return err
+				}
+				if bal == nil {
+					return errorz.ErrInsufficientBalance
+				}
 			}
 		}
 

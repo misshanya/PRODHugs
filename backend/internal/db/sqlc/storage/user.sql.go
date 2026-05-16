@@ -1425,6 +1425,22 @@ func (q *Queries) SearchUsersAdmin(ctx context.Context, arg SearchUsersAdminPara
 	return items, nil
 }
 
+const setCaptchaCooldown = `-- name: SetCaptchaCooldown :exec
+UPDATE users
+SET captcha_cooldown_until = $2
+WHERE id = $1
+`
+
+type SetCaptchaCooldownParams struct {
+	ID                   uuid.UUID
+	CaptchaCooldownUntil pgtype.Timestamptz
+}
+
+func (q *Queries) SetCaptchaCooldown(ctx context.Context, arg SetCaptchaCooldownParams) error {
+	_, err := q.db.Exec(ctx, setCaptchaCooldown, arg.ID, arg.CaptchaCooldownUntil)
+	return err
+}
+
 const setUserTelegramID = `-- name: SetUserTelegramID :one
 UPDATE users
 SET telegram_id = $2

@@ -312,7 +312,7 @@ func (h *HugHandler) SearchUsers(ctx context.Context, req v1.SearchUsersRequestO
 			PromotionBid:     ptr(int(u.PromotionBid)),
 			VipRemainingSeconds: ptr(int(u.VipRemainingSeconds)),
 			VipCooldownUntil: u.VipCooldownUntil,
-			IsRecentlyActive: u.IsRecentlyActive,
+			IsRecentlyActive: ptr(u.IsRecentlyActive),
 		}
 		if u.Gender != nil {
 			g := v1.Gender(*u.Gender)
