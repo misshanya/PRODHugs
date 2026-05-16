@@ -22,6 +22,7 @@ const auth = useAuthStore()
 const ws = useWebSocket()
 const { now } = useTicker()
 const query = ref('')
+const sortBySpeed = ref(false)
 const users = ref<any[]>([])
 const loading = ref(false)
 const loadingVips = ref(false)
@@ -45,22 +46,50 @@ const sponsoredUsers = computed(() => {
 const mainListUsers = computed(() => {
   const sponsoredIds = new Set(sponsoredUsers.value.map(u => u.id.toLowerCase()))
   
-  return users.value
-    .filter(u => !sponsoredIds.has(u.id.toLowerCase()))
-    .sort((a, b) => {
-      // 1. Other VIPs (if > 3)
+  let list = users.value.filter(u => !sponsoredIds.has(u.id.toLowerCase()))
+  
+  if (sortBySpeed.value) {
+    return [...list].sort((a, b) => {
+      // 1. VIPs always first
       const aPromoted = a.promoted_until && new Date(a.promoted_until) > new Date() ? 0 : 1
       const bPromoted = b.promoted_until && new Date(b.promoted_until) > new Date() ? 0 : 1
       if (aPromoted !== bPromoted) return aPromoted - bPromoted
-
-      // 2. Online status
-      const aOnline = onlineStore.isOnline(a.id) ? 0 : 1
-      const bOnline = onlineStore.isOnline(b.id) ? 0 : 1
-      if (aOnline !== bOnline) return aOnline - bOnline
-
-      // 3. Preserve backend order (which is fastest response time first)
+      
+      // 2. Sort by response speed (fastest first)
+      // Treat null/negative as very slow (Infinity)
+      const aSpeed = (a.avg_response_time !== null && a.avg_response_time >= 0) ? a.avg_response_time : Infinity
+      const bSpeed = (b.avg_response_time !== null && b.avg_response_time >= 0) ? b.avg_response_time : Infinity
+      
+      if (aSpeed !== bSpeed) return aSpeed - bSpeed
+      
+      // 3. Activity status
+      const aActive = a.is_recently_active ? 0 : 1
+      const bActive = b.is_recently_active ? 0 : 1
+      if (aActive !== bActive) return aActive - bActive
+      
       return 0
     })
+  }
+
+  return list.sort((a, b) => {
+    // 1. Other VIPs (if > 3)
+    const aPromoted = a.promoted_until && new Date(a.promoted_until) > new Date() ? 0 : 1
+    const bPromoted = b.promoted_until && new Date(b.promoted_until) > new Date() ? 0 : 1
+    if (aPromoted !== bPromoted) return aPromoted - bPromoted
+
+    // 2. Online status
+    const aOnline = onlineStore.isOnline(a.id) ? 0 : 1
+    const bOnline = onlineStore.isOnline(b.id) ? 0 : 1
+    if (aOnline !== bOnline) return aOnline - bOnline
+
+    // 3. Activity status
+    const aActive = a.is_recently_active ? 0 : 1
+    const bActive = b.is_recently_active ? 0 : 1
+    if (aActive !== bActive) return aActive - bActive
+
+    // 4. Preserve backend order (default)
+    return 0
+  })
 })
 
 const isMePromoted = computed(() => {
@@ -272,15 +301,27 @@ onUnmounted(() => {
       </Button>
     </div>
 
-    <div class="flex items-center gap-2 rounded-md border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-      <Search class="size-4 shrink-0 text-muted-foreground" />
-      <input
-        v-model="query"
-        type="text"
-        class="flex h-9 w-full bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        placeholder="Поиск по имени..."
-        maxlength="64"
-      />
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 rounded-md border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 flex-1">
+        <Search class="size-4 shrink-0 text-muted-foreground" />
+        <input
+          v-model="query"
+          type="text"
+          class="flex h-9 w-full bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          placeholder="Поиск по имени..."
+          maxlength="64"
+        />
+      </div>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        class="h-9 shrink-0 gap-2"
+        :class="sortBySpeed ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/20' : ''"
+        @click="sortBySpeed = !sortBySpeed"
+      >
+        <Zap class="size-3.5" :class="sortBySpeed ? 'fill-emerald-500' : ''" />
+        <span class="hidden sm:inline">{{ sortBySpeed ? 'Сортировка: Быстрые' : 'Самые быстрые' }}</span>
+      </Button>
     </div>
 
     <!-- ── VIP Slots (Top 3) ── -->
