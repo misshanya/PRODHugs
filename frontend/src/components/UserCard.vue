@@ -127,7 +127,7 @@ const formatResponseTime = (seconds: number) => {
             </span>
           </template>
         </p>
-        <p v-if="isPromoted && user.promotion_message" class="text-[10px] text-prod-yellow mt-1 font-medium">
+        <p v-if="isVip && user.promotion_message" class="text-[10px] text-prod-yellow mt-1 font-medium">
           {{ user.promotion_message }}
         </p>
       </div>
