@@ -16,7 +16,7 @@ const adminClearPromotion = `-- name: AdminClearPromotion :one
 UPDATE users
 SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (User, error) {
@@ -40,6 +40,8 @@ func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (User, 
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -61,7 +63,7 @@ const adminUpdateCaptchaType = `-- name: AdminUpdateCaptchaType :one
 UPDATE users
 SET captcha_type = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type AdminUpdateCaptchaTypeParams struct {
@@ -90,6 +92,8 @@ func (q *Queries) AdminUpdateCaptchaType(ctx context.Context, arg AdminUpdateCap
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -98,7 +102,7 @@ const adminUpdateDisplayName = `-- name: AdminUpdateDisplayName :one
 UPDATE users
 SET display_name = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type AdminUpdateDisplayNameParams struct {
@@ -127,6 +131,8 @@ func (q *Queries) AdminUpdateDisplayName(ctx context.Context, arg AdminUpdateDis
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -135,7 +141,7 @@ const adminUpdateGender = `-- name: AdminUpdateGender :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type AdminUpdateGenderParams struct {
@@ -164,6 +170,8 @@ func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderPa
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -188,7 +196,7 @@ const adminUpdateSpecialTag = `-- name: AdminUpdateSpecialTag :one
 UPDATE users
 SET special_tag = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type AdminUpdateSpecialTagParams struct {
@@ -217,6 +225,8 @@ func (q *Queries) AdminUpdateSpecialTag(ctx context.Context, arg AdminUpdateSpec
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -225,7 +235,7 @@ const adminUpdateTag = `-- name: AdminUpdateTag :one
 UPDATE users
 SET tag = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type AdminUpdateTagParams struct {
@@ -254,6 +264,8 @@ func (q *Queries) AdminUpdateTag(ctx context.Context, arg AdminUpdateTagParams) 
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -262,7 +274,7 @@ const adminUpdateUsername = `-- name: AdminUpdateUsername :one
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type AdminUpdateUsernameParams struct {
@@ -291,6 +303,8 @@ func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUserna
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -299,7 +313,7 @@ const banUser = `-- name: BanUser :one
 UPDATE users
 SET banned_at = NOW()
 WHERE id = $1 AND role != 'admin'
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -323,6 +337,8 @@ func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -345,7 +361,7 @@ const clearUserTelegramID = `-- name: ClearUserTelegramID :one
 UPDATE users
 SET telegram_id = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -369,6 +385,8 @@ func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, 
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -400,7 +418,7 @@ INSERT INTO users (username, password, role, gender, created_at)
 VALUES (
     $1, $2, $3, $4, NOW()
 )
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type CreateUserParams struct {
@@ -436,6 +454,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -590,7 +610,7 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, arg GetRecentHugsFeedPa
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -625,6 +645,8 @@ type GetUserByIDRow struct {
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     pgtype.Timestamptz
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -650,6 +672,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -658,7 +682,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -693,6 +717,8 @@ type GetUserByTelegramIDRow struct {
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     pgtype.Timestamptz
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -718,6 +744,8 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -726,7 +754,7 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -761,6 +789,8 @@ type GetUserByUsernameRow struct {
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     pgtype.Timestamptz
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -786,6 +816,8 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -874,6 +906,7 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
         WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
@@ -928,19 +961,21 @@ type ListAllUsersParams struct {
 }
 
 type ListAllUsersRow struct {
-	ID               uuid.UUID
-	Username         string
-	Role             string
-	Gender           pgtype.Text
-	DisplayName      pgtype.Text
-	Tag              pgtype.Text
-	SpecialTag       pgtype.Text
-	IsTelegramLinked bool
-	PromotedUntil    pgtype.Timestamptz
-	PromotionMessage pgtype.Text
-	PromotionBid     int32
-	IsRecentlyActive bool
-	AvgResponseTime  float64
+	ID                  uuid.UUID
+	Username            string
+	Role                string
+	Gender              pgtype.Text
+	DisplayName         pgtype.Text
+	Tag                 pgtype.Text
+	SpecialTag          pgtype.Text
+	IsTelegramLinked    bool
+	PromotedUntil       pgtype.Timestamptz
+	PromotionMessage    pgtype.Text
+	PromotionBid        int32
+	VipRemainingSeconds int32
+	VipCooldownUntil    pgtype.Timestamptz
+	IsRecentlyActive    bool
+	AvgResponseTime     float64
 }
 
 func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]ListAllUsersRow, error) {
@@ -964,6 +999,8 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.VipRemainingSeconds,
+			&i.VipCooldownUntil,
 			&i.IsRecentlyActive,
 			&i.AvgResponseTime,
 		); err != nil {
@@ -980,6 +1017,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 const listUsersAdmin = `-- name: ListUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
        u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -1013,6 +1051,8 @@ type ListUsersAdminRow struct {
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     pgtype.Timestamptz
 	Balance              int32
 	LastVisitAt          pgtype.Timestamptz
 }
@@ -1041,6 +1081,8 @@ func (q *Queries) ListUsersAdmin(ctx context.Context, arg ListUsersAdminParams) 
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.VipRemainingSeconds,
+			&i.VipCooldownUntil,
 			&i.Balance,
 			&i.LastVisitAt,
 		); err != nil {
@@ -1059,6 +1101,7 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
         WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
@@ -1079,19 +1122,21 @@ ORDER BY u.promotion_bid DESC
 `
 
 type ListVIPUsersRow struct {
-	ID               uuid.UUID
-	Username         string
-	Role             string
-	Gender           pgtype.Text
-	DisplayName      pgtype.Text
-	Tag              pgtype.Text
-	SpecialTag       pgtype.Text
-	IsTelegramLinked bool
-	PromotedUntil    pgtype.Timestamptz
-	PromotionMessage pgtype.Text
-	PromotionBid     int32
-	IsRecentlyActive bool
-	AvgResponseTime  float64
+	ID                  uuid.UUID
+	Username            string
+	Role                string
+	Gender              pgtype.Text
+	DisplayName         pgtype.Text
+	Tag                 pgtype.Text
+	SpecialTag          pgtype.Text
+	IsTelegramLinked    bool
+	PromotedUntil       pgtype.Timestamptz
+	PromotionMessage    pgtype.Text
+	PromotionBid        int32
+	VipRemainingSeconds int32
+	VipCooldownUntil    pgtype.Timestamptz
+	IsRecentlyActive    bool
+	AvgResponseTime     float64
 }
 
 func (q *Queries) ListVIPUsers(ctx context.Context) ([]ListVIPUsersRow, error) {
@@ -1115,6 +1160,8 @@ func (q *Queries) ListVIPUsers(ctx context.Context) ([]ListVIPUsersRow, error) {
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.VipRemainingSeconds,
+			&i.VipCooldownUntil,
 			&i.IsRecentlyActive,
 			&i.AvgResponseTime,
 		); err != nil {
@@ -1132,7 +1179,7 @@ const promoteUser = `-- name: PromoteUser :one
 UPDATE users
 SET promoted_until = $2, promotion_message = $3, promotion_bid = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type PromoteUserParams struct {
@@ -1168,6 +1215,8 @@ func (q *Queries) PromoteUser(ctx context.Context, arg PromoteUserParams) (User,
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -1177,6 +1226,7 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
         WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
@@ -1233,19 +1283,21 @@ type SearchUsersParams struct {
 }
 
 type SearchUsersRow struct {
-	ID               uuid.UUID
-	Username         string
-	Role             string
-	Gender           pgtype.Text
-	DisplayName      pgtype.Text
-	Tag              pgtype.Text
-	SpecialTag       pgtype.Text
-	IsTelegramLinked bool
-	PromotedUntil    pgtype.Timestamptz
-	PromotionMessage pgtype.Text
-	PromotionBid     int32
-	IsRecentlyActive bool
-	AvgResponseTime  float64
+	ID                  uuid.UUID
+	Username            string
+	Role                string
+	Gender              pgtype.Text
+	DisplayName         pgtype.Text
+	Tag                 pgtype.Text
+	SpecialTag          pgtype.Text
+	IsTelegramLinked    bool
+	PromotedUntil       pgtype.Timestamptz
+	PromotionMessage    pgtype.Text
+	PromotionBid        int32
+	VipRemainingSeconds int32
+	VipCooldownUntil    pgtype.Timestamptz
+	IsRecentlyActive    bool
+	AvgResponseTime     float64
 }
 
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
@@ -1274,6 +1326,8 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.VipRemainingSeconds,
+			&i.VipCooldownUntil,
 			&i.IsRecentlyActive,
 			&i.AvgResponseTime,
 		); err != nil {
@@ -1290,6 +1344,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 const searchUsersAdmin = `-- name: SearchUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
        u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -1325,6 +1380,8 @@ type SearchUsersAdminRow struct {
 	PromotedUntil        pgtype.Timestamptz
 	PromotionMessage     pgtype.Text
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     pgtype.Timestamptz
 	Balance              int32
 	LastVisitAt          pgtype.Timestamptz
 }
@@ -1353,6 +1410,8 @@ func (q *Queries) SearchUsersAdmin(ctx context.Context, arg SearchUsersAdminPara
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.VipRemainingSeconds,
+			&i.VipCooldownUntil,
 			&i.Balance,
 			&i.LastVisitAt,
 		); err != nil {
@@ -1366,27 +1425,11 @@ func (q *Queries) SearchUsersAdmin(ctx context.Context, arg SearchUsersAdminPara
 	return items, nil
 }
 
-const setCaptchaCooldown = `-- name: SetCaptchaCooldown :exec
-UPDATE users
-SET captcha_cooldown_until = $2
-WHERE id = $1
-`
-
-type SetCaptchaCooldownParams struct {
-	ID                   uuid.UUID
-	CaptchaCooldownUntil pgtype.Timestamptz
-}
-
-func (q *Queries) SetCaptchaCooldown(ctx context.Context, arg SetCaptchaCooldownParams) error {
-	_, err := q.db.Exec(ctx, setCaptchaCooldown, arg.ID, arg.CaptchaCooldownUntil)
-	return err
-}
-
 const setUserTelegramID = `-- name: SetUserTelegramID :one
 UPDATE users
 SET telegram_id = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type SetUserTelegramIDParams struct {
@@ -1415,6 +1458,48 @@ func (q *Queries) SetUserTelegramID(ctx context.Context, arg SetUserTelegramIDPa
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
+	)
+	return i, err
+}
+
+const setVipCooldown = `-- name: SetVipCooldown :one
+UPDATE users
+SET vip_cooldown_until = $2, vip_remaining_seconds = $3
+WHERE id = $1
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
+`
+
+type SetVipCooldownParams struct {
+	ID                  uuid.UUID
+	VipCooldownUntil    pgtype.Timestamptz
+	VipRemainingSeconds int32
+}
+
+func (q *Queries) SetVipCooldown(ctx context.Context, arg SetVipCooldownParams) (User, error) {
+	row := q.db.QueryRow(ctx, setVipCooldown, arg.ID, arg.VipCooldownUntil, arg.VipRemainingSeconds)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.Role,
+		&i.Gender,
+		&i.BannedAt,
+		&i.HugSlots,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.TelegramID,
+		&i.Tag,
+		&i.SpecialTag,
+		&i.CaptchaCooldownUntil,
+		&i.CaptchaType,
+		&i.PromotedUntil,
+		&i.PromotionMessage,
+		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -1423,7 +1508,7 @@ const unbanUser = `-- name: UnbanUser :one
 UPDATE users
 SET banned_at = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -1447,6 +1532,8 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }
@@ -1471,7 +1558,7 @@ const updateUserSettings = `-- name: UpdateUserSettings :one
 UPDATE users
 SET gender = $2, display_name = $3, tag = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
 `
 
 type UpdateUserSettingsParams struct {
@@ -1507,6 +1594,47 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.PromotedUntil,
 		&i.PromotionMessage,
 		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
+	)
+	return i, err
+}
+
+const updateVipBudget = `-- name: UpdateVipBudget :one
+UPDATE users
+SET vip_remaining_seconds = $2
+WHERE id = $1
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until
+`
+
+type UpdateVipBudgetParams struct {
+	ID                  uuid.UUID
+	VipRemainingSeconds int32
+}
+
+func (q *Queries) UpdateVipBudget(ctx context.Context, arg UpdateVipBudgetParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateVipBudget, arg.ID, arg.VipRemainingSeconds)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.Role,
+		&i.Gender,
+		&i.BannedAt,
+		&i.HugSlots,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.TelegramID,
+		&i.Tag,
+		&i.SpecialTag,
+		&i.CaptchaCooldownUntil,
+		&i.CaptchaType,
+		&i.PromotedUntil,
+		&i.PromotionMessage,
+		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
 	)
 	return i, err
 }

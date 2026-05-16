@@ -78,6 +78,8 @@ func toModelUser(u storage.User) *models.User {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		VipRemainingSeconds:  u.VipRemainingSeconds,
+		VipCooldownUntil:     vipCooldownUntil,
 	}
 }
 
@@ -144,6 +146,8 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		VipRemainingSeconds:  u.VipRemainingSeconds,
+		VipCooldownUntil:     vipCooldownUntil,
 		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
@@ -213,6 +217,8 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		VipRemainingSeconds:  u.VipRemainingSeconds,
+		VipCooldownUntil:     vipCooldownUntil,
 		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
@@ -282,6 +288,8 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		VipRemainingSeconds:  u.VipRemainingSeconds,
+		VipCooldownUntil:     vipCooldownUntil,
 		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
@@ -346,6 +354,8 @@ func toAdminUser(u storage.ListUsersAdminRow) *models.AdminUser {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		VipRemainingSeconds:  u.VipRemainingSeconds,
+		VipCooldownUntil:     vipCooldownUntil,
 	}
 }
 
@@ -407,6 +417,8 @@ func toAdminUserFromSearch(u storage.SearchUsersAdminRow) *models.AdminUser {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		VipRemainingSeconds:  u.VipRemainingSeconds,
+		VipCooldownUntil:     vipCooldownUntil,
 	}
 }
 
@@ -453,6 +465,8 @@ func toModelUserListItemFromVIP(row storage.ListVIPUsersRow) *models.User {
 		PromotedUntil:    promotedUntil,
 		PromotionMessage: promotionMessage,
 		PromotionBid:     row.PromotionBid,
+		VipRemainingSeconds: row.VipRemainingSeconds,
+		VipCooldownUntil: vipCooldownUntil,
 		IsRecentlyActive: row.IsRecentlyActive,
 		AvgResponseTime:  avgResponseTime,
 	}

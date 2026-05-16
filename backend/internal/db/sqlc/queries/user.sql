@@ -46,6 +46,7 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
         WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
@@ -98,6 +99,7 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
         WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
@@ -149,6 +151,7 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
         WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
@@ -290,6 +293,7 @@ SELECT COUNT(*) FROM users WHERE banned_at IS NOT NULL;
 -- name: ListUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
        u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -305,6 +309,7 @@ LIMIT @lim::int OFFSET @off::int;
 -- name: SearchUsersAdmin :many
 SELECT u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag, u.banned_at, u.created_at, u.captcha_type, u.captcha_cooldown_until,
        u.promoted_until, u.promotion_message, u.promotion_bid,
+    u.vip_remaining_seconds, u.vip_cooldown_until,
        COALESCE(b.amount, 0)::int AS balance,
        COALESCE(rt.last_visit, u.created_at)::timestamptz AS last_visit_at
 FROM users u
@@ -368,10 +373,17 @@ SET captcha_type = $2
 WHERE id = $1
 RETURNING *;
 
--- name: SetCaptchaCooldown :exec
+-- name: SetVipCooldown :one
 UPDATE users
-SET captcha_cooldown_until = $2
-WHERE id = $1;
+SET vip_cooldown_until = $2, vip_remaining_seconds = $3
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateVipBudget :one
+UPDATE users
+SET vip_remaining_seconds = $2
+WHERE id = $1
+RETURNING *;
 
 -- name: AdminDeleteUser :execrows
 DELETE FROM users

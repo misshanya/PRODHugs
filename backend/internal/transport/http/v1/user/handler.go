@@ -72,6 +72,8 @@ func toV1User(u *models.User) v1.User {
 		PromotedUntil:        u.PromotedUntil,
 		PromotionMessage:     u.PromotionMessage,
 		PromotionBid:         ptr(int(u.PromotionBid)),
+		VipRemainingSeconds:  ptr(int(u.VipRemainingSeconds)),
+		VipCooldownUntil:     u.VipCooldownUntil,
 		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              &bal,
 	}
@@ -101,6 +103,8 @@ func toV1UserListItem(u *models.User) v1.UserListItem {
 		PromotedUntil:    u.PromotedUntil,
 		PromotionMessage: u.PromotionMessage,
 		PromotionBid:     ptr(int(u.PromotionBid)),
+		VipRemainingSeconds: ptr(int(u.VipRemainingSeconds)),
+		VipCooldownUntil: u.VipCooldownUntil,
 		IsRecentlyActive: u.IsRecentlyActive,
 	}
 	if u.Gender != nil {

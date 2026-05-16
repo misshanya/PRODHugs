@@ -31,6 +31,8 @@ type User struct {
 	PromotedUntil        *time.Time
 	PromotionMessage     *string
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     *time.Time
 	IsRecentlyActive     bool
 	IsTelegramLinked     bool
 	AvgResponseTime      *float64
@@ -54,6 +56,8 @@ type AdminUser struct {
 	PromotedUntil        *time.Time
 	PromotionMessage     *string
 	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     *time.Time
 }
 
 type AdminStats struct {
