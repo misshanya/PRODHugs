@@ -31,6 +31,7 @@ type User struct {
 	PromotedUntil        *time.Time
 	PromotionMessage     *string
 	PromotionBid         int32
+	IsRecentlyActive     bool
 	IsTelegramLinked     bool
 	AvgResponseTime      *float64
 	Balance              int32

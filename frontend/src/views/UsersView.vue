@@ -202,7 +202,12 @@ onUnmounted(() => {
       <p class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1 text-prod-yellow">VIP-места</p>
       <div class="grid gap-2">
         <!-- Real promoted users -->
-        <UserCard v-for="user in sponsoredUsers" :key="user.id" :user="user" />
+        <UserCard 
+          v-for="user in sponsoredUsers" 
+          :key="user.id" 
+          :user="user" 
+          is-vip
+        />
         
         <!-- Placeholders if less than 3 -->
         <div 
@@ -229,7 +234,12 @@ onUnmounted(() => {
 
     <div v-else class="space-y-2">
       <TransitionGroup name="user-list" tag="div" class="space-y-2">
-        <UserCard v-for="user in mainListUsers" :key="user.id" :user="user" />
+        <UserCard 
+          v-for="user in mainListUsers" 
+          :key="user.id" 
+          :user="user" 
+          :is-vip="false"
+        />
       </TransitionGroup>
 
       <div v-if="hasMore" ref="sentinel" class="flex justify-center py-4">

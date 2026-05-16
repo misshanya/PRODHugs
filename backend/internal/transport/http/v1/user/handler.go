@@ -72,6 +72,7 @@ func toV1User(u *models.User) v1.User {
 		PromotedUntil:        u.PromotedUntil,
 		PromotionMessage:     u.PromotionMessage,
 		PromotionBid:         ptr(int(u.PromotionBid)),
+		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              &bal,
 	}
 	if u.Gender != nil {
@@ -100,6 +101,7 @@ func toV1UserListItem(u *models.User) v1.UserListItem {
 		PromotedUntil:    u.PromotedUntil,
 		PromotionMessage: u.PromotionMessage,
 		PromotionBid:     ptr(int(u.PromotionBid)),
+		IsRecentlyActive: u.IsRecentlyActive,
 	}
 	if u.Gender != nil {
 		g := v1.Gender(*u.Gender)

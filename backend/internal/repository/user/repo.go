@@ -144,6 +144,7 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -212,6 +213,7 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -280,6 +282,7 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 		PromotedUntil:        promotedUntil,
 		PromotionMessage:     promotionMessage,
 		PromotionBid:         u.PromotionBid,
+		IsRecentlyActive:     u.IsRecentlyActive,
 		Balance:              u.Balance,
 		AvgResponseTime:      avgResponseTime,
 	}
@@ -450,6 +453,7 @@ func toModelUserListItemFromVIP(row storage.ListVIPUsersRow) *models.User {
 		PromotedUntil:    promotedUntil,
 		PromotionMessage: promotionMessage,
 		PromotionBid:     row.PromotionBid,
+		IsRecentlyActive: row.IsRecentlyActive,
 		AvgResponseTime:  avgResponseTime,
 	}
 }

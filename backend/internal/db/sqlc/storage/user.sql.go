@@ -874,6 +874,10 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    (EXISTS (
+        SELECT 1 FROM hugs 
+        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+    ))::bool AS is_recently_active,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM (
@@ -899,6 +903,10 @@ WHERE u.banned_at IS NULL
 ORDER BY 
     (u.promoted_until > NOW()) DESC,
     u.promotion_bid DESC,
+    (EXISTS (
+        SELECT 1 FROM hugs 
+        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+    )) DESC,
     (
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM (
@@ -931,6 +939,7 @@ type ListAllUsersRow struct {
 	PromotedUntil    pgtype.Timestamptz
 	PromotionMessage pgtype.Text
 	PromotionBid     int32
+	IsRecentlyActive bool
 	AvgResponseTime  float64
 }
 
@@ -955,6 +964,7 @@ func (q *Queries) ListAllUsers(ctx context.Context, arg ListAllUsersParams) ([]L
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.IsRecentlyActive,
 			&i.AvgResponseTime,
 		); err != nil {
 			return nil, err
@@ -1049,6 +1059,10 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    (EXISTS (
+        SELECT 1 FROM hugs 
+        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+    ))::bool AS is_recently_active,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM (
@@ -1076,6 +1090,7 @@ type ListVIPUsersRow struct {
 	PromotedUntil    pgtype.Timestamptz
 	PromotionMessage pgtype.Text
 	PromotionBid     int32
+	IsRecentlyActive bool
 	AvgResponseTime  float64
 }
 
@@ -1100,6 +1115,7 @@ func (q *Queries) ListVIPUsers(ctx context.Context) ([]ListVIPUsersRow, error) {
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.IsRecentlyActive,
 			&i.AvgResponseTime,
 		); err != nil {
 			return nil, err
@@ -1161,6 +1177,10 @@ SELECT
     u.id, u.username, u.role, u.gender, u.display_name, u.tag, u.special_tag,
     (u.telegram_id IS NOT NULL)::bool AS is_telegram_linked,
     u.promoted_until, u.promotion_message, u.promotion_bid,
+    (EXISTS (
+        SELECT 1 FROM hugs 
+        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+    ))::bool AS is_recently_active,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM (
@@ -1187,6 +1207,10 @@ WHERE (u.username ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1
 ORDER BY 
     (u.promoted_until > NOW()) DESC,
     u.promotion_bid DESC,
+    (EXISTS (
+        SELECT 1 FROM hugs 
+        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+    )) DESC,
     (
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
         FROM (
@@ -1220,6 +1244,7 @@ type SearchUsersRow struct {
 	PromotedUntil    pgtype.Timestamptz
 	PromotionMessage pgtype.Text
 	PromotionBid     int32
+	IsRecentlyActive bool
 	AvgResponseTime  float64
 }
 
@@ -1249,6 +1274,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.PromotedUntil,
 			&i.PromotionMessage,
 			&i.PromotionBid,
+			&i.IsRecentlyActive,
 			&i.AvgResponseTime,
 		); err != nil {
 			return nil, err

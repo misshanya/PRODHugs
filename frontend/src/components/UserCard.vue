@@ -16,21 +16,18 @@ const props = defineProps<{
     tag?: string | null
     special_tag?: string | null
     is_telegram_linked?: boolean
+    is_recently_active?: boolean
     avg_response_time?: number | null
     promoted_until?: string | null
     promotion_message?: string | null
     promotion_bid?: number | null
   }
+  isVip?: boolean
 }>()
 
 const auth = useAuthStore()
 const onlineStore = useOnlineStore()
 const isMe = auth.user?.id === props.user.id
-
-const isPromoted = computed(() => {
-  if (!props.user.promoted_until) return false
-  return new Date(props.user.promoted_until) > new Date()
-})
 
 const remainingTimeText = ref('')
 let timerInterval: ReturnType<typeof setInterval> | null = null
@@ -58,7 +55,7 @@ function updateRemainingTime() {
 }
 
 onMounted(() => {
-  if (isPromoted.value) {
+  if (props.user.promoted_until) {
     updateRemainingTime()
     timerInterval = setInterval(updateRemainingTime, 1000)
   }
@@ -79,11 +76,11 @@ const formatResponseTime = (seconds: number) => {
 <template>
   <div
     class="flex items-center justify-between rounded-[10px] border p-3 transition-colors hover:bg-[#002D20]"
-    :class="{ 'border-prod-yellow/50 bg-prod-yellow/5': isPromoted }"
+    :class="{ 'border-prod-yellow/50 bg-prod-yellow/5': isVip }"
   >
     <RouterLink :to="`/user/${user.id}`" class="flex items-center gap-3 flex-1 min-w-0">
       <div class="relative shrink-0">
-        <Avatar class="size-9" :class="{ 'ring-2 ring-prod-yellow ring-offset-2 ring-offset-background': isPromoted }">
+        <Avatar class="size-9" :class="{ 'ring-2 ring-prod-yellow ring-offset-2 ring-offset-background': isVip }">
           <AvatarFallback class="text-xs">
             {{ (user.display_name || user.username).slice(0, 2).toUpperCase() }}
           </AvatarFallback>
@@ -109,7 +106,7 @@ const formatResponseTime = (seconds: number) => {
             </template>
           </div>
           <Send v-if="user.is_telegram_linked" class="size-3 text-[#229ED9]" />
-          <Star v-if="isPromoted" class="size-3 text-prod-yellow fill-prod-yellow" />
+          <Star v-if="isVip" class="size-3 text-prod-yellow fill-prod-yellow" />
         </div>
         <p class="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
           <span v-if="user.display_name" class="truncate">@{{ user.username }}</span>
