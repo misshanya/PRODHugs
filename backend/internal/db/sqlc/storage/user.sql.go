@@ -909,7 +909,7 @@ SELECT
     u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
-        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+        WHERE (receiver_id = u.id OR giver_id = u.id) AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
     ))::bool AS is_recently_active,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -938,18 +938,8 @@ ORDER BY
     u.promotion_bid DESC,
     (EXISTS (
         SELECT 1 FROM hugs 
-        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+        WHERE (receiver_id = u.id OR giver_id = u.id) AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
     )) DESC,
-    (
-        SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
-        FROM (
-            SELECT accepted_at, created_at
-            FROM hugs
-            WHERE receiver_id = u.id AND status = 'completed'
-            ORDER BY created_at DESC
-            LIMIT 30
-        ) h
-    ) ASC NULLS LAST,
     COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT $3::int OFFSET $2::int
 `
@@ -1229,7 +1219,7 @@ SELECT
     u.vip_remaining_seconds, u.vip_cooldown_until,
     (EXISTS (
         SELECT 1 FROM hugs 
-        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+        WHERE (receiver_id = u.id OR giver_id = u.id) AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
     ))::bool AS is_recently_active,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -1259,18 +1249,8 @@ ORDER BY
     u.promotion_bid DESC,
     (EXISTS (
         SELECT 1 FROM hugs 
-        WHERE receiver_id = u.id AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
+        WHERE (receiver_id = u.id OR giver_id = u.id) AND status = 'completed' AND accepted_at > NOW() - interval '3 days'
     )) DESC,
-    (
-        SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
-        FROM (
-            SELECT accepted_at, created_at
-            FROM hugs
-            WHERE receiver_id = u.id AND status = 'completed'
-            ORDER BY created_at DESC
-            LIMIT 30
-        ) h
-    ) ASC NULLS LAST,
     COALESCE(rt.last_visit, u.created_at) DESC NULLS LAST
 LIMIT $4::int OFFSET $3::int
 `
