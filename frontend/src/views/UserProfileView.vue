@@ -573,7 +573,7 @@ watch(routeKey, (next, prev) => {
         <div class="flex items-center justify-between text-xs text-muted-foreground">
           <span>{{ noteRemainingChars }} символов осталось</span>
         </div>
-        <DialogFooter class="gap-2 sm:gap-0">
+        <DialogFooter class="gap-2 sm:gap-3">
           <Button variant="outline" @click="noteEditorOpen = false" :disabled="noteEditorSaving">
             Отмена
           </Button>
@@ -593,7 +593,7 @@ watch(routeKey, (next, prev) => {
             Заметку нельзя будет восстановить.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter class="gap-2 sm:gap-0">
+        <DialogFooter class="gap-2 sm:gap-3">
           <Button
             variant="outline"
             @click="noteDeleteConfirmOpen = false"
