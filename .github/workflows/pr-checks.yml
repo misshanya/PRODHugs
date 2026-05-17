@@ -13,6 +13,11 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # POST /repos/<r>/issues/<n>/comments lives under the issues API even for
+  # PRs, and the GitHub Actions token denies it unless we ask for issues:write
+  # explicitly. Without this, the post-comment step fails with
+  # "Resource not accessible by integration".
+  issues: write
   checks: write
 
 concurrency:
@@ -59,11 +64,13 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Install codegen + lint tooling
+        # golangci-lint must be compiled with a Go toolchain >= the project's
+        # go.mod (1.25). The published binaries lag, so we go install from
+        # source — slower the first time, but compatible.
         run: |
           go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.0
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
-            | sh -s -- -b "$(go env GOPATH)/bin" v1.64.5
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: gofmt
@@ -107,10 +114,21 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          # github-actions format emits inline annotations AND a readable
-          # text representation we can capture for the summary.
-          golangci-lint run --timeout=5m --out-format=github-actions \
-            2>&1 | tee "$RUNNER_TEMP/lint.out"
+          # Plain run captures human-readable text we can show in the PR
+          # comment. Exit code is preserved through the pipe via pipefail.
+          golangci-lint run --timeout=5m 2>&1 | tee "$RUNNER_TEMP/lint.out"
+          status=${PIPESTATUS[0]}
+          # Post-process the capture to emit GitHub workflow annotations so
+          # each lint issue appears inline on the PR diff. File paths in the
+          # capture are relative to backend/; rewrite them to be repo-rooted
+          # so GitHub matches them against changed files.
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^([^[:space:]][^:]*\.go):([0-9]+):([0-9]+):[[:space:]]*(.*)$ ]]; then
+              printf '::error file=backend/%s,line=%s,col=%s::%s\n' \
+                "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"
+            fi
+          done < "$RUNNER_TEMP/lint.out"
+          exit "$status"
 
       - name: OpenAPI codegen drift (v1)
         id: oapi_v1

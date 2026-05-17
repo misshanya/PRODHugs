@@ -5,8 +5,8 @@
 #
 # The voice belongs to our perpetually exasperated DevOps engineer. She is
 # not happy about cleaning up after you again, but she has scripts and she
-# will use them. No decorative emojis — text markers only. Status icons
-# (status circles) are allowed because they're functional, not vibes.
+# will use them. Decorative emojis are out — status circles in the table
+# are functional (status indicators), so those stay.
 
 set -euo pipefail
 
@@ -33,67 +33,142 @@ dot_for() {
     esac
 }
 
-# Pick a snarky-but-fair opener for the given verdict. Each list is shuffled
-# per-run so the same PR doesn't get the identical line three pushes in a
-# row.
-opener_pass=(
-    "Ладно, всё зелёное. Не привыкай — в следующий раз я буду строже."
-    "Чисто. Я даже немного разочарована, мне было что сказать."
-    "Прошло. Можешь идти мёрджить, я тут постою посмотрю."
-    "Хорошо. Хоть один раз без моих нервов."
-)
-
-opener_fail=(
-    "Ну вот опять. Сядь, я объясню."
-    "Слушай. У нас с тобой третий раз один и тот же разговор."
-    "Я не злюсь, я просто очень разочарована. Смотри."
-    "Окей. Перед мёрджем — почини вот это."
-    "Только не говори мне, что у тебя локально всё работало."
-)
-
+# Random-but-deterministic-per-run pick. $$ alone is constant within a run,
+# RANDOM varies per call — we want the same answer every time this script
+# runs in a given job (or you get whiplash between summary and comment), so
+# seed from the run id + the target.
 pick_one() {
     local arr_name="$1"
     eval "local arr=(\"\${${arr_name}[@]}\")"
     local len="${#arr[@]}"
-    local idx=$(( ( ${RANDOM:-0} + $$ ) % len ))
-    echo "${arr[$idx]}"
+    local seed="${GITHUB_RUN_ID:-0}${target}${arr_name}"
+    # Crude string -> integer hash. Sufficient for picking from <20 items.
+    local n=0 i
+    for (( i=0; i<${#seed}; i++ )); do
+        n=$(( (n * 31 + $(printf '%d' "'${seed:$i:1}")) & 0x7fffffff ))
+    done
+    echo "${arr[$(( n % len ))]}"
 }
 
 # Russian plural agreement for "проверка" — 1 проверка, 2 проверки, 5 проверок.
-plural_check() {
+noun_check() {
     local n=$1
     local last_two=$((n % 100))
     local last_one=$((n % 10))
-    if [ "$last_two" -ge 11 ] && [ "$last_two" -le 14 ]; then
-        echo "проверок"
-    elif [ "$last_one" -eq 1 ]; then
-        echo "проверка"
-    elif [ "$last_one" -ge 2 ] && [ "$last_one" -le 4 ]; then
-        echo "проверки"
-    else
-        echo "проверок"
+    if [ "$last_two" -ge 11 ] && [ "$last_two" -le 14 ]; then echo "проверок"
+    elif [ "$last_one" -eq 1 ]; then echo "проверка"
+    elif [ "$last_one" -ge 2 ] && [ "$last_one" -le 4 ]; then echo "проверки"
+    else echo "проверок"
     fi
 }
 
-# Per-check fix hints — short, imperative, copy-pasteable.
+# Russian verb agreement for "упасть" past tense — 1 упала, 2-4 упали, 5+ упало.
+verb_fell() {
+    local n=$1
+    local last_two=$((n % 100))
+    local last_one=$((n % 10))
+    if [ "$last_two" -ge 11 ] && [ "$last_two" -le 14 ]; then echo "упало"
+    elif [ "$last_one" -eq 1 ]; then echo "упала"
+    elif [ "$last_one" -ge 2 ] && [ "$last_one" -le 4 ]; then echo "упали"
+    else echo "упало"
+    fi
+}
+
+# ── Openers ────────────────────────────────────────────────────────────────
+# All-green: ranges from grudging approval to mild suspicion. She doesn't
+# want to admit it went well.
+opener_pass=(
+    "Так. Сижу, кофе допиваю. Всё зелёное — спасибо, конечно, но я не привыкла."
+    "Чисто. И я даже не нашла к чему придраться, что само по себе подозрительно."
+    "Окей, прошло. Может я плохо проверяю, может ты случайно сделал хорошо. Время покажет."
+    "Прошло с первого раза. Запиши себе в дневник, я тоже запишу."
+    "Ну надо же. Ни одной красной строки. Кто-то постарался, и я надеюсь это ты."
+    "Зелёный свет везде. Иди мёрджи, пока я не передумала."
+    "Всё ок. Я даже расстроилась немножко — мне было что сказать. В следующий раз."
+)
+
+# Single-failure: pointed but not cruel. One thing, fиксируй и приходи назад.
+opener_one=(
+    "Одна красная клетка. Знаешь что — почини её и не отвлекай меня по мелочам."
+    "Одна проверка свалилась. Я уже даже не возмущаюсь, просто смотри и фикси."
+    "Только одно сломано. Это почти достижение. Почти."
+    "Так. Одна штука не сошлась. Думаю, ты сам всё уже видишь по списку ниже."
+)
+
+# Multi-failure: full sigh. Tonal range: tired, sarcastic, mama-bear strict.
+opener_many=(
+    "Ну так. Садись, разбираем по пунктам. Я никуда не тороплюсь, у меня кофе."
+    "Слушай, я не для того тут сижу, чтобы ловить за тебя такие очевидные вещи."
+    "У нас с тобой системная проблема — третий PR подряд один и тот же список."
+    "Я не злюсь. Я разочарована. Это страшнее, поверь."
+    "Окей. Дыши, я тоже дышу. Всё это чинится, просто надо сесть и сделать."
+    "Только не говори мне, что у тебя локально всё работало. Я этого больше не выдержу."
+    "Так, без паники. Мы это уже видели — ну значит давай ещё раз."
+)
+
+# Closer line — varies based on the result. Adds a small parting note so
+# the bot doesn't feel like a stamping machine.
+closer_pass=(
+    "Я пошла дальше нервничать в другие репы. Береги себя."
+    "Если что — я тут. Но не сильно надейся, что часто."
+    "Удачи на ревью. Имей в виду, люди иногда злее меня."
+)
+closer_one=(
+    "Я подожду. Только не молча — напиши хоть что-нибудь в PR, когда починишь."
+    "Поправь и пингани меня пушем. Я перепроверю — мне несложно, мне просто грустно."
+    "Минута тебе. Максимум две."
+)
+closer_many=(
+    "Пойду налью себе ещё чашку, ты пока разбирайся. Жду новый пуш."
+    "Я никуда. Чини и пуш — посмотрим следующий заход."
+    "Может в этот раз ты сначала локально прогонишь, а уже потом PR откроешь? Я просто спрашиваю."
+    "Ладно, не буду давить. Но я записала."
+)
+
+# ── Hints — concrete fix commands, framed in her voice ────────────────────
 hint_for() {
     case "$1" in
-        gofmt) echo "Запусти у себя: \`gofmt -w .\` в \`backend/\` и закоммить." ;;
-        vet) echo "\`go vet ./...\` падает — это не вкусовщина, это реальный баг." ;;
-        build) echo "\`go build ./...\` не собирается. Прежде чем пушить — соберись локально." ;;
-        test) echo "Тесты упали. \`go test ./...\` локально и почини." ;;
-        lint) echo "\`golangci-lint run\` — посмотри список ниже, не паникуй, там всё конкретно." ;;
-        oapi_v1) echo "Перегенерируй v1: \`cd backend && oapi-codegen -config oapi-codegen.yml api/openapi.yaml\` и закоммить \`internal/transport/http/v1/api.gen.go\`." ;;
-        oapi_v2) echo "Перегенерируй v2: \`cd backend && oapi-codegen -config oapi-codegen-v2.yml api/openapi-v2.yaml\` и закоммить \`internal/transport/http/v2/api.gen.go\`." ;;
-        sqlc) echo "\`cd backend && sqlc generate -f internal/db/sqlc/sqlc.yaml\` и закоммить \`internal/db/sqlc/storage/\`." ;;
-        docker) echo "Образ не собрался. Скорее всего сломалось то же, что и обычный build/lint выше — почини их, и Docker подтянется." ;;
-        oxlint) echo "\`bun run lint:oxlint\` локально, прочитай что пишет — обычно лечится за полминуты." ;;
-        eslint) echo "\`bun run lint:eslint --fix\` сначала, потом разберись с тем, что осталось." ;;
-        typecheck) echo "\`bun run type-check\` — типы реально не сходятся, не игнорируй." ;;
+        gofmt)
+            echo "Это команда из трёх символов: \`gofmt -w .\` в \`backend/\`. Закоммить — и забудем."
+            ;;
+        vet)
+            echo "\`go vet ./...\` падает на проде так же, как и тут. Это не вкусовщина — это реальная штука."
+            ;;
+        build)
+            echo "Проект не собирается. Я понимаю, у тебя локально \"всё работало\" — но я вижу что нет. \`go build ./...\` тебе всё расскажет."
+            ;;
+        test)
+            echo "Тесты упали. Я не знаю что именно — посмотри сама, и не забывай: \`go test -race ./...\` дома, прежде чем ко мне приходить."
+            ;;
+        lint)
+            echo "Линтер ругается. Inline-аннотации я подвесила прямо на diff PR — открой Files changed, увидишь красное на конкретных строках. Полный список ниже."
+            ;;
+        oapi_v1)
+            echo "Спека v1 поменялась — кодоген не пересобран. Лекарство: \`cd backend && oapi-codegen -config oapi-codegen.yml api/openapi.yaml\`, потом \`git add internal/transport/http/v1/api.gen.go\`. Я серьёзно, не вручную там ничего не правь."
+            ;;
+        oapi_v2)
+            echo "Спека v2 поменялась — кодоген не пересобран. Лекарство: \`cd backend && oapi-codegen -config oapi-codegen-v2.yml api/openapi-v2.yaml\`, потом коммить \`internal/transport/http/v2/api.gen.go\`."
+            ;;
+        sqlc)
+            echo "SQL поменялся — \`storage/\` стало неактуальное. \`cd backend && sqlc generate -f internal/db/sqlc/sqlc.yaml\`, дальше сама знаешь."
+            ;;
+        docker)
+            echo "Образ не собрался. Обычно это значит, что наверху уже что-то покраснело — почини то, и Docker подтянется. Если только docker и больше ничего — открывай логи джобы, там подробно."
+            ;;
+        oxlint)
+            echo "Быстрый линтер ругается. \`bun run lint:oxlint\` локально, посмотри что говорит — обычно лечится за минуту."
+            ;;
+        eslint)
+            echo "ESLint. Сначала \`bun run lint:eslint --fix\` — он половину сам поправит. Что останется — то уж сама. Список ниже."
+            ;;
+        typecheck)
+            echo "Типы не сходятся. Не игнорируй, не дави \`any\`, разбирайся: \`bun run type-check\`."
+            ;;
         *) echo "" ;;
     esac
 }
 
+# ── Check definitions ─────────────────────────────────────────────────────
 case "$target" in
     backend)
         title="Backend"
@@ -125,7 +200,7 @@ case "$target" in
         ;;
 esac
 
-# Overall verdict.
+# ── Aggregate ─────────────────────────────────────────────────────────────
 overall="success"
 failed_count=0
 for c in "${checks[@]}"; do
@@ -137,20 +212,28 @@ for c in "${checks[@]}"; do
     fi
 done
 
-# Build the report.
+if [ "$overall" = "success" ]; then
+    opener_set=opener_pass
+    closer_set=closer_pass
+elif [ "$failed_count" -eq 1 ]; then
+    opener_set=opener_one
+    closer_set=closer_one
+else
+    opener_set=opener_many
+    closer_set=closer_many
+fi
+
+# ── Render ────────────────────────────────────────────────────────────────
 {
     echo "## CI — $title"
     echo
-    if [ "$overall" = "success" ]; then
-        echo "> $(pick_one opener_pass)"
-    else
-        echo "> $(pick_one opener_fail)"
-    fi
+    echo "> $(pick_one "$opener_set")"
     echo
+    total_count=${#checks[@]}
     if [ "$overall" = "success" ]; then
-        echo "**Итог:** всё зелёное."
+        echo "**Итог:** все $total_count $(noun_check "$total_count") прошли. Это редкость, цени."
     else
-        echo "**Итог:** упало $failed_count $(plural_check "$failed_count"). Детали — ниже."
+        echo "**Итог:** $(verb_fell "$failed_count") $failed_count $(noun_check "$failed_count") из $total_count. Детали — ниже, читай внимательно."
     fi
     echo
     echo "Коммит: \`${GITHUB_SHA:0:7}\` · [полный лог запуска](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
@@ -164,14 +247,13 @@ done
     done
     echo
 
-    # Detail blocks for every failure.
     any_failed=false
     for c in "${checks[@]}"; do
         IFS='|' read -r label var file id <<< "$c"
         val="${!var:-skipped}"
         [ "$val" = "failure" ] || continue
         any_failed=true
-        echo "### $label — упало"
+        echo "### $label"
         echo
         hint="$(hint_for "$id")"
         if [ -n "$hint" ]; then
@@ -179,29 +261,35 @@ done
             echo
         fi
         if [ -n "$file" ] && [ -f "${RUNNER_TEMP:-/tmp}/$file" ]; then
-            echo "<details><summary>что именно сказал инструмент</summary>"
-            echo
-            echo '```'
-            # Cap at ~12 KB / 200 lines so we stay well under the comment
-            # length limit (65 KB) and the run summary limit (1 MB) even
-            # with several failing steps.
-            head -c 12288 "${RUNNER_TEMP:-/tmp}/$file" | head -n 200
-            echo
-            echo '```'
-            echo
-            echo "</details>"
-            echo
+            # Strip ANSI colour codes that show up in lint/test output —
+            # they render as garbage inside <pre>.
+            cleaned="${RUNNER_TEMP:-/tmp}/${file}.clean"
+            sed 's/\x1b\[[0-9;]*m//g' "${RUNNER_TEMP:-/tmp}/$file" \
+                | head -c 12288 \
+                | head -n 200 > "$cleaned"
+            if [ -s "$cleaned" ]; then
+                echo "<details><summary>что именно сказал инструмент</summary>"
+                echo
+                echo '```'
+                cat "$cleaned"
+                echo
+                echo '```'
+                echo
+                echo "</details>"
+                echo
+            fi
         fi
     done
 
     if [ "$any_failed" = false ]; then
-        echo "_Больше тут ничего нет — всё прошло._"
+        echo "_Больше ничего не скажу — всё прошло._"
         echo
     fi
 
     echo "---"
-    echo "<sub>Этот комментарий обновляется на каждый пуш в этот PR. Сообщение от вашей вечно недовольной CI-инженерки.</sub>"
+    echo "_$(pick_one "$closer_set")_"
+    echo
+    echo "<sub>Этот комментарий обновляется на каждый пуш в PR. С любовью (через слёзы), ваша CI.</sub>"
 } > "$report"
 
-# Mirror into the run summary tab so it's also visible without opening the PR.
 cat "$report" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
