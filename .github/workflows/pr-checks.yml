@@ -270,6 +270,11 @@ jobs:
         env:
           POSTGRES_URL: postgres://service:smoke_password@127.0.0.1:5432/service?sslmode=disable
           JWT_SECRET: smoke_secret_thirty_two_chars_minimum_so_jwt_lib_accepts
+          # Disable the per-IP auth rate limit during the smoke run — the
+          # whole test fires register/login many times from 127.0.0.1 in
+          # a couple of seconds and would otherwise instantly hit the
+          # 2-per-hour register cap.
+          AUTH_RATE_LIMIT_DISABLED: 'true'
         run: |
           set -o pipefail
           go build -o /tmp/service ./cmd
@@ -334,7 +339,7 @@ jobs:
 
       - name: Upload report
         if: always() && env.PR_NUMBER != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-report-backend
           path: ${{ runner.temp }}/pr-artifact/
@@ -447,7 +452,7 @@ jobs:
 
       - name: Upload report
         if: always() && env.PR_NUMBER != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-report-frontend
           path: ${{ runner.temp }}/pr-artifact/

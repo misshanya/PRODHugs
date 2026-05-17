@@ -479,14 +479,21 @@ fi
     echo "---"
     echo "_$(pick_one "$closer_set")_"
     echo
-    echo "<sub>"
-    echo "Команды в комментариях:  "
-    echo "\`/ci\` — перезапустить проверки (доступно всем участникам).  "
-    echo "\`/ci backend\` или \`/ci frontend\` — сузить scope; добавьте \`skip-docker\`, чтобы пропустить сборку образов.  "
-    echo "\`/label feature bugfix wip …\` — повесить метки на PR (автор PR и участники с правом записи).  "
-    echo "Также понимаю \`@aurora <команда>\`."
-    echo "</sub>"
+
+    # The help footer used to live in a <sub> block, but GitHub doesn't
+    # process markdown inside inline HTML tags — so backtick-wrapped
+    # commands rendered as literal text. Switching to a blockquote keeps
+    # markdown rendering while still visually demoting the help section
+    # below the actual results.
+    echo "> **Что можно написать в комментарии:**"
+    echo ">"
+    echo "> - \`/ci\` — перезапустить проверки (доступно всем участникам)."
+    echo "> - \`/ci backend\` или \`/ci frontend\` — сузить scope; добавьте \`skip-docker\`, чтобы пропустить сборку образов."
+    echo "> - \`/label feature bugfix wip …\` — повесить метки на PR (автор PR, участники с правом записи или те, чьи коммиты уже в master)."
+    echo "> - Те же команды через mention: \`@aurora <команда>\`."
     echo
+    # The signature has no markdown to render, so a plain <sub> is fine
+    # here — it just sets the size and stays inline.
     echo "<sub>С уважением, Аврора. Этот комментарий обновляется на каждый пуш.</sub>"
 } > "$report"
 

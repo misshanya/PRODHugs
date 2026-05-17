@@ -66,6 +66,7 @@ SERVER_ADDR="0.0.0.0:${PORT}" \
     CORS_ALLOW_ORIGINS="http://localhost:3000" \
     TELEGRAM_BOT_TOKEN="" \
     TELEGRAM_BOT_USERNAME="prodhugs_smoke_bot" \
+    AUTH_RATE_LIMIT_DISABLED="${AUTH_RATE_LIMIT_DISABLED:-true}" \
     "$BACKEND_BIN" >"$SERVICE_LOG" 2>&1 &
 SERVICE_PID=$!
 
