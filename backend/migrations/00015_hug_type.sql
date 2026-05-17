@@ -1,0 +1,2 @@
+ALTER TABLE hugs ADD COLUMN hug_type TEXT NOT NULL DEFAULT 'standard';
+

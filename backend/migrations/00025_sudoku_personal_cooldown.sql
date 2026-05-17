@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sudoku_cooldown_until TIMESTAMP WITH TIME ZONE;
+ALTER TABLE sudoku_captchas DROP COLUMN IF EXISTS target_id;
+

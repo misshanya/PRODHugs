@@ -1,30 +1,30 @@
-FROM golang:1.25-alpine AS builder
-
+FROM rust:1-bookworm AS builder
 WORKDIR /app
 
-COPY go.mod go.sum ./
+# Cache deps separately.
+COPY Cargo.toml Cargo.lock* ./
+RUN mkdir -p src && echo 'fn main() {}' > src/main.rs \
+ && cargo fetch \
+ && rm -rf src
 
-ENV GOMODCACHE=/go/pkg/mod
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+# Pre-touch the migrations dir so `sqlx::migrate!` macro can be parsed even
+# before the real `migrations/` is copied (cargo check needs it).
+RUN mkdir migrations && touch migrations/.keep
 
 COPY . .
 
-ENV GOCACHE=/root/.cache/go-build
-ENV CGO_ENABLED=0
-RUN --mount=type=cache,target="/root/.cache/go-build" \
-    --mount=type=cache,target="/go/pkg/mod" \
-    go build -ldflags="-s -w" -o service ./cmd/
+RUN cargo build --release --bin prodhugs
 
-FROM scratch AS runner
+FROM debian:bookworm-slim AS runner
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /app/service ./service
+COPY --from=builder /app/target/release/prodhugs /app/prodhugs
+COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/api /app/api
 
 EXPOSE 8080 9090
-
 USER 1000:1000
-
-CMD ["./service"]
+ENTRYPOINT ["/app/prodhugs"]

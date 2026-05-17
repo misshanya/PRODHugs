@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN hug_slots int NOT NULL DEFAULT 1;
+

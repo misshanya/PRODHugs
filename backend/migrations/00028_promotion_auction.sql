@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN promotion_bid INTEGER NOT NULL DEFAULT 0;
+

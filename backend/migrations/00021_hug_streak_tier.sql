@@ -1,0 +1,2 @@
+ALTER TABLE hugs ADD COLUMN streak_tier TEXT NOT NULL DEFAULT '';
+

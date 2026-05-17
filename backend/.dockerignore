@@ -1,3 +1,9 @@
 .git
 .env
 .env.example
+target/
+.envrc
+.direnv/
+flake.lock
+flake.nix
+*.md
