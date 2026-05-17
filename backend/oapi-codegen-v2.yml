@@ -1,7 +1,0 @@
-package: v2
-generate:
-  - types
-  - server
-  - spec
-  - strict-server
-output: internal/transport/http/v2/api.gen.go

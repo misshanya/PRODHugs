@@ -14,31 +14,20 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-
-        goVersion = pkgs.go_1_25;
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            goVersion
+            rustc
+            cargo
+            rustfmt
+            clippy
+            rust-analyzer
 
-            gopls
-            gotools
-            delve
-            golangci-lint
-
-            air
-
-            sqlc
-            goose
-            go-swag
-            oapi-codegen
-            go-task
+            sqlx-cli
+            cargo-watch
+            postgresql
           ];
-
-          shellHook = ''
-            export GOROOT="${goVersion}/share/go"
-          '';
         };
       }
     );

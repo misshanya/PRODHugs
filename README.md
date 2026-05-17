@@ -1,6 +1,6 @@
 # PRODHugs
 
-Full-stack social app for virtual hugs. Go backend + Vue 3 frontend, orchestrated via Docker Compose behind an nginx reverse proxy.
+Full-stack social app for virtual hugs. Rust backend + Vue 3 frontend, orchestrated via Docker Compose behind an nginx reverse proxy.
 
 ## Features
 
@@ -18,7 +18,7 @@ Full-stack social app for virtual hugs. Go backend + Vue 3 frontend, orchestrate
 | Layer | Stack |
 |-------|-------|
 | Frontend | Vue 3.5, TypeScript, Vite 8, Bun, Pinia, Tailwind CSS v4, shadcn-vue |
-| Backend | Go 1.25, Echo v4, OpenAPI codegen, sqlc, goose migrations |
+| Backend | Rust (stable), axum 0.8, sqlx, tokio |
 | Database | PostgreSQL 18 |
 | Proxy | nginx |
 | Observability | Grafana Alloy, Prometheus, Loki |
@@ -28,7 +28,7 @@ Full-stack social app for virtual hugs. Go backend + Vue 3 frontend, orchestrate
 ```
 compose.yml / compose-dev.yml   # full-stack orchestration
 nginx.conf / nginx-dev.conf     # reverse proxy config
-backend/                        # Go API server
+backend/                        # Rust API server
 frontend/                       # Vue SPA
 alloy-config.alloy              # Grafana Alloy config for metrics/logs
 ```
@@ -38,7 +38,7 @@ alloy-config.alloy              # Grafana Alloy config for metrics/logs
 ### Prerequisites
 
 - Docker & Docker Compose
-- (For local dev without Docker) Go 1.25+, Bun, PostgreSQL
+- (For local dev without Docker) Rust toolchain (stable, 1.80+), Bun, PostgreSQL
 
 ### Environment
 
@@ -60,7 +60,7 @@ cp backend/.env.example backend/.env
 | **Production** | `docker compose up --build` | `localhost:3000` |
 | **Development** | `docker compose -f compose-dev.yml up` | `localhost:3001` |
 | **Frontend only** | `bun dev` in `frontend/` | `localhost:3000` |
-| **Backend only** | `air` in `backend/` | `localhost:8080` |
+| **Backend only** | `cargo run` in `backend/` | `localhost:8080` |
 
 ### Nginx Routing
 
