@@ -1,8 +1,9 @@
 name: PR checks
 
-# PR-time quality gates. The master-only Docker image jobs live in
-# backend-ci.yml / frontend-ci.yml; this workflow is purely about catching
-# regressions before merge and reporting them nicely in the PR.
+# PR-time quality gates. The master-only Docker image push jobs live in
+# backend-ci.yml / frontend-ci.yml; this workflow catches regressions before
+# merge, leaves inline annotations on the diff, and posts a single
+# self-updating summary comment on the PR.
 
 on:
   pull_request:
@@ -19,9 +20,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Which areas of the repo changed? Used to skip jobs that wouldn't catch
-  # anything new (full skips show up as green in the PR check list, which is
-  # what we want — not "neutral" / "queued forever").
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
@@ -37,9 +35,11 @@ jobs:
             backend:
               - 'backend/**'
               - '.github/workflows/pr-checks.yml'
+              - '.github/scripts/**'
             frontend:
               - 'frontend/**'
               - '.github/workflows/pr-checks.yml'
+              - '.github/scripts/**'
 
   backend:
     name: Backend checks
@@ -58,25 +58,26 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
-      - name: Install codegen tools
+      - name: Install codegen + lint tooling
         run: |
           go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.0
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+            | sh -s -- -b "$(go env GOPATH)/bin" v1.64.5
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      # Each check runs even if a previous one failed so the final summary can
-      # show the full picture. The "Conclude" step at the bottom aggregates
-      # statuses and decides the overall job outcome.
 
       - name: gofmt
         id: gofmt
         continue-on-error: true
         run: |
-          unformatted=$(gofmt -l . | grep -v "/sqlc/storage/\|/v1/api.gen.go\|/v2/api.gen.go" || true)
+          unformatted=$(gofmt -l . | grep -v "sqlc/storage/\|v1/api.gen.go\|v2/api.gen.go" || true)
           if [ -n "$unformatted" ]; then
-            echo "::error::gofmt would reformat these files:"
-            echo "$unformatted"
-            echo "$unformatted" > "$RUNNER_TEMP/gofmt.out"
+            {
+              echo "These files would be reformatted by gofmt:"
+              echo
+              echo "$unformatted"
+            } > "$RUNNER_TEMP/gofmt.out"
+            cat "$RUNNER_TEMP/gofmt.out"
             exit 1
           fi
 
@@ -104,13 +105,12 @@ jobs:
       - name: golangci-lint
         id: lint
         continue-on-error: true
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: backend
-          # Inline annotations + summary report. The action prints its own
-          # ::error:: markers and a summary block on its own.
-          args: --timeout=5m
+        run: |
+          set -o pipefail
+          # github-actions format emits inline annotations AND a readable
+          # text representation we can capture for the summary.
+          golangci-lint run --timeout=5m --out-format=github-actions \
+            2>&1 | tee "$RUNNER_TEMP/lint.out"
 
       - name: OpenAPI codegen drift (v1)
         id: oapi_v1
@@ -118,8 +118,11 @@ jobs:
         run: |
           oapi-codegen -config oapi-codegen.yml api/openapi.yaml
           if ! git diff --exit-code -- internal/transport/http/v1/api.gen.go; then
-            echo "::error::v1 codegen output is stale. Run: oapi-codegen -config oapi-codegen.yml api/openapi.yaml"
-            git diff --stat -- internal/transport/http/v1/api.gen.go > "$RUNNER_TEMP/oapi_v1.out" || true
+            {
+              echo "internal/transport/http/v1/api.gen.go is out of sync with api/openapi.yaml."
+              echo
+              git diff --stat -- internal/transport/http/v1/api.gen.go
+            } > "$RUNNER_TEMP/oapi_v1.out"
             exit 1
           fi
 
@@ -129,8 +132,11 @@ jobs:
         run: |
           oapi-codegen -config oapi-codegen-v2.yml api/openapi-v2.yaml
           if ! git diff --exit-code -- internal/transport/http/v2/api.gen.go; then
-            echo "::error::v2 codegen output is stale. Run: oapi-codegen -config oapi-codegen-v2.yml api/openapi-v2.yaml"
-            git diff --stat -- internal/transport/http/v2/api.gen.go > "$RUNNER_TEMP/oapi_v2.out" || true
+            {
+              echo "internal/transport/http/v2/api.gen.go is out of sync with api/openapi-v2.yaml."
+              echo
+              git diff --stat -- internal/transport/http/v2/api.gen.go
+            } > "$RUNNER_TEMP/oapi_v2.out"
             exit 1
           fi
 
@@ -140,10 +146,19 @@ jobs:
         run: |
           sqlc generate -f internal/db/sqlc/sqlc.yaml
           if ! git diff --exit-code -- internal/db/sqlc/storage/; then
-            echo "::error::sqlc output is stale. Run: sqlc generate -f internal/db/sqlc/sqlc.yaml"
-            git diff --stat -- internal/db/sqlc/storage/ > "$RUNNER_TEMP/sqlc.out" || true
+            {
+              echo "internal/db/sqlc/storage/ is out of sync with the queries."
+              echo
+              git diff --stat -- internal/db/sqlc/storage/
+            } > "$RUNNER_TEMP/sqlc.out"
             exit 1
           fi
+
+      # docker/setup-buildx-action provisions the docker-container driver,
+      # which is what supports the gha cache backend. Without it the default
+      # `docker` driver rejects --cache-to with "Cache export is not
+      # supported".
+      - uses: docker/setup-buildx-action@v3
 
       - name: Docker image builds
         id: docker
@@ -156,7 +171,7 @@ jobs:
           cache-from: type=gha,scope=backend-pr
           cache-to: type=gha,mode=max,scope=backend-pr
 
-      - name: Summary
+      - name: Render report
         if: always()
         working-directory: ${{ github.workspace }}
         env:
@@ -171,6 +186,23 @@ jobs:
           R_DOCKER: ${{ steps.docker.outcome }}
         run: bash .github/scripts/summarize.sh backend
 
+      - name: Post / update PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          REPORT_FILE: ${{ runner.temp }}/report.md
+          MARKER: backend-pr-checks
+        with:
+          script: |
+            const fs = require('fs');
+            const path = process.env.REPORT_FILE;
+            if (!fs.existsSync(path)) {
+              core.warning(`report file not found at ${path}; nothing to post`);
+              return;
+            }
+            const body = fs.readFileSync(path, 'utf8');
+            await require('./.github/scripts/post-comment.js')({ github, context, core, body, marker: process.env.MARKER });
+
       - name: Conclude
         if: always()
         env:
@@ -178,11 +210,10 @@ jobs:
         run: |
           for o in $OUTCOMES; do
             if [ "$o" = "failure" ]; then
-              echo "One or more backend checks failed — see the job summary."
+              echo "Backend job failed; see the PR comment for details."
               exit 1
             fi
           done
-          echo "All backend checks passed."
 
   frontend:
     name: Frontend checks
@@ -214,7 +245,10 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          bun run lint:eslint 2>&1 | tee "$RUNNER_TEMP/eslint.out"
+          # `--format=stylish` is what eslint defaults to; pipe through
+          # `--no-fix` semantics — we don't want CI silently rewriting code.
+          # `tee` captures the same human-readable output for the summary.
+          bun x eslint . --cache --no-warn-ignored 2>&1 | tee "$RUNNER_TEMP/eslint.out"
 
       - name: Type-check
         id: typecheck
@@ -230,6 +264,8 @@ jobs:
           set -o pipefail
           bun run build-only 2>&1 | tee "$RUNNER_TEMP/build.out"
 
+      - uses: docker/setup-buildx-action@v3
+
       - name: Docker image builds
         id: docker
         continue-on-error: true
@@ -241,7 +277,7 @@ jobs:
           cache-from: type=gha,scope=frontend-pr
           cache-to: type=gha,mode=max,scope=frontend-pr
 
-      - name: Summary
+      - name: Render report
         if: always()
         working-directory: ${{ github.workspace }}
         env:
@@ -252,6 +288,23 @@ jobs:
           R_DOCKER: ${{ steps.docker.outcome }}
         run: bash .github/scripts/summarize.sh frontend
 
+      - name: Post / update PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          REPORT_FILE: ${{ runner.temp }}/report.md
+          MARKER: frontend-pr-checks
+        with:
+          script: |
+            const fs = require('fs');
+            const path = process.env.REPORT_FILE;
+            if (!fs.existsSync(path)) {
+              core.warning(`report file not found at ${path}; nothing to post`);
+              return;
+            }
+            const body = fs.readFileSync(path, 'utf8');
+            await require('./.github/scripts/post-comment.js')({ github, context, core, body, marker: process.env.MARKER });
+
       - name: Conclude
         if: always()
         env:
@@ -259,8 +312,7 @@ jobs:
         run: |
           for o in $OUTCOMES; do
             if [ "$o" = "failure" ]; then
-              echo "One or more frontend checks failed — see the job summary."
+              echo "Frontend job failed; see the PR comment for details."
               exit 1
             fi
           done
-          echo "All frontend checks passed."
