@@ -31,10 +31,10 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/time/rate"
 
+	announcementrepo "go-service-template/internal/repository/announcement"
 	balancerepo "go-service-template/internal/repository/balance"
 	blockrepo "go-service-template/internal/repository/block"
 	dailyrewardrepo "go-service-template/internal/repository/daily_reward"
-	announcementrepo "go-service-template/internal/repository/announcement"
 	hugrepo "go-service-template/internal/repository/hug"
 	intimacyrepo "go-service-template/internal/repository/intimacy"
 	noterepo "go-service-template/internal/repository/note"
