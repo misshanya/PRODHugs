@@ -89,11 +89,29 @@ const noteEditorSaving = ref(false)
 const noteDeleteConfirmOpen = ref(false)
 const noteDeleting = ref(false)
 
-const noteRemainingChars = computed(() => MAX_NOTE_LEN - noteEditorContent.value.length)
+// Count Unicode code points (not UTF-16 code units) so emoji and other
+// supplementary-plane chars match the backend's utf8.RuneCountInString /
+// Postgres char_length validation. "AB" → 2 ; "🙂" → 1 (string.length === 2).
+function codePointLength(s: string): number {
+  return [...s].length
+}
+
+const noteEditorLength = computed(() => codePointLength(noteEditorContent.value))
+const noteRemainingChars = computed(() => MAX_NOTE_LEN - noteEditorLength.value)
 const noteEditorCanSave = computed(() => {
   const trimmed = noteEditorContent.value.trim()
-  return trimmed.length > 0 && trimmed.length <= MAX_NOTE_LEN && !noteEditorSaving.value
+  const len = codePointLength(trimmed)
+  return len > 0 && len <= MAX_NOTE_LEN && !noteEditorSaving.value
 })
+
+// Enforce the limit in input ourselves: the native maxlength attribute counts
+// UTF-16 code units, which would block emoji that fit in the backend's
+// code-point budget. Replace `noteEditorContent` with a code-point-truncated
+// version whenever the user pushes past MAX_NOTE_LEN.
+function onNoteEditorInput() {
+  if (noteEditorLength.value <= MAX_NOTE_LEN) return
+  noteEditorContent.value = [...noteEditorContent.value].slice(0, MAX_NOTE_LEN).join('')
+}
 
 function openNoteEditor() {
   noteEditorContent.value = note.value?.content ?? ''
@@ -173,7 +191,12 @@ async function load() {
     }
     // Notes are author-private — always fetch (including self) and tolerate
     // failures (note display is non-critical, profile already loaded).
-    hugsStore.getNote(routeKey.value).then((n) => {
+    // Capture the routeKey that initiated this request so a slow response
+    // can't overwrite the note shown for a different profile if the user
+    // navigates away mid-fetch.
+    const noteFetchKey = routeKey.value
+    hugsStore.getNote(noteFetchKey).then((n) => {
+      if (noteFetchKey !== routeKey.value) return
       note.value = n
     }).catch(() => {
       // Ignore — note section just stays empty.
@@ -218,8 +241,9 @@ async function upgrade() {
   try {
     cooldown.value = await hugsStore.upgradeCooldown(userId.value)
     toast.success('Кулдаун уменьшен!')
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || 'Недостаточно обнимань')
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    toast.error(err.response?.data?.message || 'Недостаточно обнимань')
   } finally {
     upgrading.value = false
   }
@@ -566,7 +590,7 @@ watch(routeKey, (next, prev) => {
         </DialogHeader>
         <Textarea
           v-model="noteEditorContent"
-          :maxlength="MAX_NOTE_LEN"
+          @input="onNoteEditorInput"
           rows="4"
           placeholder="Заметка о пользователе..."
         />
