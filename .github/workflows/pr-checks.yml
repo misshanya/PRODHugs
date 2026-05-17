@@ -1,0 +1,266 @@
+name: PR checks
+
+# PR-time quality gates. The master-only Docker image jobs live in
+# backend-ci.yml / frontend-ci.yml; this workflow is purely about catching
+# regressions before merge and reporting them nicely in the PR.
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Which areas of the repo changed? Used to skip jobs that wouldn't catch
+  # anything new (full skips show up as green in the PR check list, which is
+  # what we want — not "neutral" / "queued forever").
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/pr-checks.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/pr-checks.yml'
+
+  backend:
+    name: Backend checks
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Install codegen tools
+        run: |
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.0
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # Each check runs even if a previous one failed so the final summary can
+      # show the full picture. The "Conclude" step at the bottom aggregates
+      # statuses and decides the overall job outcome.
+
+      - name: gofmt
+        id: gofmt
+        continue-on-error: true
+        run: |
+          unformatted=$(gofmt -l . | grep -v "/sqlc/storage/\|/v1/api.gen.go\|/v2/api.gen.go" || true)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would reformat these files:"
+            echo "$unformatted"
+            echo "$unformatted" > "$RUNNER_TEMP/gofmt.out"
+            exit 1
+          fi
+
+      - name: go vet
+        id: vet
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          go vet ./... 2>&1 | tee "$RUNNER_TEMP/vet.out"
+
+      - name: go build
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          go build ./... 2>&1 | tee "$RUNNER_TEMP/build.out"
+
+      - name: go test
+        id: test
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          go test -race -count=1 ./... 2>&1 | tee "$RUNNER_TEMP/test.out"
+
+      - name: golangci-lint
+        id: lint
+        continue-on-error: true
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: backend
+          # Inline annotations + summary report. The action prints its own
+          # ::error:: markers and a summary block on its own.
+          args: --timeout=5m
+
+      - name: OpenAPI codegen drift (v1)
+        id: oapi_v1
+        continue-on-error: true
+        run: |
+          oapi-codegen -config oapi-codegen.yml api/openapi.yaml
+          if ! git diff --exit-code -- internal/transport/http/v1/api.gen.go; then
+            echo "::error::v1 codegen output is stale. Run: oapi-codegen -config oapi-codegen.yml api/openapi.yaml"
+            git diff --stat -- internal/transport/http/v1/api.gen.go > "$RUNNER_TEMP/oapi_v1.out" || true
+            exit 1
+          fi
+
+      - name: OpenAPI codegen drift (v2)
+        id: oapi_v2
+        continue-on-error: true
+        run: |
+          oapi-codegen -config oapi-codegen-v2.yml api/openapi-v2.yaml
+          if ! git diff --exit-code -- internal/transport/http/v2/api.gen.go; then
+            echo "::error::v2 codegen output is stale. Run: oapi-codegen -config oapi-codegen-v2.yml api/openapi-v2.yaml"
+            git diff --stat -- internal/transport/http/v2/api.gen.go > "$RUNNER_TEMP/oapi_v2.out" || true
+            exit 1
+          fi
+
+      - name: sqlc codegen drift
+        id: sqlc
+        continue-on-error: true
+        run: |
+          sqlc generate -f internal/db/sqlc/sqlc.yaml
+          if ! git diff --exit-code -- internal/db/sqlc/storage/; then
+            echo "::error::sqlc output is stale. Run: sqlc generate -f internal/db/sqlc/sqlc.yaml"
+            git diff --stat -- internal/db/sqlc/storage/ > "$RUNNER_TEMP/sqlc.out" || true
+            exit 1
+          fi
+
+      - name: Docker image builds
+        id: docker
+        continue-on-error: true
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          push: false
+          load: false
+          cache-from: type=gha,scope=backend-pr
+          cache-to: type=gha,mode=max,scope=backend-pr
+
+      - name: Summary
+        if: always()
+        working-directory: ${{ github.workspace }}
+        env:
+          R_GOFMT: ${{ steps.gofmt.outcome }}
+          R_VET: ${{ steps.vet.outcome }}
+          R_BUILD: ${{ steps.build.outcome }}
+          R_TEST: ${{ steps.test.outcome }}
+          R_LINT: ${{ steps.lint.outcome }}
+          R_OAPI_V1: ${{ steps.oapi_v1.outcome }}
+          R_OAPI_V2: ${{ steps.oapi_v2.outcome }}
+          R_SQLC: ${{ steps.sqlc.outcome }}
+          R_DOCKER: ${{ steps.docker.outcome }}
+        run: bash .github/scripts/summarize.sh backend
+
+      - name: Conclude
+        if: always()
+        env:
+          OUTCOMES: ${{ steps.gofmt.outcome }} ${{ steps.vet.outcome }} ${{ steps.build.outcome }} ${{ steps.test.outcome }} ${{ steps.lint.outcome }} ${{ steps.oapi_v1.outcome }} ${{ steps.oapi_v2.outcome }} ${{ steps.sqlc.outcome }} ${{ steps.docker.outcome }}
+        run: |
+          for o in $OUTCOMES; do
+            if [ "$o" = "failure" ]; then
+              echo "One or more backend checks failed — see the job summary."
+              exit 1
+            fi
+          done
+          echo "All backend checks passed."
+
+  frontend:
+    name: Frontend checks
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint (oxlint)
+        id: oxlint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bun run lint:oxlint 2>&1 | tee "$RUNNER_TEMP/oxlint.out"
+
+      - name: Lint (eslint)
+        id: eslint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bun run lint:eslint 2>&1 | tee "$RUNNER_TEMP/eslint.out"
+
+      - name: Type-check
+        id: typecheck
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bun run type-check 2>&1 | tee "$RUNNER_TEMP/typecheck.out"
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bun run build-only 2>&1 | tee "$RUNNER_TEMP/build.out"
+
+      - name: Docker image builds
+        id: docker
+        continue-on-error: true
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          push: false
+          load: false
+          cache-from: type=gha,scope=frontend-pr
+          cache-to: type=gha,mode=max,scope=frontend-pr
+
+      - name: Summary
+        if: always()
+        working-directory: ${{ github.workspace }}
+        env:
+          R_OXLINT: ${{ steps.oxlint.outcome }}
+          R_ESLINT: ${{ steps.eslint.outcome }}
+          R_TYPECHECK: ${{ steps.typecheck.outcome }}
+          R_BUILD: ${{ steps.build.outcome }}
+          R_DOCKER: ${{ steps.docker.outcome }}
+        run: bash .github/scripts/summarize.sh frontend
+
+      - name: Conclude
+        if: always()
+        env:
+          OUTCOMES: ${{ steps.oxlint.outcome }} ${{ steps.eslint.outcome }} ${{ steps.typecheck.outcome }} ${{ steps.build.outcome }} ${{ steps.docker.outcome }}
+        run: |
+          for o in $OUTCOMES; do
+            if [ "$o" = "failure" ]; then
+              echo "One or more frontend checks failed — see the job summary."
+              exit 1
+            fi
+          done
+          echo "All frontend checks passed."
