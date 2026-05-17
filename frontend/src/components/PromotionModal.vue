@@ -37,7 +37,7 @@ const message = ref('')
 
 const isMePromoted = computed(() => {
   if (!auth.user?.promoted_until) return false
-  return new Date(auth.user.promoted_until) > now.value
+  return new Date(auth.user.promoted_until).getTime() > now.value
 })
 
 const minBid = computed(() => {
